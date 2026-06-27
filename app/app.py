@@ -62,6 +62,20 @@ print(f"NAV_LINK_URL: {NAV_LINK_URL}")
 print(f"PAGE_LIMIT: {PAGE_LIMIT}")
 print(f"PORT: {FLASK_PORT}")
 
+# ── Config / persistent data ───────────────────────────────────────────────
+CONFIG_DIR = "/config"
+FAVOURITES_PATH = os.path.join(CONFIG_DIR, "favourites.json")
+SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
+
+# Auto-create config files on first run
+os.makedirs(CONFIG_DIR, exist_ok=True)
+if not os.path.exists(FAVOURITES_PATH):
+    with open(FAVOURITES_PATH, "w") as f:
+        json.dump([], f)
+if not os.path.exists(SERIES_MAP_PATH):
+    with open(SERIES_MAP_PATH, "w") as f:
+        json.dump({}, f)
+
 
 @app.context_processor
 def inject_nav_link():
@@ -72,14 +86,7 @@ def inject_nav_link():
 
 
 def is_url_valid(url):
-    """
-    Checks if URL is valid and returns a 200 status code. Primarily used to check if cover images are accessible.
-
-    Args:
-        url (str): The URL to check.
-    """
     try:
-        # Use a HEAD request with a short timeout and stream parameter
         response = requests.head(url, timeout=3, allow_redirects=True, stream=True)
         return response.status_code == 200
     except requests.exceptions.RequestException:
@@ -88,17 +95,6 @@ def is_url_valid(url):
 
 # Helper function to search AudiobookBay
 def search_audiobookbay(query, max_pages=PAGE_LIMIT):
-    """
-    Searches AudiobookBay for a given query and scrapes the results.
-
-    Args:
-        query (str): The search term.
-        max_pages (int): The maximum number of pages to scrape.
-
-    Returns:
-        list: A list of dictionaries, where each dictionary represents a book
-              and contains its details.
-    """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
@@ -110,7 +106,6 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT):
         url = f"https://{ABB_HOSTNAME}/page/{page}/?s={query.lower().replace(' ', '+')}"
         try:
             response = requests.get(url, headers=headers, timeout=15)
-            # Raise an exception for bad status codes (4xx or 5xx)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to fetch page {page}. Reason: {e}")
@@ -119,7 +114,6 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT):
         soup = BeautifulSoup(response.text, "html.parser")
         posts = soup.select(".post")
 
-        # If no posts are found on the page, stop paginating
         if not posts:
             print(f"No more results found on page {page}.")
             break
@@ -130,12 +124,11 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT):
             try:
                 title_element = post.select_one(".postTitle > h2 > a")
                 if not title_element:
-                    continue  # Skip post if title is not found
+                    continue
 
                 title = title_element.text.strip()
                 link = f"https://{ABB_HOSTNAME}{title_element['href']}"
 
-                # Check if the cover URL is valid, otherwise use the default
                 cover_url = (
                     post.select_one("img")["src"] if post.select_one("img") else None
                 )
@@ -244,7 +237,6 @@ def extract_magnet_link(details_url):
                 "udp://tracker.leechers-paradise.org:6969",
             ]
 
-        # Construct the magnet link
         trackers_query = "&".join(
             f"tr={requests.utils.quote(tracker)}" for tracker in trackers
         )
@@ -269,7 +261,7 @@ def get_series_name(title):
         authorless = title.rsplit(" - ", 1)[0].strip()
     else:
         authorless = title.strip()
-    # Strip keyword-based volume markers
+    # Strip keyword-based volume markers (Vol. N, Book N, Year N, etc.)
     series = re.split(r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+\d+", authorless, flags=re.IGNORECASE)[0]
     # Strip bare trailing number
     series = re.sub(r"\s+\d+$", "", series)
@@ -277,7 +269,7 @@ def get_series_name(title):
     if not series:
         series = authorless
 
-    # Check custom mapping
+    # Check custom series map
     mapping_path = SERIES_MAP_PATH
     if os.path.exists(mapping_path):
         try:
@@ -299,9 +291,9 @@ def search():
     books = []
     query = ""
     try:
-        if request.method == "POST":  # Form submitted
+        if request.method == "POST":
             query = request.form["query"]
-            if query:  # Only search if the query is not empty
+            if query:
                 books = search_audiobookbay(query)
         return render_template("search.html", books=books, query=query)
     except Exception as e:
@@ -311,7 +303,7 @@ def search():
         )
 
 
-# Endpoint to send magnet link to qBittorrent
+# Endpoint to send magnet link to torrent client
 @app.route("/send", methods=["POST"])
 def send():
     data = request.json
@@ -419,22 +411,8 @@ def status():
     except Exception as e:
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
 
-# ── Favourites routes ─────────────────────────────────────────────────────
 
-CONFIG_DIR = "/config"
-FAVOURITES_PATH = os.path.join(CONFIG_DIR, "favourites.json")
-SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
-
-# Auto-create config files on first run
-os.makedirs(CONFIG_DIR, exist_ok=True)
-if not os.path.exists(FAVOURITES_PATH):
-    with open(FAVOURITES_PATH, "w") as f:
-        json.dump([], f)
-if not os.path.exists(SERIES_MAP_PATH):
-    with open(SERIES_MAP_PATH, "w") as f:
-        json.dump({}, f)
-
-
+# ── Favourites helpers ─────────────────────────────────────────────────────
 def load_favourites():
     if os.path.exists(FAVOURITES_PATH):
         with open(FAVOURITES_PATH) as f:
@@ -447,6 +425,24 @@ def save_favourites(favs):
         json.dump(favs, f, indent=2)
 
 
+# ── Series map helpers ─────────────────────────────────────────────────────
+def load_series_map():
+    if os.path.exists(SERIES_MAP_PATH):
+        try:
+            with open(SERIES_MAP_PATH) as f:
+                content = f.read().strip()
+                return json.loads(content) if content else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def save_series_map(mapping):
+    with open(SERIES_MAP_PATH, "w") as f:
+        json.dump(mapping, f, indent=2)
+
+
+# ── Favourites routes ──────────────────────────────────────────────────────
 @app.route("/favourites")
 def get_favourites():
     return jsonify({"favourites": load_favourites()})
@@ -459,7 +455,6 @@ def add_favourite():
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
 
-    # Extract the series name the same way as the save path logic
     series = sanitize_title(get_series_name(title))
     if not series:
         return jsonify({"success": False, "message": "Could not extract series name"}), 400
@@ -474,15 +469,6 @@ def add_favourite():
     return jsonify({"success": True, "series": series})
 
 
-@app.route("/favourites/remove", methods=["POST"])
-def remove_favourite():
-    data = request.json
-    name = data.get("name", "").strip()
-    favs = load_favourites()
-    favs = [f for f in favs if f != name]
-    save_favourites(favs)
-    return jsonify({"success": True})
-
 @app.route("/favourites/add_manual", methods=["POST"])
 def add_favourite_manual():
     data = request.json
@@ -494,6 +480,16 @@ def add_favourite_manual():
         favs.append(name)
         favs.sort()
         save_favourites(favs)
+    return jsonify({"success": True})
+
+
+@app.route("/favourites/remove", methods=["POST"])
+def remove_favourite():
+    data = request.json
+    name = data.get("name", "").strip()
+    favs = load_favourites()
+    favs = [f for f in favs if f != name]
+    save_favourites(favs)
     return jsonify({"success": True})
 
 
@@ -510,6 +506,67 @@ def rename_favourite():
         favs[idx] = new_name
         favs.sort()
         save_favourites(favs)
+    return jsonify({"success": True})
+
+
+# ── Series map routes ──────────────────────────────────────────────────────
+@app.route("/mappings")
+def mappings_page():
+    return render_template("mappings.html")
+
+
+@app.route("/mappings/list")
+def list_mappings():
+    return jsonify({"mappings": load_series_map()})
+
+
+@app.route("/mappings/preview", methods=["POST"])
+def preview_mapping():
+    """Return what the regex would extract from a given ABB title."""
+    data = request.json
+    title = data.get("title", "").strip()
+    if not title:
+        return jsonify({"success": False, "message": "No title provided"}), 400
+    extracted = sanitize_title(get_series_name(title))
+    return jsonify({"success": True, "extracted": extracted})
+
+
+@app.route("/mappings/add", methods=["POST"])
+def add_mapping():
+    data = request.json
+    extracted = data.get("extracted", "").strip()
+    mapped = data.get("mapped", "").strip()
+    if not extracted or not mapped:
+        return jsonify({"success": False, "message": "Both fields required"}), 400
+    mapping = load_series_map()
+    mapping[extracted] = mapped
+    save_series_map(mapping)
+    return jsonify({"success": True})
+
+
+@app.route("/mappings/remove", methods=["POST"])
+def remove_mapping():
+    data = request.json
+    key = data.get("key", "").strip()
+    mapping = load_series_map()
+    mapping.pop(key, None)
+    save_series_map(mapping)
+    return jsonify({"success": True})
+
+
+@app.route("/mappings/rename", methods=["POST"])
+def rename_mapping():
+    data = request.json
+    key = data.get("key", "").strip()
+    new_extracted = data.get("new_extracted", "").strip()
+    new_mapped = data.get("new_mapped", "").strip()
+    if not key or not new_extracted or not new_mapped:
+        return jsonify({"success": False}), 400
+    mapping = load_series_map()
+    if key in mapping:
+        mapping.pop(key)
+    mapping[new_extracted] = new_mapped
+    save_series_map(mapping)
     return jsonify({"success": True})
 
 
