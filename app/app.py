@@ -474,6 +474,35 @@ def remove_favourite():
     save_favourites(favs)
     return jsonify({"success": True})
 
+@app.route("/favourites/add_manual", methods=["POST"])
+def add_favourite_manual():
+    data = request.json
+    name = sanitize_title(data.get("name", "").strip())
+    if not name:
+        return jsonify({"success": False, "message": "No name provided"}), 400
+    favs = load_favourites()
+    if name not in favs:
+        favs.append(name)
+        favs.sort()
+        save_favourites(favs)
+    return jsonify({"success": True})
+
+
+@app.route("/favourites/rename", methods=["POST"])
+def rename_favourite():
+    data = request.json
+    old_name = data.get("old_name", "").strip()
+    new_name = sanitize_title(data.get("new_name", "").strip())
+    if not old_name or not new_name:
+        return jsonify({"success": False}), 400
+    favs = load_favourites()
+    if old_name in favs:
+        idx = favs.index(old_name)
+        favs[idx] = new_name
+        favs.sort()
+        save_favourites(favs)
+    return jsonify({"success": True})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=FLASK_PORT)
