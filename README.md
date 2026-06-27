@@ -22,9 +22,10 @@ AudiobookBay Automated is a lightweight web application designed to simplify aud
 - **Basic Download Status Page**: Monitor the download status of items in your torrent client that share the specified category assigned.
 - **No AudioBook Bay Account Needed**: The app automatically generates magnet links from the displayed infohashes and push them to your torrent client for downloading.
 - **Automatic Folder Organization**: Once the download is complete, torrent will automatically move the downloaded audiobook files to your save location. Audiobooks are organized into subfolders named after the AudioBook Bay title, making it easy for [**Audiobookshelf**](https://www.audiobookshelf.org/) to automatically add completed downloads to its library.
-- **Series Folder Grouping: Audiobooks are now organised into a two-level directory structure so all volumes of a series automatically land in the same parent folder.
-- **Custom Series Name Mapping: A series_map.json file allows manual overrides for series names that don't parse correctly from ABB's title format.
-- **Favourites Panel: A collapsible favourites panel on the search page lets you save series names and search them again with a single click.  
+## New Features
+- **Series Folder Grouping**: Audiobooks are now organised into a two-level directory structure so all volumes of a series automatically land in the same parent folder.
+- **Custom Series Name Mapping**: A series_map.json file allows manual overrides for series names that don't parse correctly from ABB's title format.
+- **Favourites Panel**: A collapsible favourites panel on the search page lets you save series names and search them again with a single click.  
 
 
 
