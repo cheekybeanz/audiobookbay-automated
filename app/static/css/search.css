@@ -325,4 +325,126 @@ p.book-title {
 }
 
 }
+/* ── Favourites toggle button (sits in filter-controls row) ─────────────── */
+#favourites-toggle-btn {
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: none;
+    background-color: #512da8;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+#favourites-toggle-btn:hover {
+    background-color: #673ab7;
+}
+
+/* ── Favourites collapsible panel ───────────────────────────────────────── */
+#favourites-panel {
+    width: 90%;
+    max-width: 1000px;
+    margin: 0 auto 20px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 15px 20px;
+    box-sizing: border-box;
+}
+
+#favourites-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: #ffcc00;
+}
+
+#favourites-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0;
+    width: auto;
+    margin-bottom: 0;
+    transition: color 0.2s;
+}
+
+#favourites-close-btn:hover {
+    background: none;
+    color: white;
+}
+
+/* ── Individual favourite entry ─────────────────────────────────────────── */
+.fav-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fav-entry:last-child {
+    border-bottom: none;
+}
+
+.fav-search-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    width: auto;
+    margin-bottom: 0;
+    transition: color 0.2s;
+    flex-grow: 1;
+}
+
+.fav-search-btn:hover {
+    background: none;
+    color: #ffcc00;
+}
+
+.fav-delete-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 0 0 10px;
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.fav-delete-btn:hover {
+    background: none;
+    color: #ff5252;
+}
+
+/* ── Save Series button on each search result ───────────────────────────── */
+.fav-btn {
+    background-color: #4a148c;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    margin-bottom: 0;
+}
+
+.fav-btn:hover {
+    background-color: #6a1b9a;
+}
+
+.fav-btn:disabled {
+    background-color: #2e7d32;
+    cursor: default;
+}
 
