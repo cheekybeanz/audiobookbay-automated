@@ -325,8 +325,8 @@ p.book-title {
 }
 
 }
-/* ── Favourites toggle button (sits in filter-controls row) ─────────────── */
-#favourites-toggle-btn {
+/* ── Favorites toggle button (sits in filter-controls row) ─────────────── */
+#favorites-toggle-btn {
     padding: 8px 15px;
     border-radius: 5px;
     border: none;
@@ -340,12 +340,12 @@ p.book-title {
     width: auto;
 }
 
-#favourites-toggle-btn:hover {
+#favorites-toggle-btn:hover {
     background-color: #673ab7;
 }
 
-/* ── Favourites collapsible panel ───────────────────────────────────────── */
-#favourites-panel {
+/* ── Favorites collapsible panel ───────────────────────────────────────── */
+#favorites-panel {
     width: 90%;
     max-width: 1000px;
     margin: 0 auto 20px;
@@ -355,7 +355,7 @@ p.book-title {
     box-sizing: border-box;
 }
 
-#favourites-header {
+#favorites-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -365,7 +365,7 @@ p.book-title {
     color: #ffcc00;
 }
 
-#favourites-close-btn {
+#favorites-close-btn {
     background: none;
     border: none;
     color: rgba(255, 255, 255, 0.6);
@@ -377,7 +377,7 @@ p.book-title {
     transition: color 0.2s;
 }
 
-#favourites-close-btn:hover {
+#favorites-close-btn:hover {
     background: none;
     color: white;
 }

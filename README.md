@@ -25,7 +25,7 @@ AudiobookBay Automated is a lightweight web application designed to simplify aud
 ## New Features
 - **Series Folder Grouping**: Audiobooks are now organised into a two-level directory structure so all volumes of a series automatically land in the same parent folder.
 - **Custom Series Name Mapping**: A series_map.json file allows manual overrides for series names that don't parse correctly from ABB's title format.
-- **Favourites Panel**: A collapsible favourites panel on the search page lets you save series names and search them again with a single click.  
+- **Favorites Panel**: A collapsible favorites panel on the search page lets you save series names and search them again with a single click.  
 
 
 

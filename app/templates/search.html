@@ -57,7 +57,7 @@
                 <option value="">All Formats</option>
             </select>
             <input type="text" id="date-range-filter" placeholder="Select Date Range">
-            <button id="favourites-toggle-btn" onclick="toggleFavourites()" title="Favourites">⭐ Favourites</button>
+            <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
         </div>
         <div class="filter-buttons">
             <button id="filter-button">Filter</button>
@@ -76,25 +76,25 @@
     </div>
 </div>
 {% else %}
-<!-- Show favourites button even when no search results -->
+<!-- Show favorites button even when no search results -->
 <div id="filter-container" style="margin-bottom: 10px;">
     <div class="filter-row">
         <div class="filter-controls">
-            <button id="favourites-toggle-btn" onclick="toggleFavourites()" title="Favourites">⭐ Favourites</button>
+            <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- Favourites Panel -->
-<div id="favourites-panel" style="display:none;">
-    <div id="favourites-header">
-        <span>⭐ Favourites</span>
-        <button id="favourites-close-btn" onclick="toggleFavourites()">✕</button>
+<!-- Favorites Panel -->
+<div id="favorites-panel" style="display:none;">
+    <div id="favorites-header">
+        <span>⭐ Favorites</span>
+        <button id="favorites-close-btn" onclick="toggleFavorites()">✕</button>
     </div>
-    <div id="favourites-list">
-        <p id="favourites-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
-            No favourites saved yet. Use the ⭐ button on a search result to save a series.
+    <div id="favorites-list">
+        <p id="favorites-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
+            No favorites saved yet. Use the ⭐ button on a search result to save a series.
         </p>
     </div>
 </div>
@@ -121,7 +121,7 @@
             <td>
                 <button onclick="window.open('{{ book.link }}', '_blank')">Details</button>
                 <button onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
-                <button class="fav-btn" onclick="saveFavourite('{{ book.title|escape }}', this)" title="Save to Favourites">⭐ Save Series</button>
+                <button class="fav-btn" onclick="saveFavourite('{{ book.title|escape }}', this)" title="Save to Favorites">⭐ Save Series</button>
             </td>
         </tr>
         {% endfor %}
@@ -129,24 +129,24 @@
 </table>
 
 <script>
-// ── Favourites panel toggle ────────────────────────────────────────────────
-function toggleFavourites() {
-    const panel = document.getElementById('favourites-panel');
+// ── Favorites panel toggle ────────────────────────────────────────────────
+function toggleFavorites() {
+    const panel = document.getElementById('favorites-panel');
     const isOpen = panel.style.display !== 'none';
     panel.style.display = isOpen ? 'none' : 'block';
-    if (!isOpen) loadFavourites();
+    if (!isOpen) loadFavorites();
 }
 
-// ── Load and render favourites from the server ─────────────────────────────
-function loadFavourites() {
-    fetch('/favourites')
+// ── Load and render favorites from the server ─────────────────────────────
+function loadFavorites() {
+    fetch('/favorites')
         .then(r => r.json())
-        .then(data => renderFavourites(data.favourites || []));
+        .then(data => renderFavorites(data.favorites || []));
 }
 
-function renderFavourites(favs) {
-    const list = document.getElementById('favourites-list');
-    const empty = document.getElementById('favourites-empty');
+function renderFavorites(favs) {
+    const list = document.getElementById('favorites-list');
+    const empty = document.getElementById('favorites-empty');
 
     list.querySelectorAll('.fav-entry').forEach(el => el.remove());
     list.querySelectorAll('.fav-add-row').forEach(el => el.remove());
@@ -232,13 +232,13 @@ function renderAddRow(list) {
 
 // ── Manual add ────────────────────────────────────────────────────────────
 function saveManualFavourite(name) {
-    fetch('/favourites/add_manual', {
+    fetch('/favorites/add_manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
     })
     .then(r => r.json())
-    .then(() => loadFavourites());
+    .then(() => loadFavorites());
 }
 
 // ── Inline edit ───────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ function startEdit(entry, oldName) {
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'fav-delete-btn';
     cancelBtn.textContent = '✕';
-    cancelBtn.onclick = () => loadFavourites();
+    cancelBtn.onclick = () => loadFavorites();
 
     entry.appendChild(input);
     entry.appendChild(saveBtn);
@@ -267,36 +267,36 @@ function startEdit(entry, oldName) {
 
     input.addEventListener('keydown', e => {
         if (e.key === 'Enter') commitEdit(oldName, input.value.trim());
-        if (e.key === 'Escape') loadFavourites();
+        if (e.key === 'Escape') loadFavorites();
     });
 }
 
 function commitEdit(oldName, newName) {
-    if (!newName || newName === oldName) { loadFavourites(); return; }
-    fetch('/favourites/rename', {
+    if (!newName || newName === oldName) { loadFavorites(); return; }
+    fetch('/favorites/rename', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_name: oldName, new_name: newName })
     })
     .then(r => r.json())
-    .then(() => loadFavourites());
+    .then(() => loadFavorites());
 }
 
 // ── Confirm before delete ─────────────────────────────────────────────────
 function confirmDelete(name) {
-    if (confirm(`Remove "${name}" from favourites?`)) {
+    if (confirm(`Remove "${name}" from favorites?`)) {
         deleteFavourite(name);
     }
 }
 
 function deleteFavourite(name) {
-    fetch('/favourites/remove', {
+    fetch('/favorites/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
     })
     .then(r => r.json())
-    .then(() => loadFavourites());
+    .then(() => loadFavorites());
 }
 
 // ── Search for a saved favourite (auto-submits) ───────────────────────────
@@ -310,7 +310,7 @@ function searchFavourite(name) {
 
 // ── Save a series from a search result ────────────────────────────────────
 function saveFavourite(title, btn) {
-    fetch('/favourites/add', {
+    fetch('/favorites/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title })
@@ -320,8 +320,8 @@ function saveFavourite(title, btn) {
         if (data.success) {
             btn.textContent = '✓ Saved';
             btn.disabled = true;
-            const panel = document.getElementById('favourites-panel');
-            if (panel.style.display !== 'none') loadFavourites();
+            const panel = document.getElementById('favorites-panel');
+            if (panel.style.display !== 'none') loadFavorites();
         } else {
             btn.textContent = data.message || 'Already saved';
             setTimeout(() => {
