@@ -148,45 +148,163 @@ function renderFavourites(favs) {
     const list = document.getElementById('favourites-list');
     const empty = document.getElementById('favourites-empty');
 
-    // Remove existing entries (but keep the empty message element)
     list.querySelectorAll('.fav-entry').forEach(el => el.remove());
+    list.querySelectorAll('.fav-add-row').forEach(el => el.remove());
 
     if (favs.length === 0) {
         empty.style.display = 'block';
-        return;
+    } else {
+        empty.style.display = 'none';
+        favs.forEach(name => {
+            const entry = document.createElement('div');
+            entry.className = 'fav-entry';
+            entry.dataset.name = name;
+
+            const link = document.createElement('button');
+            link.className = 'fav-search-btn';
+            link.textContent = name;
+            link.onclick = () => searchFavourite(name);
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'fav-edit-btn';
+            editBtn.textContent = '✏️';
+            editBtn.title = 'Edit';
+            editBtn.onclick = () => startEdit(entry, name);
+
+            const del = document.createElement('button');
+            del.className = 'fav-delete-btn';
+            del.textContent = '✕';
+            del.title = 'Remove';
+            del.onclick = () => confirmDelete(name);
+
+            entry.appendChild(link);
+            entry.appendChild(editBtn);
+            entry.appendChild(del);
+            list.appendChild(entry);
+        });
     }
-    empty.style.display = 'none';
 
-    favs.forEach(name => {
-        const entry = document.createElement('div');
-        entry.className = 'fav-entry';
+    // Always render the + add row at the bottom
+    renderAddRow(list);
+}
 
-        const link = document.createElement('button');
-        link.className = 'fav-search-btn';
-        link.textContent = name;
-        link.onclick = () => searchFavourite(name);
+// ── Add row with + button ──────────────────────────────────────────────────
+function renderAddRow(list) {
+    const row = document.createElement('div');
+    row.className = 'fav-add-row';
 
-        const del = document.createElement('button');
-        del.className = 'fav-delete-btn';
-        del.textContent = '✕';
-        del.title = 'Remove';
-        del.onclick = () => deleteFavourite(name);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'fav-manual-input';
+    input.placeholder = 'Add a series manually...';
+    input.style.display = 'none';
 
-        entry.appendChild(link);
-        entry.appendChild(del);
-        list.appendChild(entry);
+    const addBtn = document.createElement('button');
+    addBtn.className = 'fav-add-btn';
+    addBtn.textContent = '+';
+    addBtn.title = 'Add series manually';
+    addBtn.onclick = () => {
+        if (input.style.display === 'none') {
+            input.style.display = 'block';
+            input.focus();
+            addBtn.textContent = '✓';
+        } else {
+            const name = input.value.trim();
+            if (name) saveManualFavourite(name);
+        }
+    };
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            const name = input.value.trim();
+            if (name) saveManualFavourite(name);
+        }
+        if (e.key === 'Escape') {
+            input.style.display = 'none';
+            addBtn.textContent = '+';
+        }
+    });
+
+    row.appendChild(input);
+    row.appendChild(addBtn);
+    list.appendChild(row);
+}
+
+// ── Manual add ────────────────────────────────────────────────────────────
+function saveManualFavourite(name) {
+    fetch('/favourites/add_manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(r => r.json())
+    .then(() => loadFavourites());
+}
+
+// ── Inline edit ───────────────────────────────────────────────────────────
+function startEdit(entry, oldName) {
+    entry.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'fav-manual-input';
+    input.value = oldName;
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'fav-edit-btn';
+    saveBtn.textContent = '✓';
+    saveBtn.onclick = () => commitEdit(oldName, input.value.trim());
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'fav-delete-btn';
+    cancelBtn.textContent = '✕';
+    cancelBtn.onclick = () => loadFavourites();
+
+    entry.appendChild(input);
+    entry.appendChild(saveBtn);
+    entry.appendChild(cancelBtn);
+    input.focus();
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') commitEdit(oldName, input.value.trim());
+        if (e.key === 'Escape') loadFavourites();
     });
 }
 
-// ── Search for a saved favourite ───────────────────────────────────────────
+function commitEdit(oldName, newName) {
+    if (!newName || newName === oldName) { loadFavourites(); return; }
+    fetch('/favourites/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_name: oldName, new_name: newName })
+    })
+    .then(r => r.json())
+    .then(() => loadFavourites());
+}
+
+// ── Confirm before delete ─────────────────────────────────────────────────
+function confirmDelete(name) {
+    if (confirm(`Remove "${name}" from favourites?`)) {
+        deleteFavourite(name);
+    }
+}
+
+function deleteFavourite(name) {
+    fetch('/favourites/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(r => r.json())
+    .then(() => loadFavourites());
+}
+
+// ── Search for a saved favourite (auto-submits) ───────────────────────────
 function searchFavourite(name) {
     const input = document.getElementById('search-input');
     if (input) {
         input.value = name;
         input.closest('form').submit();
-    } else {
-        // Fallback: navigate with query param
-        window.location.href = '/?q=' + encodeURIComponent(name);
     }
 }
 
@@ -202,7 +320,6 @@ function saveFavourite(title, btn) {
         if (data.success) {
             btn.textContent = '✓ Saved';
             btn.disabled = true;
-            // Reload list if panel is open
             const panel = document.getElementById('favourites-panel');
             if (panel.style.display !== 'none') loadFavourites();
         } else {
@@ -213,17 +330,6 @@ function saveFavourite(title, btn) {
             }, 2000);
         }
     });
-}
-
-// ── Delete a favourite ─────────────────────────────────────────────────────
-function deleteFavourite(name) {
-    fetch('/favourites/remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name })
-    })
-    .then(r => r.json())
-    .then(() => loadFavourites());
 }
 </script>
 
