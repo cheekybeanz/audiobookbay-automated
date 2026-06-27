@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import requests
 from flask import Flask, request, render_template, jsonify
@@ -412,6 +413,61 @@ def status():
         return render_template("status.html", torrents=torrent_list)
     except Exception as e:
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
+
+# ── Favourites routes ─────────────────────────────────────────────────────
+# Add these three routes anywhere in app.py after the existing routes.
+# Also add `import json` at the top with the other imports if not already there.
+
+FAVOURITES_PATH = os.path.join(os.path.dirname(__file__), "favourites.json")
+
+
+def load_favourites():
+    if os.path.exists(FAVOURITES_PATH):
+        with open(FAVOURITES_PATH) as f:
+            return json.load(f)
+    return []
+
+
+def save_favourites(favs):
+    with open(FAVOURITES_PATH, "w") as f:
+        json.dump(favs, f, indent=2)
+
+
+@app.route("/favourites")
+def get_favourites():
+    return jsonify({"favourites": load_favourites()})
+
+
+@app.route("/favourites/add", methods=["POST"])
+def add_favourite():
+    data = request.json
+    title = data.get("title", "").strip()
+    if not title:
+        return jsonify({"success": False, "message": "No title provided"}), 400
+
+    # Extract the series name the same way as the save path logic
+    series = sanitize_title(get_series_name(title))
+    if not series:
+        return jsonify({"success": False, "message": "Could not extract series name"}), 400
+
+    favs = load_favourites()
+    if series in favs:
+        return jsonify({"success": False, "message": "Already saved"})
+
+    favs.append(series)
+    favs.sort()
+    save_favourites(favs)
+    return jsonify({"success": True, "series": series})
+
+
+@app.route("/favourites/remove", methods=["POST"])
+def remove_favourite():
+    data = request.json
+    name = data.get("name", "").strip()
+    favs = load_favourites()
+    favs = [f for f in favs if f != name]
+    save_favourites(favs)
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":
