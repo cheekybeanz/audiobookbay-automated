@@ -280,10 +280,15 @@ def get_series_name(title):
     # Check custom mapping
     mapping_path = os.path.join(os.path.dirname(__file__), "series_map.json")
     if os.path.exists(mapping_path):
-        with open(mapping_path) as f:
-            mapping = json.load(f)
-        if series in mapping:
-            return mapping[series]
+        try:
+            with open(mapping_path) as f:
+                content = f.read().strip()
+                if content:
+                    mapping = json.loads(content)
+                    if series in mapping:
+                        return mapping[series]
+        except json.JSONDecodeError:
+            pass
 
     return series
 
