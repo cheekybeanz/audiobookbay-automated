@@ -21,7 +21,7 @@
 </div>
 <div class="search-container" id="search-container">
 <form method="post" class="search-form" onsubmit="showLoadingSpinner()">
-    <input type="text" name="query" placeholder="Enter book name" class="search-bar" value="{{ query }}" required>
+    <input type="text" name="query" id="search-input" placeholder="Enter book name" class="search-bar" value="{{ query }}" required>
     <button type="submit" class="search-button">
         <span class="button-text">Search</span>
         <div class="button-spinner" id="button-spinner" style="display: none;">
@@ -57,6 +57,7 @@
                 <option value="">All Formats</option>
             </select>
             <input type="text" id="date-range-filter" placeholder="Select Date Range">
+            <button id="favourites-toggle-btn" onclick="toggleFavourites()" title="Favourites">⭐ Favourites</button>
         </div>
         <div class="filter-buttons">
             <button id="filter-button">Filter</button>
@@ -74,7 +75,29 @@
         </div>
     </div>
 </div>
+{% else %}
+<!-- Show favourites button even when no search results -->
+<div id="filter-container" style="margin-bottom: 10px;">
+    <div class="filter-row">
+        <div class="filter-controls">
+            <button id="favourites-toggle-btn" onclick="toggleFavourites()" title="Favourites">⭐ Favourites</button>
+        </div>
+    </div>
+</div>
 {% endif %}
+
+<!-- Favourites Panel -->
+<div id="favourites-panel" style="display:none;">
+    <div id="favourites-header">
+        <span>⭐ Favourites</span>
+        <button id="favourites-close-btn" onclick="toggleFavourites()">✕</button>
+    </div>
+    <div id="favourites-list">
+        <p id="favourites-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
+            No favourites saved yet. Use the ⭐ button on a search result to save a series.
+        </p>
+    </div>
+</div>
 
 <table>
     <tbody id="results-table-body">
@@ -98,10 +121,110 @@
             <td>
                 <button onclick="window.open('{{ book.link }}', '_blank')">Details</button>
                 <button onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
+                <button class="fav-btn" onclick="saveFavourite('{{ book.title|escape }}', this)" title="Save to Favourites">⭐ Save Series</button>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<script>
+// ── Favourites panel toggle ────────────────────────────────────────────────
+function toggleFavourites() {
+    const panel = document.getElementById('favourites-panel');
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) loadFavourites();
+}
+
+// ── Load and render favourites from the server ─────────────────────────────
+function loadFavourites() {
+    fetch('/favourites')
+        .then(r => r.json())
+        .then(data => renderFavourites(data.favourites || []));
+}
+
+function renderFavourites(favs) {
+    const list = document.getElementById('favourites-list');
+    const empty = document.getElementById('favourites-empty');
+
+    // Remove existing entries (but keep the empty message element)
+    list.querySelectorAll('.fav-entry').forEach(el => el.remove());
+
+    if (favs.length === 0) {
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    favs.forEach(name => {
+        const entry = document.createElement('div');
+        entry.className = 'fav-entry';
+
+        const link = document.createElement('button');
+        link.className = 'fav-search-btn';
+        link.textContent = name;
+        link.onclick = () => searchFavourite(name);
+
+        const del = document.createElement('button');
+        del.className = 'fav-delete-btn';
+        del.textContent = '✕';
+        del.title = 'Remove';
+        del.onclick = () => deleteFavourite(name);
+
+        entry.appendChild(link);
+        entry.appendChild(del);
+        list.appendChild(entry);
+    });
+}
+
+// ── Search for a saved favourite ───────────────────────────────────────────
+function searchFavourite(name) {
+    const input = document.getElementById('search-input');
+    if (input) {
+        input.value = name;
+        input.closest('form').submit();
+    } else {
+        // Fallback: navigate with query param
+        window.location.href = '/?q=' + encodeURIComponent(name);
+    }
+}
+
+// ── Save a series from a search result ────────────────────────────────────
+function saveFavourite(title, btn) {
+    fetch('/favourites/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            btn.textContent = '✓ Saved';
+            btn.disabled = true;
+            // Reload list if panel is open
+            const panel = document.getElementById('favourites-panel');
+            if (panel.style.display !== 'none') loadFavourites();
+        } else {
+            btn.textContent = data.message || 'Already saved';
+            setTimeout(() => {
+                btn.textContent = '⭐ Save Series';
+                btn.disabled = false;
+            }, 2000);
+        }
+    });
+}
+
+// ── Delete a favourite ─────────────────────────────────────────────────────
+function deleteFavourite(name) {
+    fetch('/favourites/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    })
+    .then(r => r.json())
+    .then(() => loadFavourites());
+}
+</script>
 
 {% endblock %}
