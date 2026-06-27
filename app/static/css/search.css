@@ -337,6 +337,7 @@ p.book-title {
     transition: background-color 0.3s;
     margin-bottom: 0;
     white-space: nowrap;
+    width: auto;
 }
 
 #favourites-toggle-btn:hover {
