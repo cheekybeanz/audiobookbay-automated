@@ -268,9 +268,23 @@ def get_series_name(title):
         authorless = title.rsplit(" - ", 1)[0].strip()
     else:
         authorless = title.strip()
-    series = re.split(r",?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)?\s+\d+$", authorless, flags=re.IGNORECASE)[0]
+    # Strip keyword-based volume markers
+    series = re.split(r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+\d+", authorless, flags=re.IGNORECASE)[0]
+    # Strip bare trailing number
+    series = re.sub(r"\s+\d+$", "", series)
     series = series.strip().rstrip(",").strip()
-    return series if series else authorless
+    if not series:
+        series = authorless
+
+    # Check custom mapping
+    mapping_path = os.path.join(os.path.dirname(__file__), "series_map.json")
+    if os.path.exists(mapping_path):
+        with open(mapping_path) as f:
+            mapping = json.load(f)
+        if series in mapping:
+            return mapping[series]
+
+    return series
 
 
 # Endpoint for search page
