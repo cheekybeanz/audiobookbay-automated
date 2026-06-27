@@ -1,0 +1,23 @@
+# Used to override the automatically extracted series name when ABB's title
+# format doesn't parse correctly.
+#
+# Format:
+#   "what the regex extracts": "what you want the folder to be called"
+#
+# The key is the series name AFTER the author and volume have been stripped.
+# For example:
+#   ABB title:  "Classroom of the Elite: Year 1 - Syougo Kinugasa"
+#   Regex sees: "Classroom of the Elite"  <-- this is your key
+#   Folder:     "Classroom of the Elite"  <-- this is your value
+#
+# Another example where you want to group spin-offs under a parent series:
+#   ABB title:  "Konosuba: An Explosion on This Wonderful World! - Natsume Akatsuki"
+#   Regex sees: "Konosuba: An Explosion on This Wonderful World!"
+#   Folder:     "Konosuba God's Blessing on This Wonderful World!"  <-- group with main series
+#
+# Keys are case-sensitive and must match exactly what the regex produces.
+{
+    "Classroom of the Elite Year 1": "Classroom of the Elite",
+    "Classroom of the Elite Year 2": "Classroom of the Elite",
+    
+}
