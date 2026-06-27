@@ -278,7 +278,7 @@ def get_series_name(title):
         series = authorless
 
     # Check custom mapping
-    mapping_path = os.path.join(os.path.dirname(__file__), "series_map.json")
+    mapping_path = SERIES_MAP_PATH
     if os.path.exists(mapping_path):
         try:
             with open(mapping_path) as f:
@@ -420,10 +420,19 @@ def status():
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
 
 # ── Favourites routes ─────────────────────────────────────────────────────
-# Add these three routes anywhere in app.py after the existing routes.
-# Also add `import json` at the top with the other imports if not already there.
 
-FAVOURITES_PATH = os.path.join(os.path.dirname(__file__), "favourites.json")
+CONFIG_DIR = "/config"
+FAVOURITES_PATH = os.path.join(CONFIG_DIR, "favourites.json")
+SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
+
+# Auto-create config files on first run
+os.makedirs(CONFIG_DIR, exist_ok=True)
+if not os.path.exists(FAVOURITES_PATH):
+    with open(FAVOURITES_PATH, "w") as f:
+        json.dump([], f)
+if not os.path.exists(SERIES_MAP_PATH):
+    with open(SERIES_MAP_PATH, "w") as f:
+        json.dump({}, f)
 
 
 def load_favourites():
