@@ -262,6 +262,17 @@ def sanitize_title(title):
     return re.sub(r'[<>:"/\\|?*]', "", title).strip()
 
 
+# Helper function to extract series name from title
+def get_series_name(title):
+    if " - " in title:
+        authorless = title.rsplit(" - ", 1)[0].strip()
+    else:
+        authorless = title.strip()
+    series = re.split(r",?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)?\s+\d+$", authorless, flags=re.IGNORECASE)[0]
+    series = series.strip().rstrip(",").strip()
+    return series if series else authorless
+
+
 # Endpoint for search page
 @app.route("/", methods=["GET", "POST"])
 def search():
@@ -294,7 +305,10 @@ def send():
         if not magnet_link:
             return jsonify({"message": "Failed to extract magnet link"}), 500
 
-        save_path = f"{SAVE_PATH_BASE}/{sanitize_title(title)}"
+        # FORK EDIT: build series/title two-level path
+        series = sanitize_title(get_series_name(title))
+        safe_title = sanitize_title(title)
+        save_path = f"{SAVE_PATH_BASE}/{series}/{safe_title}" if series != safe_title else f"{SAVE_PATH_BASE}/{safe_title}"
 
         if DOWNLOAD_CLIENT == "qbittorrent":
             qb = Client(
