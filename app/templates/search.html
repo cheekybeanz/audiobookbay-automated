@@ -6,64 +6,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/flatpickr.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/nouislider.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
-<!-- Download confirmation modal -->
-<div id="download-modal" style="display:none;">
-    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
-    <div id="download-modal-box">
-        <div id="download-modal-form">
-            <h2>Confirm Download</h2>
-            <p id="modal-title-display" class="modal-book-title"></p>
-
-            <div class="modal-path-section">
-                <label class="modal-label">Series folder</label>
-                <div class="modal-series-row">
-                    <input type="text" id="modal-series-input" placeholder="Series folder name">
-                    <span class="modal-series-hint" id="modal-series-hint"></span>
-                </div>
-                <div class="modal-path-preview" id="modal-path-preview"></div>
-            </div>
-
-            <div class="modal-actions">
-                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
-            </div>
-        </div>
-        <div id="download-modal-result" style="display:none;"></div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='vendor/js/flatpickr.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/js/nouislider.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/search.js') }}" defer></script>
-<!-- Download confirmation modal -->
-<div id="download-modal" style="display:none;">
-    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
-    <div id="download-modal-box">
-        <div id="download-modal-form">
-            <h2>Confirm Download</h2>
-            <p id="modal-title-display" class="modal-book-title"></p>
-
-            <div class="modal-path-section">
-                <label class="modal-label">Series folder</label>
-                <div class="modal-series-row">
-                    <input type="text" id="modal-series-input" placeholder="Series folder name">
-                    <span class="modal-series-hint" id="modal-series-hint"></span>
-                </div>
-                <div class="modal-path-preview" id="modal-path-preview"></div>
-            </div>
-
-            <div class="modal-actions">
-                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
-            </div>
-        </div>
-        <div id="download-modal-result" style="display:none;"></div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block content %}
@@ -106,15 +54,9 @@
 <!-- Filter bar — always in DOM, shown/hidden by JS -->
 <div id="filter-container" style="display:none;">
     <div class="filter-row">
-        <select id="language-filter">
-            <option value="">All Languages</option>
-        </select>
-        <select id="bitrate-filter">
-            <option value="">All Bitrates</option>
-        </select>
-        <select id="format-filter">
-            <option value="">All Formats</option>
-        </select>
+        <select id="language-filter"><option value="">All Languages</option></select>
+        <select id="bitrate-filter"><option value="">All Bitrates</option></select>
+        <select id="format-filter"><option value="">All Formats</option></select>
         <input type="text" id="date-range-filter" placeholder="Select Date Range">
         <button id="filter-button">Filter</button>
         <button id="clear-button">Clear Filters</button>
@@ -131,9 +73,7 @@
 <!-- Favorites-only bar — shown when no results -->
 <div id="no-results-bar" style="display:none; margin-bottom: 10px;">
     <div class="filter-row">
-        <div class="filter-controls">
-            <button id="favorites-toggle-btn-empty" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
-        </div>
+        <button id="favorites-toggle-btn-empty" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
     </div>
 </div>
 
@@ -173,15 +113,55 @@
                 </div>
             </td>
             <td class="action-cell">
-                <button class="btn-details" onclick="handleDetails(this)">Details</button>
+                <button class="btn-details"  onclick="handleDetails(this)">Details</button>
                 <button class="btn-download" onclick="handleDownload(this)">Download to Server</button>
-                <button class="fav-btn" onclick="handleFavorite(this)" title="Save to Favorites">⭐ Save Series</button>
-
+                <button class="fav-btn"      onclick="handleFavorite(this)" title="Save to Favorites">⭐ Save Series</button>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<!-- Download confirmation modal -->
+<div id="download-modal" style="display:none;">
+    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
+    <div id="download-modal-box">
+        <div id="download-modal-form">
+            <h2>Confirm Download</h2>
+            <p id="modal-title-display" class="modal-book-title"></p>
+
+            <!-- Existing volume warning -->
+            <div id="modal-exists-warning" style="display:none;" class="modal-exists-warning">
+                <span class="modal-exists-icon">⚠</span>
+                <div class="modal-exists-text">
+                    <span class="modal-exists-title">Volume may already exist</span>
+                    <span class="modal-exists-path" id="modal-exists-path"></span>
+                </div>
+            </div>
+
+            <div class="modal-path-section">
+                <div class="modal-series-row">
+                    <div class="modal-series-label-row">
+                        <label class="modal-label">Series folder</label>
+                        <label class="modal-skip-label">
+                            <input type="checkbox" id="modal-skip-series" onchange="onSkipSeriesChange()">
+                            <span>Skip series folder</span>
+                        </label>
+                    </div>
+                    <input type="text" id="modal-series-input" placeholder="Series folder name">
+                    <span class="modal-series-hint" id="modal-series-hint"></span>
+                </div>
+                <div class="modal-path-preview" id="modal-path-preview"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            </div>
+        </div>
+        <div id="download-modal-result" style="display:none;"></div>
+    </div>
+</div>
 
 <script>
 // ── Row data helpers ──────────────────────────────────────────────────────
@@ -193,6 +173,7 @@ function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn
 var PAGE_HAS_RESULTS = document.getElementById('page-data').dataset.hasResults === 'true';
 var SAVED_QUERY_KEY  = 'abb_search_query';
 var SAVED_HTML_KEY   = 'abb_search_html';
+var SKIP_SERIES_KEY  = 'abb_skip_series';
 
 function saveSearchState() {
     var tbody = document.getElementById('results-table-body');
@@ -238,25 +219,23 @@ function showClearBtn(show) {
 }
 
 function showFilterBar(show) {
-    var filterBar = document.getElementById('filter-container');
+    var filterBar    = document.getElementById('filter-container');
     var noResultsBar = document.getElementById('no-results-bar');
-    if (filterBar) filterBar.style.display = show ? 'flex' : 'none';
+    if (filterBar)    filterBar.style.display    = show ? 'flex' : 'none';
     if (noResultsBar) noResultsBar.style.display = show ? 'none' : 'block';
 }
 
-// ── Favorites: auto-open when no results ──────────────────────────────────
 function initFavoritesVisibility() {
     var tbody = document.getElementById('results-table-body');
     var hasResults = tbody && tbody.innerHTML.trim().length > 0;
     showFilterBar(hasResults);
     if (!hasResults) {
-        var panel = document.getElementById('favorites-panel');
-        panel.style.display = 'block';
+        document.getElementById('favorites-panel').style.display = 'block';
         loadFavorites();
     }
 }
 
-// ── Favorites panel toggle ────────────────────────────────────────────────
+// ── Favorites panel ───────────────────────────────────────────────────────
 function toggleFavorites() {
     var panel = document.getElementById('favorites-panel');
     var isOpen = panel.style.display !== 'none';
@@ -264,7 +243,6 @@ function toggleFavorites() {
     if (!isOpen) loadFavorites();
 }
 
-// ── Load and render favorites ─────────────────────────────────────────────
 function loadFavorites() {
     fetch('/favorites')
         .then(function(r) { return r.json(); })
@@ -274,7 +252,6 @@ function loadFavorites() {
 function renderFavorites(favs) {
     var list  = document.getElementById('favorites-list');
     var empty = document.getElementById('favorites-empty');
-
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
 
@@ -285,7 +262,6 @@ function renderFavorites(favs) {
         favs.forEach(function(name) {
             var entry = document.createElement('div');
             entry.className = 'fav-entry';
-            entry.dataset.name = name;
 
             var link = document.createElement('button');
             link.className = 'fav-search-btn';
@@ -310,7 +286,6 @@ function renderFavorites(favs) {
             list.appendChild(entry);
         });
     }
-
     renderAddRow(list);
 }
 
@@ -327,7 +302,6 @@ function renderAddRow(list) {
     var addBtn = document.createElement('button');
     addBtn.className = 'fav-add-btn';
     addBtn.textContent = '+';
-    addBtn.title = 'Add series manually';
     addBtn.onclick = function() {
         if (input.style.display === 'none') {
             input.style.display = 'block';
@@ -429,10 +403,8 @@ function saveFavorite(title, btn) {
     });
 }
 
-
-
-// ── Download confirmation modal ───────────────────────────────────────────
-var _modalLink  = '';
+// ── Download modal ────────────────────────────────────────────────────────
+var _modalLink = '';
 var _modalTitle = '';
 var _originalSeries = '';
 
@@ -440,7 +412,10 @@ function openDownloadModal(link, title) {
     _modalLink  = link;
     _modalTitle = title;
 
-    // Ask server what series would be extracted
+    // Restore skip-series preference
+    var skipSeries = localStorage.getItem(SKIP_SERIES_KEY) === 'true';
+    document.getElementById('modal-skip-series').checked = skipSeries;
+
     fetch('/mappings/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -451,28 +426,67 @@ function openDownloadModal(link, title) {
         _originalSeries = data.extracted || title;
         document.getElementById('modal-title-display').textContent = title;
         document.getElementById('modal-series-input').value = _originalSeries;
+        document.getElementById('modal-series-input').disabled = skipSeries;
         updateModalPath();
+
+        // Check if volume already exists on disk
+        checkVolumeExists(title, _originalSeries);
+
         document.getElementById('download-modal').style.display = 'flex';
-        document.getElementById('modal-series-input').focus();
+        if (!skipSeries) document.getElementById('modal-series-input').focus();
     });
 }
 
-function updateModalPath() {
-    var series = document.getElementById('modal-series-input').value.trim();
-    var safeTitle = _modalTitle.replace(/[<>:"/\\|?*]/g, '').trim();
-    var safeSeries = series.replace(/[<>:"/\\|?*]/g, '').trim();
-    var hint = document.getElementById('modal-series-hint');
-    var preview = document.getElementById('modal-path-preview');
+function checkVolumeExists(title, series) {
+    fetch('/check_exists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title, series: series })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var warning = document.getElementById('modal-exists-warning');
+        var pathEl  = document.getElementById('modal-exists-path');
+        if (data.exists && data.match) {
+            pathEl.textContent = data.match;
+            warning.style.display = 'flex';
+        } else {
+            warning.style.display = 'none';
+        }
+    })
+    .catch(function() {
+        document.getElementById('modal-exists-warning').style.display = 'none';
+    });
+}
 
-    if (series !== _originalSeries) {
+function onSkipSeriesChange() {
+    var skip = document.getElementById('modal-skip-series').checked;
+    localStorage.setItem(SKIP_SERIES_KEY, skip ? 'true' : 'false');
+    document.getElementById('modal-series-input').disabled = skip;
+    updateModalPath();
+}
+
+function updateModalPath() {
+    var skip      = document.getElementById('modal-skip-series').checked;
+    var series    = document.getElementById('modal-series-input').value.trim();
+    var basePath  = document.getElementById('page-data').dataset.savePath || '/audiobooks';
+    var safeTitle  = _modalTitle.replace(/[<>:"/\\|?*]/g, '').trim();
+    var safeSeries = series.replace(/[<>:"/\\|?*]/g, '').trim();
+    var hint       = document.getElementById('modal-series-hint');
+    var preview    = document.getElementById('modal-path-preview');
+
+    if (!skip && series !== _originalSeries) {
         hint.textContent = '(custom)';
         hint.style.color = 'var(--accent)';
     } else {
         hint.textContent = '';
     }
 
-    var basePath = document.getElementById('page-data').dataset.savePath || '/audiobooks';
-    preview.textContent = basePath + '/' + (safeSeries || 'unknown') + '/' + safeTitle;
+    if (skip) {
+        preview.textContent = basePath + '/' + safeTitle;
+    } else {
+        preview.textContent = basePath + '/' + (safeSeries || '…') + '/' + safeTitle;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -488,36 +502,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function closeDownloadModal() {
     document.getElementById('download-modal').style.display = 'none';
-    // Reset form to original state so next open is clean
     document.getElementById('download-modal-form').style.display = 'block';
     var result = document.getElementById('download-modal-result');
     result.style.display = 'none';
     result.innerHTML = '';
-    // Reset form fields
     document.getElementById('modal-title-display').textContent = '';
     document.getElementById('modal-series-input').value = '';
+    document.getElementById('modal-series-input').disabled = false;
     document.getElementById('modal-series-hint').textContent = '';
     document.getElementById('modal-path-preview').textContent = '';
-    // Re-enable buttons
+    document.getElementById('modal-exists-warning').style.display = 'none';
     var confirmBtn = document.querySelector('.modal-btn-confirm');
-    var cancelBtn = document.querySelector('.modal-btn-cancel');
+    var cancelBtn  = document.querySelector('.modal-btn-cancel');
     if (confirmBtn) { confirmBtn.textContent = 'Download to Server'; confirmBtn.disabled = false; }
-    if (cancelBtn) { cancelBtn.disabled = false; }
+    if (cancelBtn)  { cancelBtn.disabled = false; }
     _modalLink = '';
     _modalTitle = '';
     _originalSeries = '';
 }
 
 function confirmDownload() {
-    var seriesInput = document.getElementById('modal-series-input').value.trim();
-    var btn = document.querySelector('.modal-btn-confirm');
-    var cancelBtn = document.querySelector('.modal-btn-cancel');
+    var skip        = document.getElementById('modal-skip-series').checked;
+    var seriesInput = skip ? '' : document.getElementById('modal-series-input').value.trim();
+    var btn         = document.querySelector('.modal-btn-confirm');
+    var cancelBtn   = document.querySelector('.modal-btn-cancel');
     btn.textContent = 'Sending…';
-    btn.disabled = true;
+    btn.disabled    = true;
     cancelBtn.disabled = true;
 
     var saveMapping = Promise.resolve();
-    if (seriesInput && seriesInput !== _originalSeries) {
+    if (!skip && seriesInput && seriesInput !== _originalSeries) {
         saveMapping = fetch('/mappings/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -529,12 +543,16 @@ function confirmDownload() {
         return fetch('/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ link: _modalLink, title: _modalTitle, series_override: seriesInput })
+            body: JSON.stringify({
+                link: _modalLink,
+                title: _modalTitle,
+                series_override: seriesInput,
+                skip_series: skip
+            })
         });
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        // Show success in result div, hide form — modal HTML stays intact
         document.getElementById('download-modal-form').style.display = 'none';
         var result = document.getElementById('download-modal-result');
         result.innerHTML = '<div class="modal-result modal-result-success">'
@@ -564,31 +582,5 @@ document.addEventListener('DOMContentLoaded', function() {
     initFavoritesVisibility();
 });
 </script>
-
-<!-- Download confirmation modal -->
-<div id="download-modal" style="display:none;">
-    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
-    <div id="download-modal-box">
-        <div id="download-modal-form">
-            <h2>Confirm Download</h2>
-            <p id="modal-title-display" class="modal-book-title"></p>
-
-            <div class="modal-path-section">
-                <label class="modal-label">Series folder</label>
-                <div class="modal-series-row">
-                    <input type="text" id="modal-series-input" placeholder="Series folder name">
-                    <span class="modal-series-hint" id="modal-series-hint"></span>
-                </div>
-                <div class="modal-path-preview" id="modal-path-preview"></div>
-            </div>
-
-            <div class="modal-actions">
-                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
-            </div>
-        </div>
-        <div id="download-modal-result" style="display:none;"></div>
-    </div>
-</div>
 
 {% endblock %}
