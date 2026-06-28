@@ -120,9 +120,9 @@
                     <span class="book-post_date">Posted: {{ book.post_date }}</span>
                 </div>
             </td>
-            <td>
-                <button onclick="window.open({{ book.link | tojson }}, '_blank')">Details</button>
-                <button onclick="sendToQB({{ book.link | tojson }}, {{ book.title | tojson }})">Download to Server</button>
+            <td class="action-cell">
+                <button class="btn-details" onclick="window.open({{ book.link | tojson }}, '_blank')">Details</button>
+                <button class="btn-download" onclick="sendToQB({{ book.link | tojson }}, {{ book.title | tojson }})">Download to Server</button>
                 <button class="fav-btn" onclick="saveFavorite({{ book.title | tojson }}, this)" title="Save to Favorites">⭐ Save Series</button>
                 <button class="map-btn" onclick="mapSeries({{ book.title | tojson }})" title="Map Series Name">↪ Map Series</button>
             </td>
@@ -161,8 +161,8 @@ function restoreSearchState() {
 
 // ── Favorites: auto-open when no results ──────────────────────────────────
 function initFavoritesVisibility() {
-    const panel  = document.getElementById('favorites-panel');
-    const tbody  = document.getElementById('results-table-body');
+    const panel    = document.getElementById('favorites-panel');
+    const tbody    = document.getElementById('results-table-body');
     const hasResults = tbody && tbody.innerHTML.trim().length > 0;
     if (!hasResults) {
         panel.style.display = 'block';
@@ -178,7 +178,7 @@ function toggleFavorites() {
     if (!isOpen) loadFavorites();
 }
 
-// ── Load and render favorites from the server ─────────────────────────────
+// ── Load and render favorites ─────────────────────────────────────────────
 function loadFavorites() {
     fetch('/favorites')
         .then(r => r.json())
@@ -235,7 +235,6 @@ function renderFavorites(favs) {
     renderAddRow(list);
 }
 
-// ── Add row ────────────────────────────────────────────────────────────────
 function renderAddRow(list) {
     const row = document.createElement('div');
     row.className = 'fav-add-row';
@@ -279,7 +278,6 @@ function saveManualFavorite(name) {
     }).then(r => r.json()).then(() => loadFavorites());
 }
 
-// ── Inline edit ────────────────────────────────────────────────────────────
 function startEdit(entry, oldName) {
     entry.innerHTML = '';
 
