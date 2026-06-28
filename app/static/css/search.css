@@ -155,7 +155,6 @@ form {
 .filter-row-secondary {
     justify-content: flex-start;
     gap: 12px;
-    max-width: 860px;
     width: 100%;
     padding: 0;
 }
@@ -228,6 +227,7 @@ form {
     gap: 10px;
     flex: 1;
     min-width: 0;
+    max-width: calc(100% - 150px);
     color: var(--text-muted);
     font-size: 0.82rem;
     margin-bottom: 20px;
