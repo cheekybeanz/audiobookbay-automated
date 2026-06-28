@@ -2,15 +2,22 @@
    Status page styles — dark theme
    ═══════════════════════════════════════════════════════════════ */
 
-.status-table {
+.status-table-wrapper {
     width: 100%;
     max-width: 860px;
-    border-collapse: collapse;
+    margin: 0 auto;
     background-color: var(--bg-panel);
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--border);
-    margin: 0 auto;
+}
+
+.status-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: none;
+    border: none;
+    border-radius: 0;
 }
 
 .status-table th,
@@ -43,13 +50,11 @@
     background-color: var(--bg-panel-alt);
 }
 
-/* Progress bar style for the progress column */
 .status-table td:nth-child(2) {
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
 }
 
-/* State badge */
 .status-table td:nth-child(3) {
     color: var(--accent);
     font-size: 0.82rem;
