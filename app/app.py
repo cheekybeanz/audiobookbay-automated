@@ -66,13 +66,13 @@ print(f"PORT: {FLASK_PORT}")
 
 # ── Config / persistent data ───────────────────────────────────────────────
 CONFIG_DIR = "/config"
-FAVOURITES_PATH = os.path.join(CONFIG_DIR, "favourites.json")
+FAVORITES_PATH = os.path.join(CONFIG_DIR, "favorites.json")
 SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
 
 # Auto-create config files on first run
 os.makedirs(CONFIG_DIR, exist_ok=True)
-if not os.path.exists(FAVOURITES_PATH):
-    with open(FAVOURITES_PATH, "w") as f:
+if not os.path.exists(FAVORITES_PATH):
+    with open(FAVORITES_PATH, "w") as f:
         json.dump([], f)
 if not os.path.exists(SERIES_MAP_PATH):
     with open(SERIES_MAP_PATH, "w") as f:
@@ -82,7 +82,7 @@ if not os.path.exists(SERIES_MAP_PATH):
 try:
     nobody = pwd.getpwnam("nobody")
     users_gid = grp.getgrnam("users").gr_gid
-    os.chown(FAVOURITES_PATH, nobody.pw_uid, users_gid)
+    os.chown(FAVORITES_PATH, nobody.pw_uid, users_gid)
     os.chown(SERIES_MAP_PATH, nobody.pw_uid, users_gid)
 except Exception as e:
     print(f"[WARN] Could not set config file ownership: {e}")
@@ -437,16 +437,16 @@ def status():
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
 
 
-# ── Favourites helpers ─────────────────────────────────────────────────────
-def load_favourites():
-    if os.path.exists(FAVOURITES_PATH):
-        with open(FAVOURITES_PATH) as f:
+# ── Favorites helpers ─────────────────────────────────────────────────────
+def load_favorites():
+    if os.path.exists(FAVORITES_PATH):
+        with open(FAVORITES_PATH) as f:
             return json.load(f)
     return []
 
 
-def save_favourites(favs):
-    with open(FAVOURITES_PATH, "w") as f:
+def save_favorites(favs):
+    with open(FAVORITES_PATH, "w") as f:
         json.dump(favs, f, indent=2)
 
 
@@ -467,13 +467,13 @@ def save_series_map(mapping):
         json.dump(mapping, f, indent=2)
 
 
-# ── Favourites routes ──────────────────────────────────────────────────────
-@app.route("/favourites")
-def get_favourites():
-    return jsonify({"favourites": load_favourites()})
+# ── Favorites routes ──────────────────────────────────────────────────────
+@app.route("/favorites")
+def get_favorites():
+    return jsonify({"favorites": load_favorites()})
 
 
-@app.route("/favourites/add", methods=["POST"])
+@app.route("/favorites/add", methods=["POST"])
 def add_favourite():
     data = request.json
     title = data.get("title", "").strip()
@@ -484,53 +484,53 @@ def add_favourite():
     if not series:
         return jsonify({"success": False, "message": "Could not extract series name"}), 400
 
-    favs = load_favourites()
+    favs = load_favorites()
     if series in favs:
         return jsonify({"success": False, "message": "Already saved"})
 
     favs.append(series)
     favs.sort()
-    save_favourites(favs)
+    save_favorites(favs)
     return jsonify({"success": True, "series": series})
 
 
-@app.route("/favourites/add_manual", methods=["POST"])
+@app.route("/favorites/add_manual", methods=["POST"])
 def add_favourite_manual():
     data = request.json
     name = sanitize_title(data.get("name", "").strip())
     if not name:
         return jsonify({"success": False, "message": "No name provided"}), 400
-    favs = load_favourites()
+    favs = load_favorites()
     if name not in favs:
         favs.append(name)
         favs.sort()
-        save_favourites(favs)
+        save_favorites(favs)
     return jsonify({"success": True})
 
 
-@app.route("/favourites/remove", methods=["POST"])
+@app.route("/favorites/remove", methods=["POST"])
 def remove_favourite():
     data = request.json
     name = data.get("name", "").strip()
-    favs = load_favourites()
+    favs = load_favorites()
     favs = [f for f in favs if f != name]
-    save_favourites(favs)
+    save_favorites(favs)
     return jsonify({"success": True})
 
 
-@app.route("/favourites/rename", methods=["POST"])
+@app.route("/favorites/rename", methods=["POST"])
 def rename_favourite():
     data = request.json
     old_name = data.get("old_name", "").strip()
     new_name = sanitize_title(data.get("new_name", "").strip())
     if not old_name or not new_name:
         return jsonify({"success": False}), 400
-    favs = load_favourites()
+    favs = load_favorites()
     if old_name in favs:
         idx = favs.index(old_name)
         favs[idx] = new_name
         favs.sort()
-        save_favourites(favs)
+        save_favorites(favs)
     return jsonify({"success": True})
 
 
