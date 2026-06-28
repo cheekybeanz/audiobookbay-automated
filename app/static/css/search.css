@@ -152,19 +152,11 @@ form {
     flex-wrap: wrap;
 }
 
-.filter-controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: center;
+.filter-row-secondary {
+    justify-content: flex-start;
+    gap: 12px;
 }
 
-.filter-buttons {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-}
 
 #filter-container select,
 #filter-container input[type="text"] {
@@ -232,8 +224,8 @@ form {
     align-items: center;
     gap: 10px;
     flex: 1;
-    min-width: 200px;
-    max-width: 500px;
+    min-width: 300px;
+    max-width: 700px;
     color: var(--text-muted);
     font-size: 0.82rem;
     margin-bottom: 20px;
@@ -413,24 +405,6 @@ td.action-cell {
     cursor: default;
 }
 
-.map-btn {
-    display: block;
-    width: 100%;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 0.75rem;
-    font-family: inherit;
-    padding: 2px 0;
-    margin: 0;
-    cursor: pointer;
-    text-align: center;
-    transition: color 0.2s;
-}
-.map-btn:hover {
-    background: none;
-    color: var(--accent);
-}
 
 /* ── Favorites panel ─────────────────────────────────────────────── */
 #favorites-panel {
@@ -585,10 +559,7 @@ td.action-cell {
         flex: 1;
         min-width: 80px;
     }
-    .map-btn {
-        width: 100%;
-    }
-    img.cover {
+        img.cover {
         width: 56px;
         height: 56px;
     }
@@ -620,29 +591,7 @@ td.action-cell {
     color: var(--text-primary);
 }
 
-/* ── Map Series button — match other action buttons ──────────────── */
-.map-btn {
-    display: block;
-    width: 100%;
-    background-color: transparent;
-    border: 1px solid var(--border-strong) !important;
-    border-radius: 6px;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-family: inherit;
-    font-weight: 500;
-    padding: 7px 10px;
-    margin: 0;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-}
 
-.map-btn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: var(--accent) !important;
-    color: var(--accent);
-}
 
 /* ── No-results favorites bar ────────────────────────────────────── */
 #no-results-bar {
