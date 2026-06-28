@@ -121,10 +121,11 @@
                 </div>
             </td>
             <td class="action-cell">
-                <button class="btn-details" onclick="window.open({{ book.link | tojson }}, '_blank')">Details</button>
-                <button class="btn-download" onclick="sendToQB({{ book.link | tojson }}, {{ book.title | tojson }})">Download to Server</button>
-                <button class="fav-btn" onclick="saveFavorite({{ book.title | tojson }}, this)" title="Save to Favorites">⭐ Save Series</button>
-                <button class="map-btn" onclick="mapSeries({{ book.title | tojson }})" title="Map Series Name">↪ Map Series</button>
+                {# Single-quoted onclick so tojson's double-quoted strings don't break the attribute #}
+                <button class="btn-details" onclick='window.open({{ book.link | tojson }}, "_blank")'>Details</button>
+                <button class="btn-download" onclick='sendToQB({{ book.link | tojson }}, {{ book.title | tojson }})'>Download to Server</button>
+                <button class="fav-btn" onclick='saveFavorite({{ book.title | tojson }}, this)' title="Save to Favorites">⭐ Save Series</button>
+                <button class="map-btn" onclick='mapSeries({{ book.title | tojson }})' title="Map Series Name">↪ Map Series</button>
             </td>
         </tr>
         {% endfor %}
