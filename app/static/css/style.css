@@ -23,15 +23,21 @@
     --nav-height:    50px;
 }
 
-* {
+/* Force html+body to full viewport width so margin:auto works on children */
+html {
+    width: 100%;
     box-sizing: border-box;
 }
 
-/* Body: simple block flow, no flexbox centering that fights children */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     margin: 0;
     padding: 0;
+    width: 100%;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     min-height: 100vh;
@@ -95,12 +101,12 @@ h2 {
     background-color: var(--accent-subtle);
 }
 
-/* ── Page content wrapper — centred column, not flex body ────────── */
+/* ── Page content wrapper ────────────────────────────────────────── */
 .content {
     width: 100%;
     max-width: 1100px;
-    margin: 0 auto;          /* centres the column on the page */
-    padding: 0 20px 40px;
+    margin: 0 auto;
+    padding: 0 24px 40px;
 }
 
 /* ── Title area ──────────────────────────────────────────────────── */
