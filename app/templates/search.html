@@ -663,10 +663,12 @@ function loadMore() {
             tr.dataset.link      = book.link;
             tr.dataset.title     = book.title;
 
+            var defaultCover = '/static/images/default_cover.jpg';
+            var coverSrc = book.cover || defaultCover;
             tr.innerHTML =
-                '<td><img src="' + (book.cover || '/static/images/default_cover.jpg') + '" '
-                    + 'onerror="this.src='/static/images/default_cover.jpg'" '
-                    + 'alt="Cover Art" class="cover" width="100"></td>'
+                '<td><img src="' + escHtml(coverSrc) + '" '
+                    + 'alt="Cover Art" class="cover" width="100" '
+                    + 'onerror="this.src=&quot;/static/images/default_cover.jpg&quot;"></td>'
                 + '<td>'
                     + '<p class="book-title">' + escHtml(book.title) + '</p>'
                     + '<div class="property-results-container">'
@@ -680,7 +682,7 @@ function loadMore() {
                 + '<td class="action-cell">'
                     + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
                     + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
-                    + '<button class="fav-btn"      onclick="handleFavorite(this)">⭐ Save Series</button>'
+                    + '<button class="fav-btn"      onclick="handleFavorite(this)">&#11088; Save Series</button>'
                 + '</td>';
 
             tbody.appendChild(tr);
