@@ -96,14 +96,6 @@ def inject_nav_link():
     }
 
 
-def is_url_valid(url):
-    try:
-        response = requests.head(url, timeout=3, allow_redirects=True, stream=True)
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
-
-
 # Helper function to search AudiobookBay
 def search_audiobookbay(query, max_pages=PAGE_LIMIT):
     headers = {
@@ -143,10 +135,7 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT):
                 cover_url = (
                     post.select_one("img")["src"] if post.select_one("img") else None
                 )
-                if cover_url and is_url_valid(cover_url):
-                    cover = cover_url
-                else:
-                    cover = "/static/images/default_cover.jpg"
+                cover = cover_url if cover_url else "/static/images/default_cover.jpg"
 
                 post_info = post.select_one(".postInfo")
                 post_info_text = (
