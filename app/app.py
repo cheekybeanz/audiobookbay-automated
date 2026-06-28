@@ -103,10 +103,16 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
     }
     results = []
 
-    print(f"Searching for '{query}' on https://{ABB_HOSTNAME}...")
+    if query:
+        print(f"Searching for '{query}' on https://{ABB_HOSTNAME}...")
+    else:
+        print(f"Fetching new releases from https://{ABB_HOSTNAME}...")
 
     for page in range(start_page, start_page + max_pages):
-        url = f"https://{ABB_HOSTNAME}/page/{page}/?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}"
+        if query:
+            url = f"https://{ABB_HOSTNAME}/page/{page}/?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}"
+        else:
+            url = f"https://{ABB_HOSTNAME}/page/{page}/"
         try:
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
@@ -324,8 +330,7 @@ def search_more():
     data        = request.json
     query       = data.get("query", "").strip()
     start_page  = int(data.get("start_page", 1))
-    if not query:
-        return jsonify({"books": [], "has_more": False})
+    # Empty query is allowed — fetches ABB homepage (new releases)
     try:
         books = search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=start_page)
         return jsonify({"books": books, "has_more": len(books) > 0})
