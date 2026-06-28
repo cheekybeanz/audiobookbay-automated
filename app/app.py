@@ -604,11 +604,7 @@ def rename_mapping():
 # ── Volume existence check ─────────────────────────────────────────────────
 @app.route("/check_exists", methods=["POST"])
 def check_exists():
-    """
-    Fuzzy-check if a volume already exists on disk.
-    Extracts the volume number from the title and scans the series folder
-    for any subfolder containing the same number.
-    """
+    """Fuzzy-check if a volume already exists on disk."""
     data   = request.json
     title  = data.get("title", "").strip()
     series = data.get("series", "").strip()
@@ -616,47 +612,54 @@ def check_exists():
     if not SAVE_PATH_BASE or not title:
         return jsonify({"exists": False})
 
-    # Extract volume number from title — handles bare numbers, Vol. N, etc.
-    # Extract volume number — handles Vol. N, bare trailing number, N: subtitle
-    vol_match = re.search(
-        r"(?:Vol(?:ume)?[.]?[ ]*(\d+(?:[.]\d+)?)|(?<!\d)(\d+(?:[.]\d+)?)(?:[ ]*[-:,]|[ ]*$))",
-        title, re.IGNORECASE
-    )
-    if not vol_match:
-        return jsonify({"exists": False})
+    # Extract volume number — keyword match first, bare number as fallback
+    def extract_vol_num(t):
+        matches = list(re.finditer(
+            r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
+            t, re.IGNORECASE
+        ))
+        if matches:
+            return matches[-1].group(1)
+        authorless = t.rsplit(" - ", 1)[0] if " - " in t else t
+        m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless.strip())
+        return m.group(1) if m else None
 
-    vol_num = vol_match.group(1) or vol_match.group(2)
+    vol_num = extract_vol_num(title)
     if not vol_num:
         return jsonify({"exists": False})
 
-    # Build the series folder path to scan
+    # Build variants to handle zero-padding (01, 1, 001 all match)
+    try:
+        num_int = int(float(vol_num))
+        variants = list(set([
+            str(num_int),
+            vol_num,
+            str(num_int).zfill(2),
+            str(num_int).zfill(3),
+        ]))
+    except ValueError:
+        variants = [vol_num]
+
+    # Determine scan path
     safe_series = sanitize_title(series) if series else ""
-    if safe_series:
-        scan_path = os.path.join(SAVE_PATH_BASE, safe_series)
-    else:
-        scan_path = SAVE_PATH_BASE
+    scan_path = os.path.join(SAVE_PATH_BASE, safe_series) if safe_series else SAVE_PATH_BASE
 
     if not os.path.isdir(scan_path):
         return jsonify({"exists": False})
 
-    # Scan subfolders for matching volume number
+    # Scan subfolders for any that contain the same volume number
     try:
         for entry in os.scandir(scan_path):
             if not entry.is_dir():
                 continue
-            # Look for the volume number in the folder name
-            # Match as a standalone number (not part of a larger number)
-            pattern = r"(?<![0-9])" + re.escape(vol_num.lstrip("0") or vol_num) + r"(?![0-9])"
-            if re.search(pattern, entry.name):
-                return jsonify({
-                    "exists": True,
-                    "match": entry.path
-                })
+            for v in variants:
+                pattern = "(?<![0-9])" + re.escape(v) + "(?![0-9])"
+                if re.search(pattern, entry.name):
+                    return jsonify({"exists": True, "match": entry.path})
     except PermissionError:
-        return jsonify({"exists": False})
+        pass
 
     return jsonify({"exists": False})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=FLASK_PORT)
