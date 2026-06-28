@@ -153,8 +153,10 @@ form {
 }
 
 .filter-row-secondary {
-    justify-content: flex-start;
+    justify-content: center;
     gap: 12px;
+    max-width: 860px;
+    width: 100%;
 }
 
 
@@ -224,8 +226,8 @@ form {
     align-items: center;
     gap: 10px;
     flex: 1;
-    min-width: 300px;
-    max-width: 700px;
+    min-width: 200px;
+    max-width: 560px;
     color: var(--text-muted);
     font-size: 0.82rem;
     margin-bottom: 20px;
@@ -502,7 +504,6 @@ td.action-cell {
     align-items: center;
     gap: 8px;
     padding: 8px 0 2px;
-    border-top: 1px solid var(--border);
     margin-top: 6px;
 }
 
