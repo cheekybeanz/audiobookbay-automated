@@ -16,27 +16,34 @@
 
 {% block content %}
 
+<div id="page-data"
+     data-has-results="{% if books %}true{% else %}false{% endif %}"
+     style="display:none;"></div>
+
 <div class="title-container">
     <h1>Search AudiobookBay</h1>
 </div>
+
 <div class="search-container" id="search-container">
-<form method="post" class="search-form" onsubmit="showLoadingSpinner()">
-    <input type="text" name="query" id="search-input" placeholder="Enter book name" class="search-bar" value="{{ query }}" required>
-    <button type="submit" class="search-button">
-        <span class="button-text">Search</span>
-        <div class="button-spinner" id="button-spinner" style="display: none;">
-            <div class="spinner"></div>
-        </div>
-    </button>
-</form>
+    <form method="post" class="search-form" onsubmit="showLoadingSpinner()">
+        <input type="text" name="query" id="search-input" placeholder="Enter book title or author…" class="search-bar" value="{{ query }}" required>
+        <button type="submit" class="search-button">
+            <span class="button-text">Search</span>
+            <div class="button-spinner" id="button-spinner" style="display: none;">
+                <div class="spinner"></div>
+            </div>
+        </button>
+        <button type="button" class="clear-button" id="clear-search-btn" onclick="clearSearch()" style="display:none;">Clear</button>
+    </form>
 </div>
+
 <div class="message-scroller" id="message-scroller">
     <p id="scrolling-message"></p>
 </div>
 
 <div class="loading-spinner" id="loading-spinner">
     <div class="spinner"></div>
-    <p>Searching...</p>
+    <p>Searching…</p>
 </div>
 
 {% if error %}
@@ -76,7 +83,6 @@
     </div>
 </div>
 {% else %}
-<!-- Show favorites button even when no search results -->
 <div id="filter-container" style="margin-bottom: 10px;">
     <div class="filter-row">
         <div class="filter-controls">
@@ -89,17 +95,17 @@
 <!-- Favorites Panel -->
 <div id="favorites-panel" style="display:none;">
     <div id="favorites-header">
-        <span>⭐ Favorites</span>
+        <span>⭐ FAVORITES</span>
         <button id="favorites-close-btn" onclick="toggleFavorites()">✕</button>
     </div>
     <div id="favorites-list">
-        <p id="favorites-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
-            No favorites saved yet. Use the ⭐ button on a search result to save a series.
+        <p id="favorites-empty" style="display:none;">
+            No favorites saved yet. Use the ⭐ Save Series button on a search result to add one.
         </p>
     </div>
 </div>
 
-<table>
+<table id="results-table">
     <tbody id="results-table-body">
         {% for book in books %}
         <tr class="result-row"
@@ -107,9 +113,12 @@
             data-bitrate="{{ book.bitrate }}"
             data-format="{{ book.format }}"
             data-file-size="{{ book.file_size }}"
-            data-post-date="{{ book.post_date }}">
+            data-post-date="{{ book.post_date }}"
+            data-link="{{ book.link }}"
+            data-title="{{ book.title }}">
             <td><img src="{{ book.cover }}" alt="Cover Art" class="cover" width="100"></td>
-            <td><p class="book-title">{{ book.title }}</p>
+            <td>
+                <p class="book-title">{{ book.title }}</p>
                 <div class="property-results-container">
                     <span class="book-language">Language: {{ book.language }}</span>
                     <span class="book-bitrate">Bitrate: {{ book.bitrate }}</span>
@@ -119,10 +128,10 @@
                 </div>
             </td>
             <td class="action-cell">
-                <button class="btn-details" onclick="window.open('{{ book.link }}', '_blank')">Details</button>
-                <button class="btn-download" onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
-                <button class="fav-btn" onclick="saveFavorite('{{ book.title|escape }}', this)" title="Save to Favorites">⭐ Save Series</button>
-                <button class="map-btn" onclick="mapSeries('{{ book.title|escape }}')" title="Map Series Name">↪ Map Series</button>
+                <button class="btn-details" onclick="handleDetails(this)">Details</button>
+                <button class="btn-download" onclick="handleDownload(this)">Download to Server</button>
+                <button class="fav-btn" onclick="handleFavorite(this)" title="Save to Favorites">⭐ Save Series</button>
+                <button class="map-btn" onclick="handleMap(this)" title="Map Series Name">↪ Map Series</button>
             </td>
         </tr>
         {% endfor %}
@@ -130,53 +139,116 @@
 </table>
 
 <script>
+// ── Row data helpers ──────────────────────────────────────────────────────
+function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
+function handleDownload(btn) { var r = btn.closest('tr'); sendToQB(r.dataset.link, r.dataset.title); }
+function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
+function handleMap(btn)      { mapSeries(btn.closest('tr').dataset.title); }
+
+// ── Session persistence ───────────────────────────────────────────────────
+var PAGE_HAS_RESULTS = document.getElementById('page-data').dataset.hasResults === 'true';
+var SAVED_QUERY_KEY  = 'abb_search_query';
+var SAVED_HTML_KEY   = 'abb_search_html';
+
+function saveSearchState() {
+    var tbody = document.getElementById('results-table-body');
+    var query = document.getElementById('search-input').value;
+    if (tbody && tbody.innerHTML.trim()) {
+        sessionStorage.setItem(SAVED_HTML_KEY, tbody.innerHTML);
+        sessionStorage.setItem(SAVED_QUERY_KEY, query);
+    }
+}
+
+function restoreSearchState() {
+    if (PAGE_HAS_RESULTS) {
+        saveSearchState();
+        showClearBtn(true);
+        return;
+    }
+    var savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
+    var savedQuery = sessionStorage.getItem(SAVED_QUERY_KEY);
+    if (savedHTML) {
+        document.getElementById('results-table-body').innerHTML = savedHTML;
+        document.getElementById('search-input').value = savedQuery || '';
+        showClearBtn(true);
+    }
+}
+
+function clearSearch() {
+    sessionStorage.removeItem(SAVED_HTML_KEY);
+    sessionStorage.removeItem(SAVED_QUERY_KEY);
+    document.getElementById('results-table-body').innerHTML = '';
+    document.getElementById('search-input').value = '';
+    showClearBtn(false);
+    // Show favorites panel
+    var panel = document.getElementById('favorites-panel');
+    panel.style.display = 'block';
+    loadFavorites();
+}
+
+function showClearBtn(show) {
+    var btn = document.getElementById('clear-search-btn');
+    if (btn) btn.style.display = show ? 'inline-flex' : 'none';
+}
+
+// ── Favorites: auto-open when no results ──────────────────────────────────
+function initFavoritesVisibility() {
+    var tbody = document.getElementById('results-table-body');
+    var hasResults = tbody && tbody.innerHTML.trim().length > 0;
+    if (!hasResults) {
+        var panel = document.getElementById('favorites-panel');
+        panel.style.display = 'block';
+        loadFavorites();
+    }
+}
+
 // ── Favorites panel toggle ────────────────────────────────────────────────
 function toggleFavorites() {
-    const panel = document.getElementById('favorites-panel');
-    const isOpen = panel.style.display !== 'none';
+    var panel = document.getElementById('favorites-panel');
+    var isOpen = panel.style.display !== 'none';
     panel.style.display = isOpen ? 'none' : 'block';
     if (!isOpen) loadFavorites();
 }
 
-// ── Load and render favorites from the server ─────────────────────────────
+// ── Load and render favorites ─────────────────────────────────────────────
 function loadFavorites() {
     fetch('/favorites')
-        .then(r => r.json())
-        .then(data => renderFavorites(data.favorites || []));
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderFavorites(data.favorites || []); });
 }
 
 function renderFavorites(favs) {
-    const list = document.getElementById('favorites-list');
-    const empty = document.getElementById('favorites-empty');
+    var list  = document.getElementById('favorites-list');
+    var empty = document.getElementById('favorites-empty');
 
-    list.querySelectorAll('.fav-entry').forEach(el => el.remove());
-    list.querySelectorAll('.fav-add-row').forEach(el => el.remove());
+    list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
+    list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
 
     if (favs.length === 0) {
         empty.style.display = 'block';
     } else {
         empty.style.display = 'none';
-        favs.forEach(name => {
-            const entry = document.createElement('div');
+        favs.forEach(function(name) {
+            var entry = document.createElement('div');
             entry.className = 'fav-entry';
             entry.dataset.name = name;
 
-            const link = document.createElement('button');
+            var link = document.createElement('button');
             link.className = 'fav-search-btn';
             link.textContent = name;
-            link.onclick = () => searchFavorite(name);
+            link.onclick = function(e) { e.stopPropagation(); searchFavorite(name); };
 
-            const editBtn = document.createElement('button');
+            var editBtn = document.createElement('button');
             editBtn.className = 'fav-edit-btn';
             editBtn.textContent = '✏️';
             editBtn.title = 'Edit';
-            editBtn.onclick = () => startEdit(entry, name);
+            editBtn.onclick = function(e) { e.stopPropagation(); startEdit(entry, name); };
 
-            const del = document.createElement('button');
+            var del = document.createElement('button');
             del.className = 'fav-delete-btn';
             del.textContent = '✕';
             del.title = 'Remove';
-            del.onclick = () => confirmDelete(name);
+            del.onclick = function(e) { e.stopPropagation(); confirmDelete(name); };
 
             entry.appendChild(link);
             entry.appendChild(editBtn);
@@ -188,41 +260,34 @@ function renderFavorites(favs) {
     renderAddRow(list);
 }
 
-// ── Add row with + button ──────────────────────────────────────────────────
 function renderAddRow(list) {
-    const row = document.createElement('div');
+    var row = document.createElement('div');
     row.className = 'fav-add-row';
 
-    const input = document.createElement('input');
+    var input = document.createElement('input');
     input.type = 'text';
     input.className = 'fav-manual-input';
-    input.placeholder = 'Add a series manually...';
+    input.placeholder = 'Add a series manually…';
     input.style.display = 'none';
 
-    const addBtn = document.createElement('button');
+    var addBtn = document.createElement('button');
     addBtn.className = 'fav-add-btn';
     addBtn.textContent = '+';
     addBtn.title = 'Add series manually';
-    addBtn.onclick = () => {
+    addBtn.onclick = function() {
         if (input.style.display === 'none') {
             input.style.display = 'block';
             input.focus();
             addBtn.textContent = '✓';
         } else {
-            const name = input.value.trim();
+            var name = input.value.trim();
             if (name) saveManualFavorite(name);
         }
     };
 
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-            const name = input.value.trim();
-            if (name) saveManualFavorite(name);
-        }
-        if (e.key === 'Escape') {
-            input.style.display = 'none';
-            addBtn.textContent = '+';
-        }
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter')  { var n = input.value.trim(); if (n) saveManualFavorite(n); }
+        if (e.key === 'Escape') { input.style.display = 'none'; addBtn.textContent = '+'; }
     });
 
     row.appendChild(input);
@@ -230,43 +295,38 @@ function renderAddRow(list) {
     list.appendChild(row);
 }
 
-// ── Manual add ────────────────────────────────────────────────────────────
 function saveManualFavorite(name) {
     fetch('/favorites/add_manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
-    })
-    .then(r => r.json())
-    .then(() => loadFavorites());
+    }).then(function(r) { return r.json(); }).then(function() { loadFavorites(); });
 }
 
-// ── Inline edit ───────────────────────────────────────────────────────────
 function startEdit(entry, oldName) {
     entry.innerHTML = '';
-
-    const input = document.createElement('input');
+    var input = document.createElement('input');
     input.type = 'text';
     input.className = 'fav-manual-input';
     input.value = oldName;
 
-    const saveBtn = document.createElement('button');
+    var saveBtn = document.createElement('button');
     saveBtn.className = 'fav-edit-btn';
     saveBtn.textContent = '✓';
-    saveBtn.onclick = () => commitEdit(oldName, input.value.trim());
+    saveBtn.onclick = function() { commitEdit(oldName, input.value.trim()); };
 
-    const cancelBtn = document.createElement('button');
+    var cancelBtn = document.createElement('button');
     cancelBtn.className = 'fav-delete-btn';
     cancelBtn.textContent = '✕';
-    cancelBtn.onclick = () => loadFavorites();
+    cancelBtn.onclick = function() { loadFavorites(); };
 
     entry.appendChild(input);
     entry.appendChild(saveBtn);
     entry.appendChild(cancelBtn);
     input.focus();
 
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') commitEdit(oldName, input.value.trim());
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter')  commitEdit(oldName, input.value.trim());
         if (e.key === 'Escape') loadFavorites();
     });
 }
@@ -277,65 +337,53 @@ function commitEdit(oldName, newName) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ old_name: oldName, new_name: newName })
-    })
-    .then(r => r.json())
-    .then(() => loadFavorites());
+    }).then(function(r) { return r.json(); }).then(function() { loadFavorites(); });
 }
 
-// ── Confirm before delete ─────────────────────────────────────────────────
 function confirmDelete(name) {
-    if (confirm(`Remove "${name}" from favorites?`)) {
-        deleteFavorite(name);
+    if (confirm('Remove "' + name + '" from favorites?')) {
+        fetch('/favorites/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        }).then(function(r) { return r.json(); }).then(function() { loadFavorites(); });
     }
 }
 
-function deleteFavorite(name) {
-    fetch('/favorites/remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name })
-    })
-    .then(r => r.json())
-    .then(() => loadFavorites());
-}
-
-// ── Search for a saved favorite (auto-submits) ────────────────────────────
 function searchFavorite(name) {
-    const input = document.getElementById('search-input');
-    if (input) {
-        input.value = name;
-        input.closest('form').submit();
-    }
+    var input = document.getElementById('search-input');
+    if (input) { input.value = name; input.closest('form').submit(); }
 }
 
-// ── Save a series from a search result ────────────────────────────────────
 function saveFavorite(title, btn) {
     fetch('/favorites/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: title })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
         if (data.success) {
             btn.textContent = '✓ Saved';
             btn.disabled = true;
-            const panel = document.getElementById('favorites-panel');
+            var panel = document.getElementById('favorites-panel');
             if (panel.style.display !== 'none') loadFavorites();
         } else {
             btn.textContent = data.message || 'Already saved';
-            setTimeout(() => {
-                btn.textContent = '⭐ Save Series';
-                btn.disabled = false;
-            }, 2000);
+            setTimeout(function() { btn.textContent = '⭐ Save Series'; btn.disabled = false; }, 2000);
         }
     });
 }
 
-// ── Map Series — navigate to mappings page with title pre-filled ──────────
 function mapSeries(title) {
     window.location.href = '/mappings?title=' + encodeURIComponent(title);
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    restoreSearchState();
+    initFavoritesVisibility();
+});
 </script>
 
 {% endblock %}
