@@ -377,7 +377,11 @@ function confirmDelete(name) {
 
 function searchFavorite(name) {
     var input = document.getElementById('search-input');
-    if (input) { input.value = name; input.closest('form').submit(); }
+    if (input) {
+        input.value = name;
+        showLoadingSpinner();
+        input.closest('form').submit();
+    }
 }
 
 function saveFavorite(title, btn) {
