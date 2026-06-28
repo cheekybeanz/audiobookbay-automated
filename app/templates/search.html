@@ -100,32 +100,24 @@
 <!-- Filter bar — always in DOM, shown/hidden by JS -->
 <div id="filter-container" style="display:none;">
     <div class="filter-row">
-        <div class="filter-controls">
-            <select id="language-filter">
-                <option value="">All Languages</option>
-            </select>
-            <select id="bitrate-filter">
-                <option value="">All Bitrates</option>
-            </select>
-            <select id="format-filter">
-                <option value="">All Formats</option>
-            </select>
-            <input type="text" id="date-range-filter" placeholder="Select Date Range">
-            <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
-        </div>
-        <div class="filter-buttons">
-            <button id="filter-button">Filter</button>
-        </div>
+        <select id="language-filter">
+            <option value="">All Languages</option>
+        </select>
+        <select id="bitrate-filter">
+            <option value="">All Bitrates</option>
+        </select>
+        <select id="format-filter">
+            <option value="">All Formats</option>
+        </select>
+        <input type="text" id="date-range-filter" placeholder="Select Date Range">
+        <button id="filter-button">Filter</button>
+        <button id="clear-button">Clear Filters</button>
     </div>
-    <div class="filter-row">
-        <div class="filter-controls">
-            <div class="file-size-filter-wrapper">
-                <label>File Size:</label>
-                <div id="file-size-slider"></div>
-            </div>
-        </div>
-        <div class="filter-buttons">
-             <button id="clear-button">Clear</button>
+    <div class="filter-row filter-row-secondary">
+        <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
+        <div class="file-size-filter-wrapper">
+            <label>File Size:</label>
+            <div id="file-size-slider"></div>
         </div>
     </div>
 </div>
@@ -178,7 +170,7 @@
                 <button class="btn-details" onclick="handleDetails(this)">Details</button>
                 <button class="btn-download" onclick="handleDownload(this)">Download to Server</button>
                 <button class="fav-btn" onclick="handleFavorite(this)" title="Save to Favorites">⭐ Save Series</button>
-                <button class="map-btn" onclick="handleMap(this)" title="Map Series Name">↪ Map Series</button>
+
             </td>
         </tr>
         {% endfor %}
@@ -190,7 +182,6 @@
 function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
 function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
 function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
-function handleMap(btn)      { mapSeries(btn.closest('tr').dataset.title); }
 
 // ── Session persistence ───────────────────────────────────────────────────
 var PAGE_HAS_RESULTS = document.getElementById('page-data').dataset.hasResults === 'true';
@@ -432,9 +423,6 @@ function saveFavorite(title, btn) {
     });
 }
 
-function mapSeries(title) {
-    window.location.href = '/mappings?title=' + encodeURIComponent(title);
-}
 
 
 // ── Download confirmation modal ───────────────────────────────────────────
