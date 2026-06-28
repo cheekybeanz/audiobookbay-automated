@@ -97,7 +97,7 @@ def inject_nav_link():
 
 
 # Helper function to search AudiobookBay
-def search_audiobookbay(query, max_pages=PAGE_LIMIT):
+def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
@@ -105,7 +105,7 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT):
 
     print(f"Searching for '{query}' on https://{ABB_HOSTNAME}...")
 
-    for page in range(1, max_pages + 1):
+    for page in range(start_page, start_page + max_pages):
         url = f"https://{ABB_HOSTNAME}/page/{page}/?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}"
         try:
             response = requests.get(url, headers=headers, timeout=15)
@@ -307,12 +307,30 @@ def search():
             query = request.form["query"]
             if query:
                 books = search_audiobookbay(query)
-        return render_template("search.html", books=books, query=query, save_path_base=SAVE_PATH_BASE or "")
+        return render_template("search.html", books=books, query=query,
+                               save_path_base=SAVE_PATH_BASE or "",
+                               page_limit=PAGE_LIMIT)
     except Exception as e:
         print(f"[ERROR] Failed to search: {e}")
         return render_template(
-            "search.html", books=books, error=f"Failed to search. {str(e)}", query=query, save_path_base=SAVE_PATH_BASE or ""
+            "search.html", books=books, error=f"Failed to search. {str(e)}", query=query,
+            save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
         )
+
+
+# Endpoint for loading more results (AJAX)
+@app.route("/search_more", methods=["POST"])
+def search_more():
+    data        = request.json
+    query       = data.get("query", "").strip()
+    start_page  = int(data.get("start_page", 1))
+    if not query:
+        return jsonify({"books": [], "has_more": False})
+    try:
+        books = search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=start_page)
+        return jsonify({"books": books, "has_more": len(books) > 0})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # Endpoint to send magnet link to torrent client
