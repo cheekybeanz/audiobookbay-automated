@@ -28,7 +28,7 @@
 
 <div class="search-container" id="search-container">
     <form method="post" class="search-form" onsubmit="showLoadingSpinner()">
-        <input type="text" name="query" id="search-input" placeholder="Enter book title or author…" class="search-bar" value="{{ query }}" required>
+        <input type="text" name="query" id="search-input" placeholder="Search, or leave empty for new releases…" class="search-bar" value="{{ query }}">
         <button type="submit" class="search-button">
             <span class="button-text">Search</span>
             <div class="button-spinner" id="button-spinner" style="display: none;">
@@ -624,9 +624,9 @@ function loadMore() {
 
     var btn    = document.getElementById('load-more-btn');
     var status = document.getElementById('load-more-status');
-    btn.textContent = 'Loading…';
-    btn.disabled    = true;
+    btn.disabled = true;
     status.style.display = 'none';
+    startLoadingDots(btn);
 
     fetch('/search_more', {
         method: 'POST',
@@ -693,8 +693,8 @@ function loadMore() {
 
         _nextStartPage += 1;
         sessionStorage.setItem('abb_next_page', _nextStartPage);
-        btn.textContent = 'Load More Results';
-        btn.disabled    = false;
+        stopLoadingDots(btn, 'Load More Results');
+        btn.disabled = false;
 
         if (!data.has_more) {
             btn.style.display    = 'none';
@@ -704,8 +704,8 @@ function loadMore() {
     })
     .catch(function(err) {
         _loadingMore = false;
-        btn.textContent = 'Load More Results';
-        btn.disabled    = false;
+        stopLoadingDots(btn, 'Load More Results');
+        btn.disabled = false;
         status.textContent  = 'Failed to load more results.';
         status.style.display = 'block';
     });
@@ -718,6 +718,27 @@ function escHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+// ── Loading dots animation ────────────────────────────────────────────────
+var _dotsInterval = null;
+
+function startLoadingDots(btn) {
+    var dots = ['Loading .  ', 'Loading .. ', 'Loading ...'];
+    var i = 0;
+    btn.textContent = dots[0];
+    _dotsInterval = setInterval(function() {
+        i = (i + 1) % dots.length;
+        btn.textContent = dots[i];
+    }, 400);
+}
+
+function stopLoadingDots(btn, label) {
+    if (_dotsInterval) {
+        clearInterval(_dotsInterval);
+        _dotsInterval = null;
+    }
+    btn.textContent = label;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
