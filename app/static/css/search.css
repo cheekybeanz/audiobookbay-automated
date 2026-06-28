@@ -875,3 +875,30 @@ td.action-cell {
     font-family: monospace;
     word-break: break-all;
 }
+
+/* ── Load More button ────────────────────────────────────────────── */
+.load-more-btn {
+    padding: 10px 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    width: auto;
+    margin-bottom: 0;
+}
+
+.load-more-btn:hover {
+    background-color: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.load-more-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
