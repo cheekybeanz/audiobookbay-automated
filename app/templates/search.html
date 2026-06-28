@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Search{% endblock %}
+{% block title %}ABB Automated{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/flatpickr.min.css') }}">
@@ -502,10 +502,11 @@ function closeDownloadModal() {
 function confirmDownload() {
     var seriesInput = document.getElementById('modal-series-input').value.trim();
     var btn = document.querySelector('.modal-btn-confirm');
+    var cancelBtn = document.querySelector('.modal-btn-cancel');
     btn.textContent = 'Sending…';
     btn.disabled = true;
+    cancelBtn.disabled = true;
 
-    // If user changed the series name, save it as a mapping first
     var saveMapping = Promise.resolve();
     if (seriesInput && seriesInput !== _originalSeries) {
         saveMapping = fetch('/mappings/add', {
@@ -524,13 +525,23 @@ function confirmDownload() {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        closeDownloadModal();
-        alert(data.message);
+        // Show success state inside the modal, then close
+        var box = document.getElementById('download-modal-box');
+        box.innerHTML = '<div class="modal-result modal-result-success">'
+            + '<div class="modal-result-icon">✓</div>'
+            + '<p class="modal-result-title">Added to queue</p>'
+            + '<p class="modal-result-sub">' + (_modalTitle || '') + '</p>'
+            + '</div>';
+        setTimeout(function() { closeDownloadModal(); }, 2000);
     })
     .catch(function(err) {
-        btn.textContent = 'Download to Server';
-        btn.disabled = false;
-        alert('Error: ' + err);
+        var box = document.getElementById('download-modal-box');
+        box.innerHTML = '<div class="modal-result modal-result-error">'
+            + '<div class="modal-result-icon">✕</div>'
+            + '<p class="modal-result-title">Failed to add</p>'
+            + '<p class="modal-result-sub">' + err + '</p>'
+            + '<button class="modal-btn-cancel" onclick="closeDownloadModal()" style="margin-top:14px;">Close</button>'
+            + '</div>';
     });
 }
 
