@@ -6,7 +6,6 @@
 }
 
 /* ── Shared box style ─────────────────────────────────────────────────────── */
-.mappings-preview-box,
 .mappings-add-box,
 .mappings-list-box {
     width: 90%;
@@ -18,105 +17,20 @@
     box-sizing: border-box;
 }
 
-.mappings-preview-box h2,
 .mappings-add-box h2 {
     font-size: 1rem;
-    margin: 0 0 6px;
+    margin: 0 0 14px;
     color: #ffcc00;
 }
 
-.mappings-preview-box p {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.65);
-    margin: 0 0 12px;
-}
-
-/* ── Preview row ─────────────────────────────────────────────────────────── */
-.mappings-preview-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    width: 100%;
-}
-
-.mappings-preview-row input {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 10px;
-    border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 0.95rem;
-    box-sizing: border-box;
-}
-
-.mappings-preview-row input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-}
-
-#preview-btn {
-    width: auto;
-    flex-shrink: 0;
-    padding: 8px 18px;
-    margin-bottom: 0;
-    background-color: #512da8;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.95rem;
-    transition: background-color 0.3s;
-}
-
-#preview-btn:hover {
-    background-color: #673ab7;
-}
-
-#preview-result {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 12px;
-    flex-wrap: wrap;
-}
-
-.preview-label {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
-    white-space: nowrap;
-}
-
-.preview-value {
-    color: #ffcc00;
-    font-size: 0.95rem;
-    font-weight: bold;
-}
-
-#preview-add-btn {
-    width: auto;
-    padding: 5px 12px;
-    margin-bottom: 0;
-    background-color: #4a148c;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: background-color 0.3s;
-}
-
-#preview-add-btn:hover {
-    background-color: #6a1b9a;
-}
-
-/* ── Add mapping form ────────────────────────────────────────────────────── */
+/* ── Form fields ─────────────────────────────────────────────────────────── */
 .mappings-form-row {
     display: flex;
     align-items: flex-end;
     gap: 15px;
     width: 100%;
     box-sizing: border-box;
+    margin-bottom: 12px;
 }
 
 .mappings-form-col {
@@ -144,8 +58,14 @@
     box-sizing: border-box;
 }
 
+.mappings-form-col input[readonly] {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: default;
+}
+
 .mappings-form-col input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.35);
 }
 
 .mappings-arrow {
@@ -155,10 +75,65 @@
     flex-shrink: 0;
 }
 
+/* ── Extracted preview line ──────────────────────────────────────────────── */
+.preview-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+}
+
+.preview-value {
+    color: #ffcc00;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* ── Live path preview ───────────────────────────────────────────────────── */
+#path-preview {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.82rem;
+    font-family: monospace;
+}
+
+.path-preview-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.path-preview-row:last-child {
+    margin-bottom: 0;
+}
+
+.path-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    width: 44px;
+    flex-shrink: 0;
+}
+
+.path-value {
+    word-break: break-all;
+}
+
+.path-before {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: line-through;
+}
+
+.path-after {
+    color: #69f0ae;
+}
+
+/* ── Form buttons ────────────────────────────────────────────────────────── */
 .mappings-form-btns {
     display: flex;
     gap: 10px;
-    margin-top: 15px;
+    margin-top: 4px;
 }
 
 .mappings-form-btns button {
@@ -194,23 +169,6 @@
     font-weight: bold;
     color: #ffcc00;
     margin-bottom: 12px;
-}
-
-.mappings-manual-add-btn {
-    width: auto;
-    padding: 5px 12px;
-    margin-bottom: 0;
-    background-color: #4a148c;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: background-color 0.3s;
-}
-
-.mappings-manual-add-btn:hover {
-    background-color: #6a1b9a;
 }
 
 .mapping-entry {
@@ -292,4 +250,16 @@
 .map-delete-btn:hover {
     background: none;
     color: #ff5252;
+}
+
+/* ── Map Series button on search results ─────────────────────────────────── */
+.map-btn {
+    background-color: #1a237e;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    margin-bottom: 0;
+}
+
+.map-btn:hover {
+    background-color: #283593;
 }
