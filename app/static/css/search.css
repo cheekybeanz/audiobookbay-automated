@@ -678,15 +678,11 @@ td.action-cell {
     margin-bottom: 6px;
 }
 
-.modal-series-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
 
-.modal-series-row input {
+
+.modal-series-row input[type="text"] {
     flex: 1;
+    min-width: 0;
     padding: 9px 12px;
     border-radius: 6px;
     border: 1px solid var(--border-strong);
@@ -811,11 +807,11 @@ td.action-cell {
 }
 
 /* ── Modal series label row (label + skip checkbox) ─────────────── */
-.modal-series-label-row {
+.modal-series-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
 .modal-skip-label {
@@ -826,6 +822,8 @@ td.action-cell {
     color: var(--text-muted);
     cursor: pointer;
     user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .modal-skip-label input[type="checkbox"] {
