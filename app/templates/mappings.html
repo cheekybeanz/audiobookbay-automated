@@ -10,41 +10,45 @@
 <div class="title-container">
     <h1>Series Mappings</h1>
     <p class="mappings-subtitle">
-        Map what the app extracts from an ABB title to the folder name you actually want on disk.
+        Override the folder name the app would normally create for a series.
     </p>
-</div>
-
-<!-- Preview tool -->
-<div class="mappings-preview-box">
-    <h2>Test a title</h2>
-    <p>Paste an ABB title to see what the app would extract as the series name.</p>
-    <div class="mappings-preview-row">
-        <input type="text" id="preview-input" placeholder="e.g. Classroom of the Elite: Year 1 - Syougo Kinugasa">
-        <button id="preview-btn" onclick="previewTitle()">Preview</button>
-    </div>
-    <div id="preview-result" style="display:none;">
-        <span class="preview-label">Extracted:</span>
-        <span id="preview-extracted" class="preview-value"></span>
-        <button id="preview-add-btn" onclick="fillAddFromPreview()">+ Add Mapping</button>
-    </div>
 </div>
 
 <!-- Add mapping form — always visible -->
 <div class="mappings-add-box">
     <h2>Add Mapping</h2>
+    <div class="mappings-form-col" style="margin-bottom: 12px;">
+        <label>ABB Title</label>
+        <input type="text" id="add-title" placeholder="Paste the full ABB title here e.g. Classroom of the Elite: Year 1 - Syougo Kinugasa">
+    </div>
+    <div id="extracted-preview" style="display:none; margin-bottom: 12px;">
+        <span class="preview-label">App would extract: </span>
+        <span id="extracted-value" class="preview-value"></span>
+    </div>
     <div class="mappings-form-row">
         <div class="mappings-form-col">
-            <label>ABB extracts</label>
-            <input type="text" id="add-extracted" placeholder="What the app extracts (use preview above)">
+            <label>Before (extracted by app)</label>
+            <input type="text" id="add-extracted" placeholder="Auto-filled from title above" readonly>
         </div>
         <div class="mappings-arrow">→</div>
         <div class="mappings-form-col">
-            <label>Use this folder name instead</label>
-            <input type="text" id="add-mapped" placeholder="Folder name you want on disk">
+            <label>After (folder name you want)</label>
+            <input type="text" id="add-mapped" placeholder="Type the folder name you want">
+        </div>
+    </div>
+    <!-- Live path preview -->
+    <div id="path-preview" style="display:none;">
+        <div class="path-preview-row">
+            <span class="path-label">Before:</span>
+            <span id="path-before" class="path-value path-before"></span>
+        </div>
+        <div class="path-preview-row">
+            <span class="path-label">After:</span>
+            <span id="path-after" class="path-value path-after"></span>
         </div>
     </div>
     <div class="mappings-form-btns">
-        <button onclick="submitAddMapping()">Save</button>
+        <button onclick="submitAddMapping()">Save Mapping</button>
         <button class="mappings-cancel-btn" onclick="clearAddForm()">Clear</button>
     </div>
 </div>
@@ -53,18 +57,110 @@
 <div class="mappings-list-box">
     <div class="mappings-list-header">
         <span>Current Mappings</span>
-        <button class="mappings-manual-add-btn" onclick="scrollToAdd()">+ Add Manually</button>
     </div>
     <div id="mappings-list">
         <p id="mappings-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
-            No mappings yet. Use the preview tool above to create one.
+            No mappings yet. Paste an ABB title above to create one.
         </p>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', loadMappings);
+const SAVE_PATH_BASE = "{{ config.get('SAVE_PATH_BASE', '/audiobooks') if config else '/audiobooks' }}";
 
+document.addEventListener('DOMContentLoaded', function() {
+    loadMappings();
+    // Pre-fill from Map Series button on search page
+    const params = new URLSearchParams(window.location.search);
+    const title = params.get('title');
+    if (title) {
+        document.getElementById('add-title').value = title;
+        document.getElementById('add-title').dispatchEvent(new Event('input'));
+    }
+});
+
+// ── Title input — auto-extract on typing ──────────────────────────────────
+document.getElementById('add-title').addEventListener('input', function() {
+    const title = this.value.trim();
+    if (!title) {
+        document.getElementById('extracted-preview').style.display = 'none';
+        document.getElementById('add-extracted').value = '';
+        document.getElementById('path-preview').style.display = 'none';
+        return;
+    }
+    fetch('/mappings/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('extracted-value').textContent = data.extracted;
+            document.getElementById('extracted-preview').style.display = 'block';
+            document.getElementById('add-extracted').value = data.extracted;
+            updatePathPreview(title, data.extracted, document.getElementById('add-mapped').value.trim());
+        }
+    });
+});
+
+// ── Mapped input — update path preview live ───────────────────────────────
+document.getElementById('add-mapped').addEventListener('input', function() {
+    const title = document.getElementById('add-title').value.trim();
+    const extracted = document.getElementById('add-extracted').value.trim();
+    updatePathPreview(title, extracted, this.value.trim());
+});
+
+function updatePathPreview(title, extracted, mapped) {
+    const preview = document.getElementById('path-preview');
+    if (!extracted) { preview.style.display = 'none'; return; }
+
+    // Sanitize for display (remove characters the app strips)
+    const safeTitle = title.replace(/[<>:"/\\|?*]/g, '').trim();
+    const safeExtracted = extracted.replace(/[<>:"/\\|?*]/g, '').trim();
+    const safeMapped = (mapped || extracted).replace(/[<>:"/\\|?*]/g, '').trim();
+
+    document.getElementById('path-before').textContent = `/audiobooks/${safeExtracted}/${safeTitle}`;
+    document.getElementById('path-after').textContent = `/audiobooks/${safeMapped}/${safeTitle}`;
+    preview.style.display = 'block';
+}
+
+// ── Add mapping ───────────────────────────────────────────────────────────
+function submitAddMapping() {
+    const extracted = document.getElementById('add-extracted').value.trim();
+    const mapped = document.getElementById('add-mapped').value.trim();
+    if (!extracted || !mapped) {
+        alert('Please paste an ABB title and enter the folder name you want.');
+        return;
+    }
+    fetch('/mappings/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extracted: extracted, mapped: mapped })
+    })
+    .then(r => r.json())
+    .then(() => {
+        clearAddForm();
+        loadMappings();
+    });
+}
+
+function clearAddForm() {
+    document.getElementById('add-title').value = '';
+    document.getElementById('add-extracted').value = '';
+    document.getElementById('add-mapped').value = '';
+    document.getElementById('extracted-preview').style.display = 'none';
+    document.getElementById('path-preview').style.display = 'none';
+}
+
+// ── Fill form from external call (Map Series button on search page) ────────
+function fillFromTitle(title) {
+    document.getElementById('add-title').value = title;
+    document.getElementById('add-title').dispatchEvent(new Event('input'));
+    document.getElementById('add-mapped').focus();
+}
+
+// ── Load mappings ─────────────────────────────────────────────────────────
 function loadMappings() {
     fetch('/mappings/list')
         .then(r => r.json())
@@ -176,68 +272,6 @@ function confirmDeleteMapping(key) {
         .then(r => r.json())
         .then(() => loadMappings());
     }
-}
-
-// ── Preview ───────────────────────────────────────────────────────────────
-function previewTitle() {
-    const title = document.getElementById('preview-input').value.trim();
-    if (!title) return;
-    fetch('/mappings/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('preview-extracted').textContent = data.extracted;
-            document.getElementById('preview-result').style.display = 'flex';
-        }
-    });
-}
-
-document.getElementById('preview-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') previewTitle();
-});
-
-// Fill add form from preview:
-// left field = what was extracted, right field = same (user edits right side)
-function fillAddFromPreview() {
-    const extracted = document.getElementById('preview-extracted').textContent;
-    document.getElementById('add-extracted').value = extracted;
-    document.getElementById('add-mapped').value = extracted;
-    document.getElementById('add-mapped').focus();
-    document.getElementById('add-mapped').select();
-    document.querySelector('.mappings-add-box').scrollIntoView({ behavior: 'smooth' });
-}
-
-// ── Add form ──────────────────────────────────────────────────────────────
-function scrollToAdd() {
-    document.getElementById('add-extracted').value = '';
-    document.getElementById('add-mapped').value = '';
-    document.getElementById('add-extracted').focus();
-    document.querySelector('.mappings-add-box').scrollIntoView({ behavior: 'smooth' });
-}
-
-function clearAddForm() {
-    document.getElementById('add-extracted').value = '';
-    document.getElementById('add-mapped').value = '';
-}
-
-function submitAddMapping() {
-    const extracted = document.getElementById('add-extracted').value.trim();
-    const mapped = document.getElementById('add-mapped').value.trim();
-    if (!extracted || !mapped) return;
-    fetch('/mappings/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extracted: extracted, mapped: mapped })
-    })
-    .then(r => r.json())
-    .then(() => {
-        clearAddForm();
-        loadMappings();
-    });
 }
 </script>
 
