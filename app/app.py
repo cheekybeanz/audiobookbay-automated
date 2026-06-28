@@ -341,11 +341,14 @@ def send():
             return jsonify({"message": "Failed to extract magnet link"}), 500
 
         # FORK EDIT: build series/title two-level path
-        # series_override comes from the download confirmation modal
+        skip_series   = data.get("skip_series", False)
         series_override = data.get("series_override", "").strip()
-        series = sanitize_title(series_override) if series_override else sanitize_title(get_series_name(title))
         safe_title = sanitize_title(title)
-        save_path = f"{SAVE_PATH_BASE}/{series}/{safe_title}" if series != safe_title else f"{SAVE_PATH_BASE}/{safe_title}"
+        if skip_series:
+            save_path = f"{SAVE_PATH_BASE}/{safe_title}"
+        else:
+            series = sanitize_title(series_override) if series_override else sanitize_title(get_series_name(title))
+            save_path = f"{SAVE_PATH_BASE}/{series}/{safe_title}" if series != safe_title else f"{SAVE_PATH_BASE}/{safe_title}"
 
         if DOWNLOAD_CLIENT == "qbittorrent":
             qb = Client(
@@ -596,6 +599,63 @@ def rename_mapping():
     mapping[new_extracted] = new_mapped
     save_series_map(mapping)
     return jsonify({"success": True})
+
+
+# ── Volume existence check ─────────────────────────────────────────────────
+@app.route("/check_exists", methods=["POST"])
+def check_exists():
+    """
+    Fuzzy-check if a volume already exists on disk.
+    Extracts the volume number from the title and scans the series folder
+    for any subfolder containing the same number.
+    """
+    data   = request.json
+    title  = data.get("title", "").strip()
+    series = data.get("series", "").strip()
+
+    if not SAVE_PATH_BASE or not title:
+        return jsonify({"exists": False})
+
+    # Extract volume number from title — handles bare numbers, Vol. N, etc.
+    # Extract volume number — handles Vol. N, bare trailing number, N: subtitle
+    vol_match = re.search(
+        r"(?:Vol(?:ume)?[.]?[ ]*(\d+(?:[.]\d+)?)|(?<!\d)(\d+(?:[.]\d+)?)(?:[ ]*[-:,]|[ ]*$))",
+        title, re.IGNORECASE
+    )
+    if not vol_match:
+        return jsonify({"exists": False})
+
+    vol_num = vol_match.group(1) or vol_match.group(2)
+    if not vol_num:
+        return jsonify({"exists": False})
+
+    # Build the series folder path to scan
+    safe_series = sanitize_title(series) if series else ""
+    if safe_series:
+        scan_path = os.path.join(SAVE_PATH_BASE, safe_series)
+    else:
+        scan_path = SAVE_PATH_BASE
+
+    if not os.path.isdir(scan_path):
+        return jsonify({"exists": False})
+
+    # Scan subfolders for matching volume number
+    try:
+        for entry in os.scandir(scan_path):
+            if not entry.is_dir():
+                continue
+            # Look for the volume number in the folder name
+            # Match as a standalone number (not part of a larger number)
+            pattern = r"(?<![0-9])" + re.escape(vol_num.lstrip("0") or vol_num) + r"(?![0-9])"
+            if re.search(pattern, entry.name):
+                return jsonify({
+                    "exists": True,
+                    "match": entry.path
+                })
+    except PermissionError:
+        return jsonify({"exists": False})
+
+    return jsonify({"exists": False})
 
 
 if __name__ == "__main__":
