@@ -1,42 +1,33 @@
-/* ═══════════════════════════════════════════════════════════════
-   Mappings page styles — dark theme
-   ═══════════════════════════════════════════════════════════════ */
-
 .mappings-subtitle {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-top: -8px;
-    margin-bottom: 0;
-    text-align: left;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.95rem;
+    margin-top: -10px;
+    text-align: center;
 }
 
-/* ── Shared box style ────────────────────────────────────────────── */
+/* ── Shared box style ─────────────────────────────────────────────────────── */
 .mappings-add-box,
 .mappings-list-box {
-    width: 100%;
+    width: 90%;
     max-width: 1000px;
-    margin: 0 0 20px;
-    background-color: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 24px;
+    margin: 0 auto 20px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 20px 25px;
     box-sizing: border-box;
 }
 
 .mappings-add-box h2 {
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin: 0 0 16px;
-    color: var(--accent);
+    font-size: 1rem;
+    margin: 0 0 14px;
+    color: #ffcc00;
 }
 
-/* ── Form fields ─────────────────────────────────────────────────── */
+/* ── Form fields ─────────────────────────────────────────────────────────── */
 .mappings-form-row {
     display: flex;
     align-items: flex-end;
-    gap: 14px;
+    gap: 15px;
     width: 100%;
     box-sizing: border-box;
     margin-bottom: 12px;
@@ -51,69 +42,59 @@
 }
 
 .mappings-form-col label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
     white-space: nowrap;
-    font-weight: 500;
 }
 
 .mappings-form-col input {
     width: 100%;
     padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border-strong);
-    background-color: var(--bg-panel-alt);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    font-family: inherit;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 0.95rem;
     box-sizing: border-box;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.mappings-form-col input:focus {
-    border-color: var(--accent);
 }
 
 .mappings-form-col input[readonly] {
-    background-color: rgba(255, 255, 255, 0.03);
-    color: var(--text-muted);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.5);
     cursor: default;
-    border-color: var(--border);
 }
 
 .mappings-form-col input::placeholder {
-    color: var(--text-dim);
+    color: rgba(255, 255, 255, 0.35);
 }
 
 .mappings-arrow {
-    font-size: 1.2rem;
-    color: var(--text-dim);
-    padding-bottom: 8px;
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding-bottom: 6px;
     flex-shrink: 0;
 }
 
-/* ── Extracted preview line ──────────────────────────────────────── */
+/* ── Extracted preview line ──────────────────────────────────────────────── */
 .preview-label {
-    color: var(--text-muted);
-    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
 }
 
 .preview-value {
-    color: var(--accent);
-    font-size: 0.88rem;
-    font-weight: 600;
+    color: #ffcc00;
+    font-size: 0.9rem;
+    font-weight: bold;
 }
 
-/* ── Live path preview ───────────────────────────────────────────── */
+/* ── Live path preview ───────────────────────────────────────────────────── */
 #path-preview {
-    background-color: rgba(0, 0, 0, 0.25);
-    border: 1px solid var(--border);
+    background-color: rgba(0, 0, 0, 0.2);
     border-radius: 6px;
     padding: 10px 14px;
     margin-bottom: 14px;
-    font-size: 0.8rem;
-    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem;
+    font-family: monospace;
 }
 
 .path-preview-row {
@@ -128,8 +109,8 @@
 }
 
 .path-label {
-    color: var(--text-dim);
-    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.78rem;
     white-space: nowrap;
     width: 44px;
     flex-shrink: 0;
@@ -140,61 +121,52 @@
 }
 
 .path-before {
-    color: var(--text-muted);
-    text-decoration: line-through;
+    color: #ef5350;
 }
 
 .path-after {
     color: #69f0ae;
 }
 
-/* ── Form buttons ────────────────────────────────────────────────── */
+/* ── Form buttons ────────────────────────────────────────────────────────── */
 .mappings-form-btns {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 10px;
+    margin-top: 4px;
 }
 
 .mappings-form-btns button {
     width: auto;
     padding: 8px 20px;
     margin-bottom: 0;
-    background-color: var(--accent);
+    background-color: #512da8;
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
     color: white;
     cursor: pointer;
-    font-size: 0.88rem;
-    font-family: inherit;
-    font-weight: 500;
-    transition: background-color 0.2s;
+    font-size: 0.95rem;
+    transition: background-color 0.3s;
 }
 
 .mappings-form-btns button:hover {
-    background-color: var(--accent-hover);
+    background-color: #673ab7;
 }
 
 .mappings-cancel-btn {
-    background-color: var(--bg-panel-alt) !important;
-    border: 1px solid var(--border-strong) !important;
-    color: var(--text-muted) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .mappings-cancel-btn:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    color: var(--text-primary) !important;
+    background-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-/* ── Mappings list ───────────────────────────────────────────────── */
+/* ── Mappings list ───────────────────────────────────────────────────────── */
 .mappings-list-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: 600;
-    font-size: 0.85rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
+    font-weight: bold;
+    color: #ffcc00;
     margin-bottom: 12px;
 }
 
@@ -202,14 +174,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 6px;
-    border-bottom: 1px solid var(--border);
-    border-radius: 4px;
-    transition: background-color 0.15s;
-}
-
-.mapping-entry:hover {
-    background-color: rgba(255, 255, 255, 0.03);
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .mapping-entry:last-child {
@@ -217,23 +183,21 @@
 }
 
 .mapping-from {
-    color: var(--text-muted);
-    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.9rem;
     flex: 1;
     min-width: 0;
     word-break: break-word;
 }
 
 .mapping-arrow-inline {
-    color: var(--text-dim);
+    color: rgba(255, 255, 255, 0.4);
     flex-shrink: 0;
-    font-size: 0.9rem;
 }
 
 .mapping-to {
-    color: var(--accent);
-    font-size: 0.88rem;
-    font-weight: 500;
+    color: #ffcc00;
+    font-size: 0.9rem;
     flex: 1;
     min-width: 0;
     word-break: break-word;
@@ -244,24 +208,18 @@
     min-width: 0;
     padding: 4px 8px;
     border-radius: 5px;
-    border: 1px solid var(--border-strong);
-    background-color: var(--bg-panel-alt);
-    color: var(--text-primary);
-    font-size: 0.88rem;
-    font-family: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 0.9rem;
     box-sizing: border-box;
-    outline: none;
-}
-
-.mapping-edit-input:focus {
-    border-color: var(--accent);
 }
 
 .map-edit-btn {
     background: none;
     border: none;
-    color: var(--text-dim);
-    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
     cursor: pointer;
     padding: 0 4px;
     width: auto;
@@ -272,14 +230,14 @@
 
 .map-edit-btn:hover {
     background: none;
-    color: var(--accent);
+    color: #ffcc00;
 }
 
 .map-delete-btn {
     background: none;
     border: none;
-    color: var(--text-dim);
-    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.85rem;
     cursor: pointer;
     padding: 0 4px;
     width: auto;
@@ -290,17 +248,17 @@
 
 .map-delete-btn:hover {
     background: none;
-    color: #ef5350;
+    color: #ff5252;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-    .mappings-form-row {
-        flex-direction: column;
-        gap: 10px;
-    }
+/* ── Map Series button on search results ─────────────────────────────────── */
+.map-btn {
+    background-color: #1a237e;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    margin-bottom: 0;
+}
 
-    .mappings-arrow {
-        display: none;
-    }
+.map-btn:hover {
+    background-color: #283593;
 }
