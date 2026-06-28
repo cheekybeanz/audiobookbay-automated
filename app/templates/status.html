@@ -3,14 +3,14 @@
 {% block title %}Torrent Status{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/status.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/status.css') }}?v=2">
 {% endblock %}
 
 {% block content %}
 <div class="title-container">
     <h1>Torrent Status</h1>
 </div>
-<table>
+<table class="status-table">
     <thead>
         <tr>
             <th>Title</th>
