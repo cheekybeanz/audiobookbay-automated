@@ -387,12 +387,23 @@ p.book-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 0;
+    padding: 6px 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.15s;
 }
 
 .fav-entry:last-child {
     border-bottom: none;
+}
+
+.fav-entry:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.fav-entry.active {
+    background-color: rgba(81, 45, 168, 0.35);
 }
 
 .fav-search-btn {
@@ -414,6 +425,22 @@ p.book-title {
     color: #ffcc00;
 }
 
+/* ── Edit and delete buttons: hidden until the row is hovered or active ── */
+.fav-edit-btn,
+.fav-delete-btn {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+
+.fav-entry:hover .fav-edit-btn,
+.fav-entry:hover .fav-delete-btn,
+.fav-entry.active .fav-edit-btn,
+.fav-entry.active .fav-delete-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .fav-delete-btn {
     background: none;
     border: none;
@@ -424,7 +451,7 @@ p.book-title {
     width: auto;
     margin-bottom: 0;
     flex-shrink: 0;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.15s;
 }
 
 .fav-delete-btn:hover {
@@ -497,11 +524,10 @@ p.book-title {
     padding: 0 4px;
     width: auto;
     margin-bottom: 0;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.15s;
 }
 
 .fav-edit-btn:hover {
     background: none;
     color: #ffcc00;
 }
-
