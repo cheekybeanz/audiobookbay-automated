@@ -809,3 +809,71 @@ td.action-cell {
     margin: 0;
     line-height: 1.4;
 }
+
+/* ── Modal series label row (label + skip checkbox) ─────────────── */
+.modal-series-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.modal-skip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+
+.modal-skip-label input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.modal-skip-label:hover {
+    color: var(--text-primary);
+}
+
+/* ── Existing volume warning ─────────────────────────────────────── */
+.modal-exists-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+}
+
+.modal-exists-icon {
+    font-size: 1rem;
+    color: #ffc107;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.modal-exists-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.modal-exists-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ffc107;
+}
+
+.modal-exists-path {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    word-break: break-all;
+}
