@@ -1,148 +1,103 @@
+/* ═══════════════════════════════════════════════════════════════
+   Search page styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Search bar row ──────────────────────────────────────────────── */
 form {
-    margin: 20px 0;
+    margin: 0 0 20px 0;
     display: flex;
-    justify-content: center; /* Center the form content */
+    justify-content: center;
     align-items: center;
-/*
-    gap: 15px
-*/
 }
-/* This overly broad rule was removed */
-/*
-input[type="text"] {
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    width: 300px;
-    font-size: 1rem;
-}
-*/
-button {
-    padding: 10px 20px;
-    width: 100%;
-    background-color: #512da8;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    margin-bottom: 10px;
-}
-button:hover {
-    background-color: #673ab7;
-}
-table {
-    width: 90%;
-    max-width: 1000px;
-    margin: 20px auto 0;
-    border-collapse: collapse;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-td {
-    padding: 15px;
-    text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-img.cover {
-    border-radius: 5px;
-    max-width: 100px;
-    width: 15vw;
-}
-/*
-#search-container {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin: 0 30px;
-    width: 90%;
-    max-width: 1000px;
-    padding: 0 15px;
-    box-sizing: border-box;
-}
-*/
+
 .search-form {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
+    width: 100%;
+    max-width: 680px;
 }
 
 .search-bar {
-    width: 100%; /* Make the search bar full width */
-    padding: 10px; /* Adjust padding as needed */
-    box-sizing: border-box; /* Ensure padding is included in the width */
-    margin-bottom: 10px; /* Add some space between the input and button */
-    /* Properties from the old input[type="text"] rule are now here */
-    border: none;
-    border-radius: 5px;
-    width: 300px;
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
 }
 
-/*
-.search-bar {
-    width: 90%;
-    padding: 10px; 
-    box-sizing: border-box; 
-    margin-bottom: 10px; 
-    border: none;
-    border-radius: 5px;
-    width: 563px;
-    font-size: 1rem;
-    max-width: 70vw;
+.search-bar:focus {
+    border-color: var(--accent);
 }
-*/
+
+.search-bar::placeholder {
+    color: var(--text-muted);
+}
+
 .search-button {
-    width: auto; /* Set the button width to auto */
-    padding: 10px 20px; /* Add padding to the button */
-    background-color: #512da8;
+    padding: 10px 22px;
+    background-color: var(--accent);
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
     color: white;
-    font-size: 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    margin-bottom: 0;
 }
 
-/* Loading spinner styles */
+.search-button:hover {
+    background-color: var(--accent-hover);
+}
+
+/* ── Loading states ──────────────────────────────────────────────── */
 .loading-spinner {
-    display: none; /* Hidden by default */
+    display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin-top: 20px;
+    margin-top: 40px;
+    color: var(--text-muted);
 }
 
 .spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid rgba(255, 255, 255, 0.3);
-    border-top: 5px solid white;
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top: 3px solid var(--accent);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
 }
 
 .loading-spinner p {
-    margin-top: 10px;
-    font-size: 1rem;
-    color: white;
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
 }
 
 .button-spinner {
     display: inline-block;
     vertical-align: middle;
-    margin-left: 5px;
+    margin-left: 6px;
 }
 
 .button-spinner .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+    border-top-color: white;
 }
 
 .message-scroller {
@@ -150,125 +105,148 @@ img.cover {
     text-align: center;
     margin: 0 auto;
     width: fit-content;
+    color: var(--text-muted);
+    font-size: 0.85rem;
 }
 
 .error-message {
-    color: red;
+    color: #ef5350;
+    font-size: 0.9rem;
+    padding: 10px 0;
 }
 
-/* Spinner animation */
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-    100% {
-        transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
 }
 
-/* Default styles for small screens (vertical layout) */
-.property-results-container {
-    display: flex;
-    flex-direction: column; /* Stack items vertically */
-    font-size: 0.6em;
-}
-
-.property-results-container span:not(:last-child)::after {
-    /* Hide the separator by default on small screens */
-    content: none;
-}
-
-/* New Filter Styles */
+/* ── Filter bar ──────────────────────────────────────────────────── */
 #filter-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin: 0 auto 30px;
-    width: 90%;
+    gap: 10px;
+    margin: 0 auto 20px;
+    width: 100%;
     max-width: 1000px;
-    padding: 0 15px;
-    box-sizing: border-box;
 }
 
 .filter-row {
     display: flex;
-    justify-content: center; /* Center the content within the row */
+    justify-content: center;
     align-items: center;
     width: 100%;
-    gap: 15px; /* Add gap between controls and buttons */
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .filter-controls {
     display: flex;
-    gap: 15px;
+    gap: 8px;
     align-items: center;
     flex-wrap: wrap;
-    width: 563px;
-    max-width: 70vw;
+    flex: 1;
+    min-width: 0;
 }
 
 .filter-buttons {
     display: flex;
-    gap: 10px;
-    flex-shrink: 0; /* Prevent buttons from shrinking */
+    gap: 8px;
+    flex-shrink: 0;
 }
 
-#filter-container select, #filter-container input {
-    padding: 8px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    background-color: #fff;
-    color: #333;
+#filter-container select,
+#filter-container input[type="text"] {
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+}
+
+#filter-container select:focus,
+#filter-container input[type="text"]:focus {
+    border-color: var(--accent);
 }
 
 #filter-container button {
-    padding: 8px 15px;
-    border-radius: 5px;
-    border: none;
-    background-color: #512da8;
-    color: white;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel-alt);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-family: inherit;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s, border-color 0.2s;
     margin-bottom: 0;
+    width: auto;
 }
 
 #filter-container button:hover {
-    background-color: #673ab7;
+    background-color: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text-primary);
 }
 
-/* --- File Size Slider Styles --- */
+/* ── Favorites toggle button ─────────────────────────────────────── */
+#favorites-toggle-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel-alt);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    margin-bottom: 0;
+    white-space: nowrap;
+    width: auto;
+}
+
+#favorites-toggle-btn:hover {
+    background-color: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+/* ── File size slider ────────────────────────────────────────────── */
 .file-size-filter-wrapper {
     display: flex;
     align-items: center;
     gap: 10px;
-    width: 563px; /* Give the wrapper a specific width */
-    max-width: 70vw; /* Helps with responsiveness on smaller screens */
+    flex: 1;
+    min-width: 200px;
+    max-width: 500px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
 }
 
 #file-size-slider {
-    flex-grow: 1; /* Allow the slider to take up the remaining space */
+    flex-grow: 1;
 }
 
-/* noUiSlider Customization */
 .noUi-target {
-    background: #e0e0e0;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    background: var(--bg-panel);
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
     box-shadow: none;
 }
 
 .noUi-connect {
-    background: #8e24aa;
+    background: var(--accent);
 }
 
 .noUi-horizontal {
-    height: 10px;
+    height: 6px;
 }
 
 .noUi-horizontal .noUi-handle {
-    width: 20px;
-    height: 20px;
-    right: -11px;
+    width: 16px;
+    height: 16px;
+    right: -8px;
     top: -6px;
 }
 
@@ -277,119 +255,234 @@ img.cover {
 }
 
 .noUi-handle {
-    border: 1px solid #d9d9d9;
+    border: 1px solid var(--border-strong);
     border-radius: 50%;
-    background: #fff;
+    background: var(--text-primary);
     box-shadow: none;
     outline: none;
+    cursor: pointer;
 }
 
-.noUi-handle:after, .noUi-handle:before {
-    display: none; /* Hide default pseudo-elements */
+.noUi-handle:after,
+.noUi-handle:before {
+    display: none;
 }
 
 .noUi-tooltip {
-    background: #512da8;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    padding: 4px 8px;
-    font-size: 0.8em;
+    background: var(--bg-panel-alt);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 0.75em;
 }
 
+/* ── Results table ───────────────────────────────────────────────── */
+table {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto 20px;
+    border-collapse: collapse;
+    background-color: var(--bg-panel);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
 
-/* Styles for large screens (horizontal layout) */
-@media (min-width: 905px) {
-    .property-results-container {
-        flex-direction: row; /* Arrange items horizontally */
-        justify-content: left; /* Distribute items evenly */
-        align-items: center; /* Vertically align items in the middle */
-    }
+td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
 
-    .property-results-container span:not(:last-child)::after {
-        /* Add and style the separator on large screens */
-        content: "|";
-        padding: 0 10px; /* Adjust spacing around the separator */
-        color: #ccc; /* A subtle color for the separator */
-    }
+tr.result-row:last-child td {
+    border-bottom: none;
+}
+
+tr.result-row:hover {
+    background-color: var(--bg-panel-alt);
+}
+
+img.cover {
+    border-radius: 4px;
+    max-width: 80px;
+    width: 12vw;
+    min-width: 50px;
+    display: block;
 }
 
 p.book-title {
-    font-size: 0.9em;
+    font-size: 0.92rem;
+    font-weight: 600;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+    line-height: 1.3;
 }
 
-@media (max-width: 500px) {
-
-.search-bar {
-    width: 200px;
+/* Book metadata spans */
+.property-results-container {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    gap: 2px;
 }
 
+.property-results-container span:not(:last-child)::after {
+    content: none;
 }
-/* ── Favorites toggle button (sits in filter-controls row) ─────────────── */
-#favorites-toggle-btn {
-    padding: 8px 15px;
+
+@media (min-width: 905px) {
+    .property-results-container {
+        flex-direction: row;
+        align-items: center;
+        gap: 0;
+    }
+
+    .property-results-container span:not(:last-child)::after {
+        content: "|";
+        padding: 0 8px;
+        color: var(--border-strong);
+    }
+}
+
+/* ── Result action buttons (Details / Download / Save / Map) ─────── */
+td:last-child {
+    width: 160px;
+    min-width: 140px;
+}
+
+/* Base reset for all buttons in results */
+td:last-child button {
+    display: block;
+    width: 100%;
+    margin-bottom: 5px;
+    padding: 7px 10px;
     border-radius: 5px;
     border: none;
-    background-color: #512da8;
-    color: white;
+    font-size: 0.82rem;
+    font-family: inherit;
+    font-weight: 500;
     cursor: pointer;
-    font-size: 1rem;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
+    text-align: center;
+}
+
+td:last-child button:last-child {
     margin-bottom: 0;
-    white-space: nowrap;
-    width: auto;
 }
 
-#favorites-toggle-btn:hover {
-    background-color: #673ab7;
+/* Details button */
+td:last-child button:nth-child(1) {
+    background-color: var(--bg-panel-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--border-strong);
+}
+td:last-child button:nth-child(1):hover {
+    background-color: rgba(255,255,255,0.08);
+    color: var(--text-primary);
 }
 
-/* ── Favorites collapsible panel ───────────────────────────────────────── */
+/* Download button */
+td:last-child button:nth-child(2) {
+    background-color: var(--accent);
+    color: white;
+}
+td:last-child button:nth-child(2):hover {
+    background-color: var(--accent-hover);
+}
+
+/* Save Series button */
+.fav-btn {
+    background-color: var(--bg-panel-alt) !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border-strong) !important;
+    font-size: 0.82rem !important;
+    padding: 7px 10px !important;
+    margin-bottom: 5px !important;
+}
+
+.fav-btn:hover {
+    background-color: rgba(255,255,255,0.06) !important;
+    color: var(--text-primary) !important;
+}
+
+.fav-btn:disabled {
+    background-color: rgba(46, 125, 50, 0.3) !important;
+    color: #81c784 !important;
+    border-color: rgba(46,125,50,0.4) !important;
+    cursor: default !important;
+}
+
+/* Map Series button — slim inline style, not a full block */
+.map-btn {
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-size: 0.78rem !important;
+    padding: 4px 0 !important;
+    margin-bottom: 0 !important;
+    width: auto !important;
+    display: inline-block !important;
+    cursor: pointer;
+    transition: color 0.2s !important;
+    text-align: left !important;
+}
+
+.map-btn:hover {
+    background: none !important;
+    color: var(--accent) !important;
+}
+
+/* ── Favorites panel ─────────────────────────────────────────────── */
 #favorites-panel {
-    width: 90%;
+    width: 100%;
     max-width: 1000px;
     margin: 0 auto 20px;
-    background-color: rgba(0, 0, 0, 0.25);
-    border-radius: 10px;
-    padding: 15px 20px;
-    box-sizing: border-box;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
 }
 
 #favorites-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: bold;
-    font-size: 1rem;
-    margin-bottom: 12px;
-    color: #ffcc00;
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    color: var(--text-muted);
 }
 
 #favorites-close-btn {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1rem;
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-size: 0.9rem !important;
     cursor: pointer;
-    padding: 0;
-    width: auto;
-    margin-bottom: 0;
-    transition: color 0.2s;
+    padding: 0 !important;
+    width: auto !important;
+    margin-bottom: 0 !important;
+    transition: color 0.2s !important;
 }
 
 #favorites-close-btn:hover {
-    background: none;
-    color: white;
+    background: none !important;
+    color: var(--text-primary) !important;
 }
 
-/* ── Individual favourite entry ─────────────────────────────────────────── */
+/* ── Individual favourite entry ──────────────────────────────────── */
 .fav-entry {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 6px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 5px;
+    border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: background-color 0.15s;
 }
@@ -399,33 +492,33 @@ p.book-title {
 }
 
 .fav-entry:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255, 255, 255, 0.04);
 }
 
 .fav-entry.active {
-    background-color: rgba(81, 45, 168, 0.35);
+    background-color: var(--accent-subtle);
 }
 
 .fav-search-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 0.95rem;
+    background: none !important;
+    border: none !important;
+    color: var(--text-primary) !important;
+    font-size: 0.9rem !important;
     cursor: pointer;
-    padding: 0;
+    padding: 0 !important;
     text-align: left;
-    width: auto;
-    margin-bottom: 0;
-    transition: color 0.2s;
+    width: auto !important;
+    margin-bottom: 0 !important;
+    transition: color 0.2s !important;
     flex-grow: 1;
 }
 
 .fav-search-btn:hover {
-    background: none;
-    color: #ffcc00;
+    background: none !important;
+    color: var(--accent) !important;
 }
 
-/* ── Edit and delete buttons: hidden until the row is hovered or active ── */
+/* Edit and delete hidden until row is hovered or active */
 .fav-edit-btn,
 .fav-delete-btn {
     opacity: 0;
@@ -442,92 +535,108 @@ p.book-title {
 }
 
 .fav-delete-btn {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 0.85rem;
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-size: 0.82rem !important;
     cursor: pointer;
-    padding: 0 0 0 10px;
-    width: auto;
-    margin-bottom: 0;
+    padding: 0 0 0 8px !important;
+    width: auto !important;
+    margin-bottom: 0 !important;
     flex-shrink: 0;
-    transition: color 0.2s, opacity 0.15s;
+    transition: color 0.2s, opacity 0.15s !important;
 }
 
 .fav-delete-btn:hover {
-    background: none;
-    color: #ff5252;
+    background: none !important;
+    color: #ef5350 !important;
 }
 
-/* ── Save Series button on each search result ───────────────────────────── */
-.fav-btn {
-    background-color: #4a148c;
-    font-size: 0.85rem;
-    padding: 6px 12px;
-    margin-bottom: 0;
+.fav-edit-btn {
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-size: 0.82rem !important;
+    cursor: pointer;
+    padding: 0 4px !important;
+    width: auto !important;
+    margin-bottom: 0 !important;
+    transition: color 0.2s, opacity 0.15s !important;
 }
 
-.fav-btn:hover {
-    background-color: #6a1b9a;
+.fav-edit-btn:hover {
+    background: none !important;
+    color: var(--accent) !important;
 }
 
-.fav-btn:disabled {
-    background-color: #2e7d32;
-    cursor: default;
-}
+/* ── Add row ─────────────────────────────────────────────────────── */
 .fav-add-row {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 0 2px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border);
     margin-top: 6px;
 }
 
 .fav-manual-input {
     flex-grow: 1;
-    padding: 5px 8px;
+    padding: 5px 9px;
     border-radius: 5px;
-    border: 1px solid rgba(255,255,255,0.3);
-    background-color: rgba(255,255,255,0.1);
-    color: white;
-    font-size: 0.9rem;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel-alt);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+}
+
+.fav-manual-input:focus {
+    border-color: var(--accent);
 }
 
 .fav-manual-input::placeholder {
-    color: rgba(255,255,255,0.4);
+    color: var(--text-dim);
 }
 
 .fav-add-btn {
-    background: none;
-    border: 1px solid rgba(255,255,255,0.4);
-    color: white;
+    background: none !important;
+    border: 1px solid var(--border-strong) !important;
+    color: var(--text-muted) !important;
     border-radius: 5px;
     cursor: pointer;
-    padding: 4px 10px;
-    font-size: 1.1rem;
-    width: auto;
-    margin-bottom: 0;
-    transition: background-color 0.2s;
+    padding: 4px 10px !important;
+    font-size: 1rem !important;
+    width: auto !important;
+    margin-bottom: 0 !important;
+    transition: background-color 0.2s, border-color 0.2s !important;
 }
 
 .fav-add-btn:hover {
-    background-color: rgba(255,255,255,0.1);
+    background-color: var(--accent-subtle) !important;
+    border-color: var(--accent) !important;
+    color: var(--text-primary) !important;
 }
 
-.fav-edit-btn {
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.5);
-    font-size: 0.85rem;
-    cursor: pointer;
-    padding: 0 4px;
-    width: auto;
-    margin-bottom: 0;
-    transition: color 0.2s, opacity 0.15s;
+#favorites-empty {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    padding: 10px 0;
 }
 
-.fav-edit-btn:hover {
-    background: none;
-    color: #ffcc00;
+/* ── Mobile tweaks ───────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .search-bar {
+        font-size: 0.9rem;
+    }
+
+    td:last-child {
+        width: 120px;
+        min-width: 110px;
+    }
+
+    td:last-child button {
+        font-size: 0.76rem;
+        padding: 6px 8px;
+    }
 }
