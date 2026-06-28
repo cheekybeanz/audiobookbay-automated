@@ -5,13 +5,16 @@
 /* ── Search bar area ─────────────────────────────────────────────── */
 .search-container {
     width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
 }
 
 form {
-    margin: 0 0 20px 0;
+    margin: 0;
+    width: 100%;
     display: flex;
-    justify-content: flex-start;
-    align-items: center;
+    justify-content: center;
 }
 
 .search-form {
@@ -19,25 +22,26 @@ form {
     align-items: center;
     gap: 8px;
     width: 100%;
-    max-width: 680px;
+    max-width: 620px;
 }
 
 .search-bar {
     flex: 1;
-    padding: 10px 14px;
+    padding: 11px 16px;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 8px;
     background-color: var(--bg-panel);
     color: var(--text-primary);
     font-size: 0.95rem;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
     min-width: 0;
 }
 
 .search-bar:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
 .search-bar::placeholder {
@@ -45,16 +49,16 @@ form {
 }
 
 .search-button {
-    padding: 10px 22px;
+    padding: 11px 24px;
     background-color: var(--accent);
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     color: white;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     font-family: inherit;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s;
     white-space: nowrap;
     flex-shrink: 0;
     width: auto;
@@ -65,6 +69,10 @@ form {
     background-color: var(--accent-hover);
 }
 
+.search-button:active {
+    transform: scale(0.98);
+}
+
 /* ── Loading states ──────────────────────────────────────────────── */
 .loading-spinner {
     display: none;
@@ -73,6 +81,7 @@ form {
     justify-content: center;
     margin-top: 40px;
     color: var(--text-muted);
+    width: 100%;
 }
 
 .spinner {
@@ -105,15 +114,18 @@ form {
 
 .message-scroller {
     display: none;
-    text-align: left;
+    text-align: center;
     color: var(--text-muted);
     font-size: 0.85rem;
+    width: 100%;
 }
 
 .error-message {
     color: #ef5350;
     font-size: 0.9rem;
     padding: 10px 0;
+    text-align: center;
+    width: 100%;
 }
 
 @keyframes spin {
@@ -125,7 +137,7 @@ form {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin: 0 0 20px;
+    margin: 0 0 16px;
     width: 100%;
 }
 
@@ -133,7 +145,7 @@ form {
     display: flex;
     align-items: center;
     width: 100%;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
@@ -159,9 +171,10 @@ form {
     border: 1px solid var(--border-strong);
     background-color: var(--bg-panel);
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-family: inherit;
     outline: none;
+    transition: border-color 0.2s;
 }
 
 #filter-container select:focus,
@@ -174,11 +187,11 @@ form {
     border-radius: 6px;
     border: 1px solid var(--border-strong);
     background-color: var(--bg-panel-alt);
-    color: var(--text-primary);
-    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
     font-family: inherit;
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
     margin-bottom: 0;
     width: auto;
 }
@@ -196,7 +209,7 @@ form {
     border: 1px solid var(--border-strong);
     background-color: var(--bg-panel-alt);
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-family: inherit;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
@@ -220,12 +233,10 @@ form {
     min-width: 200px;
     max-width: 500px;
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
-#file-size-slider {
-    flex-grow: 1;
-}
+#file-size-slider { flex-grow: 1; }
 
 .noUi-target {
     background: var(--bg-panel);
@@ -233,26 +244,10 @@ form {
     border: 1px solid var(--border-strong);
     box-shadow: none;
 }
-
-.noUi-connect {
-    background: var(--accent);
-}
-
-.noUi-horizontal {
-    height: 6px;
-}
-
-.noUi-horizontal .noUi-handle {
-    width: 16px;
-    height: 16px;
-    right: -8px;
-    top: -6px;
-}
-
-.noUi-horizontal .noUi-tooltip {
-    bottom: -180%;
-}
-
+.noUi-connect { background: var(--accent); }
+.noUi-horizontal { height: 6px; }
+.noUi-horizontal .noUi-handle { width: 16px; height: 16px; right: -8px; top: -6px; }
+.noUi-horizontal .noUi-tooltip { bottom: -180%; }
 .noUi-handle {
     border: 1px solid var(--border-strong);
     border-radius: 50%;
@@ -261,12 +256,7 @@ form {
     outline: none;
     cursor: pointer;
 }
-
-.noUi-handle:after,
-.noUi-handle:before {
-    display: none;
-}
-
+.noUi-handle:after, .noUi-handle:before { display: none; }
 .noUi-tooltip {
     background: var(--bg-panel-alt);
     color: var(--text-primary);
@@ -276,152 +266,162 @@ form {
     font-size: 0.75em;
 }
 
-/* ── Results table ───────────────────────────────────────────────── */
+/* ── Results — card list ─────────────────────────────────────────── */
+/* Replace raw <table> with a card-per-result layout */
 table {
     width: 100%;
-    max-width: 1000px;
     border-collapse: collapse;
+    background: none;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    display: block;
+}
+
+tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+tr.result-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     background-color: var(--bg-panel);
-    border-radius: 8px;
-    overflow: hidden;
     border: 1px solid var(--border);
-    margin-bottom: 20px;
-}
-
-td {
-    padding: 14px 16px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-}
-
-tr.result-row:last-child td {
-    border-bottom: none;
+    border-radius: 10px;
+    padding: 14px;
+    transition: border-color 0.2s, background-color 0.15s;
+    width: 100%;
 }
 
 tr.result-row:hover {
     background-color: var(--bg-panel-alt);
+    border-color: var(--border-strong);
+}
+
+/* Remove default td styling */
+td {
+    padding: 0;
+    border: none;
+    vertical-align: middle;
+    background: none;
+}
+
+/* Cover image cell */
+td:first-child {
+    flex-shrink: 0;
 }
 
 img.cover {
-    border-radius: 4px;
-    max-width: 80px;
-    width: 12vw;
-    min-width: 50px;
+    border-radius: 6px;
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
     display: block;
+}
+
+/* Title + metadata cell */
+td:nth-child(2) {
+    flex: 1;
+    min-width: 0;
 }
 
 p.book-title {
     font-size: 0.92rem;
     font-weight: 600;
-    margin: 0 0 6px;
+    margin: 0 0 5px;
     color: var(--text-primary);
     line-height: 1.3;
 }
 
-/* Book metadata spans */
 .property-results-container {
     display: flex;
-    flex-direction: column;
-    font-size: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0;
+    font-size: 0.73rem;
     color: var(--text-muted);
-    gap: 2px;
 }
 
 .property-results-container span:not(:last-child)::after {
-    content: none;
+    content: "|";
+    padding: 0 6px;
+    color: var(--border-strong);
 }
 
-@media (min-width: 905px) {
-    .property-results-container {
-        flex-direction: row;
-        align-items: center;
-        gap: 0;
-    }
-
-    .property-results-container span:not(:last-child)::after {
-        content: "|";
-        padding: 0 8px;
-        color: var(--border-strong);
-    }
-}
-
-/* ── Action button column ────────────────────────────────────────── */
-/* Fixed width column for the buttons on the right */
+/* Action buttons cell */
 td.action-cell {
-    width: 160px;
-    min-width: 150px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 148px;
+    min-width: 140px;
 }
 
-/* All action buttons share a base style */
 .btn-details,
 .btn-download,
 .fav-btn {
     display: block;
     width: 100%;
-    margin-bottom: 5px;
     padding: 7px 10px;
-    border-radius: 5px;
-    font-size: 0.82rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
     font-family: inherit;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
     text-align: center;
     border: none;
+    margin: 0;
 }
 
-/* Details */
 .btn-details {
-    background-color: var(--bg-panel-alt);
+    background-color: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border-strong) !important;
 }
 .btn-details:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255,255,255,0.06);
     color: var(--text-primary);
 }
 
-/* Download */
 .btn-download {
     background-color: var(--accent);
     color: white;
 }
-.btn-download:hover {
-    background-color: var(--accent-hover);
-}
+.btn-download:hover { background-color: var(--accent-hover); }
 
-/* Save Series */
 .fav-btn {
-    background-color: var(--bg-panel-alt);
+    background-color: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border-strong) !important;
-    margin-bottom: 4px;
 }
 .fav-btn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255,255,255,0.06);
     color: var(--text-primary);
 }
 .fav-btn:disabled {
-    background-color: rgba(46, 125, 50, 0.3);
+    background-color: rgba(46,125,50,0.2);
     color: #81c784;
-    border-color: rgba(46, 125, 50, 0.4) !important;
+    border-color: rgba(46,125,50,0.4) !important;
     cursor: default;
 }
 
-/* Map Series — slim text link, no block box */
 .map-btn {
     display: block;
     width: 100%;
     background: none;
     border: none;
     color: var(--text-dim);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-family: inherit;
-    padding: 3px 0;
-    margin-bottom: 0;
+    padding: 2px 0;
+    margin: 0;
     cursor: pointer;
-    text-align: left;
+    text-align: center;
     transition: color 0.2s;
 }
 .map-btn:hover {
@@ -432,11 +432,10 @@ td.action-cell {
 /* ── Favorites panel ─────────────────────────────────────────────── */
 #favorites-panel {
     width: 100%;
-    max-width: 1000px;
-    margin: 0 0 20px;
+    margin: 0 0 16px;
     background-color: var(--bg-panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 14px 18px;
 }
 
@@ -445,8 +444,8 @@ td.action-cell {
     justify-content: space-between;
     align-items: center;
     font-weight: 600;
-    font-size: 0.8rem;
-    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     margin-bottom: 10px;
     color: var(--text-muted);
@@ -463,102 +462,64 @@ td.action-cell {
     margin-bottom: 0;
     transition: color 0.2s;
 }
+#favorites-close-btn:hover { background: none; color: var(--text-primary); }
 
-#favorites-close-btn:hover {
-    background: none;
-    color: var(--text-primary);
-}
-
-/* ── Individual favourite entry ──────────────────────────────────── */
 .fav-entry {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 6px 8px;
-    border-radius: 5px;
+    border-radius: 6px;
     border-bottom: 1px solid var(--border);
-    cursor: pointer;
     transition: background-color 0.15s;
 }
-
-.fav-entry:last-child {
-    border-bottom: none;
-}
-
-.fav-entry:hover {
-    background-color: rgba(255, 255, 255, 0.04);
-}
-
-.fav-entry.active {
-    background-color: var(--accent-subtle);
-}
+.fav-entry:last-child { border-bottom: none; }
+.fav-entry:hover { background-color: rgba(255,255,255,0.04); }
 
 .fav-search-btn {
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     cursor: pointer;
     padding: 0;
     text-align: left;
     width: auto;
     margin-bottom: 0;
-    transition: color 0.2s;
     flex-grow: 1;
+    transition: color 0.2s;
 }
+.fav-search-btn:hover { background: none; color: var(--accent); }
 
-.fav-search-btn:hover {
-    background: none;
-    color: var(--accent);
-}
-
-/* Edit and delete hidden until row is hovered or active */
 .fav-edit-btn,
 .fav-delete-btn {
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.15s;
     background: none;
     border: none;
     cursor: pointer;
     margin-bottom: 0;
     width: auto;
     flex-shrink: 0;
+    transition: opacity 0.15s, color 0.2s;
 }
-
 .fav-entry:hover .fav-edit-btn,
-.fav-entry:hover .fav-delete-btn,
-.fav-entry.active .fav-edit-btn,
-.fav-entry.active .fav-delete-btn {
+.fav-entry:hover .fav-delete-btn {
     opacity: 1;
     pointer-events: auto;
 }
-
-.fav-delete-btn {
-    color: var(--text-dim);
-    font-size: 0.82rem;
-    padding: 0 0 0 8px;
-    transition: color 0.2s, opacity 0.15s;
-}
-
-.fav-delete-btn:hover {
-    background: none;
-    color: #ef5350;
-}
-
 .fav-edit-btn {
     color: var(--text-dim);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     padding: 0 4px;
-    transition: color 0.2s, opacity 0.15s;
 }
-
-.fav-edit-btn:hover {
-    background: none;
-    color: var(--accent);
+.fav-edit-btn:hover { background: none; color: var(--accent); }
+.fav-delete-btn {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    padding: 0 0 0 4px;
 }
+.fav-delete-btn:hover { background: none; color: #ef5350; }
 
-/* ── Add row ─────────────────────────────────────────────────────── */
 .fav-add-row {
     display: flex;
     align-items: center;
@@ -570,29 +531,23 @@ td.action-cell {
 
 .fav-manual-input {
     flex-grow: 1;
-    padding: 5px 9px;
-    border-radius: 5px;
+    padding: 6px 10px;
+    border-radius: 6px;
     border: 1px solid var(--border-strong);
     background-color: var(--bg-panel-alt);
     color: var(--text-primary);
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     font-family: inherit;
     outline: none;
 }
-
-.fav-manual-input:focus {
-    border-color: var(--accent);
-}
-
-.fav-manual-input::placeholder {
-    color: var(--text-dim);
-}
+.fav-manual-input:focus { border-color: var(--accent); }
+.fav-manual-input::placeholder { color: var(--text-dim); }
 
 .fav-add-btn {
     background: none;
     border: 1px solid var(--border-strong);
     color: var(--text-muted);
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
     padding: 4px 10px;
     font-size: 1rem;
@@ -600,7 +555,6 @@ td.action-cell {
     margin-bottom: 0;
     transition: background-color 0.2s, border-color 0.2s;
 }
-
 .fav-add-btn:hover {
     background-color: var(--accent-subtle);
     border-color: var(--accent);
@@ -609,26 +563,30 @@ td.action-cell {
 
 #favorites-empty {
     color: var(--text-muted);
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     padding: 10px 0;
     margin: 0;
 }
 
-/* ── Mobile tweaks ───────────────────────────────────────────────── */
+/* ── Mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-    .search-bar {
-        font-size: 0.9rem;
+    tr.result-row {
+        flex-wrap: wrap;
     }
-
     td.action-cell {
-        width: 120px;
-        min-width: 110px;
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
     }
-
-    .btn-details,
-    .btn-download,
-    .fav-btn {
-        font-size: 0.76rem;
-        padding: 6px 8px;
+    .btn-details, .btn-download, .fav-btn {
+        flex: 1;
+        min-width: 80px;
+    }
+    .map-btn {
+        width: 100%;
+    }
+    img.cover {
+        width: 56px;
+        height: 56px;
     }
 }
