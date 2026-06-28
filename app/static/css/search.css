@@ -153,10 +153,11 @@ form {
 }
 
 .filter-row-secondary {
-    justify-content: center;
+    justify-content: flex-start;
     gap: 12px;
     max-width: 860px;
     width: 100%;
+    padding: 0;
 }
 
 
@@ -226,8 +227,7 @@ form {
     align-items: center;
     gap: 10px;
     flex: 1;
-    min-width: 200px;
-    max-width: 560px;
+    min-width: 0;
     color: var(--text-muted);
     font-size: 0.82rem;
     margin-bottom: 20px;
