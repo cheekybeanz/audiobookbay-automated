@@ -1,4 +1,6 @@
 import os
+import pwd
+import grp
 import json
 import re
 import requests
@@ -64,17 +66,26 @@ print(f"PORT: {FLASK_PORT}")
 
 # ── Config / persistent data ───────────────────────────────────────────────
 CONFIG_DIR = "/config"
-FAVORITES_PATH = os.path.join(CONFIG_DIR, "favorites.json")
+FAVOURITES_PATH = os.path.join(CONFIG_DIR, "favourites.json")
 SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
 
 # Auto-create config files on first run
 os.makedirs(CONFIG_DIR, exist_ok=True)
-if not os.path.exists(FAVORITES_PATH):
-    with open(FAVORITES_PATH, "w") as f:
+if not os.path.exists(FAVOURITES_PATH):
+    with open(FAVOURITES_PATH, "w") as f:
         json.dump([], f)
 if not os.path.exists(SERIES_MAP_PATH):
     with open(SERIES_MAP_PATH, "w") as f:
         json.dump({}, f)
+
+# Set nobody:users ownership on config files so they can be manually edited
+try:
+    nobody = pwd.getpwnam("nobody")
+    users_gid = grp.getgrnam("users").gr_gid
+    os.chown(FAVOURITES_PATH, nobody.pw_uid, users_gid)
+    os.chown(SERIES_MAP_PATH, nobody.pw_uid, users_gid)
+except Exception as e:
+    print(f"[WARN] Could not set config file ownership: {e}")
 
 
 @app.context_processor
@@ -255,7 +266,19 @@ def sanitize_title(title):
     return re.sub(r'[<>:"/\\|?*]', "", title).strip()
 
 
-# Helper function to extract series name from title
+# Helper function — raw regex extraction only (no mapping lookup)
+def _extract_series_raw(title):
+    if " - " in title:
+        authorless = title.rsplit(" - ", 1)[0].strip()
+    else:
+        authorless = title.strip()
+    series = re.split(r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+\d+", authorless, flags=re.IGNORECASE)[0]
+    series = re.sub(r"\s+\d+$", "", series)
+    series = series.strip().rstrip(",").strip()
+    return series if series else authorless
+
+
+# Helper function to extract series name from title (with mapping)
 def get_series_name(title):
     if " - " in title:
         authorless = title.rsplit(" - ", 1)[0].strip()
@@ -295,11 +318,11 @@ def search():
             query = request.form["query"]
             if query:
                 books = search_audiobookbay(query)
-        return render_template("search.html", books=books, query=query)
+        return render_template("search.html", books=books, query=query, save_path_base=SAVE_PATH_BASE or "")
     except Exception as e:
         print(f"[ERROR] Failed to search: {e}")
         return render_template(
-            "search.html", books=books, error=f"Failed to search. {str(e)}", query=query
+            "search.html", books=books, error=f"Failed to search. {str(e)}", query=query, save_path_base=SAVE_PATH_BASE or ""
         )
 
 
@@ -318,7 +341,9 @@ def send():
             return jsonify({"message": "Failed to extract magnet link"}), 500
 
         # FORK EDIT: build series/title two-level path
-        series = sanitize_title(get_series_name(title))
+        # series_override comes from the download confirmation modal
+        series_override = data.get("series_override", "").strip()
+        series = sanitize_title(series_override) if series_override else sanitize_title(get_series_name(title))
         safe_title = sanitize_title(title)
         save_path = f"{SAVE_PATH_BASE}/{series}/{safe_title}" if series != safe_title else f"{SAVE_PATH_BASE}/{safe_title}"
 
@@ -412,16 +437,16 @@ def status():
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
 
 
-# ── Favorites helpers ─────────────────────────────────────────────────────
-def load_favorites():
-    if os.path.exists(FAVORITES_PATH):
-        with open(FAVORITES_PATH) as f:
+# ── Favourites helpers ─────────────────────────────────────────────────────
+def load_favourites():
+    if os.path.exists(FAVOURITES_PATH):
+        with open(FAVOURITES_PATH) as f:
             return json.load(f)
     return []
 
 
-def save_favorites(favs):
-    with open(FAVORITES_PATH, "w") as f:
+def save_favourites(favs):
+    with open(FAVOURITES_PATH, "w") as f:
         json.dump(favs, f, indent=2)
 
 
@@ -442,13 +467,13 @@ def save_series_map(mapping):
         json.dump(mapping, f, indent=2)
 
 
-# ── Favorites routes ──────────────────────────────────────────────────────
-@app.route("/favorites")
-def get_favorites():
-    return jsonify({"favorites": load_favorites()})
+# ── Favourites routes ──────────────────────────────────────────────────────
+@app.route("/favourites")
+def get_favourites():
+    return jsonify({"favourites": load_favourites()})
 
 
-@app.route("/favorites/add", methods=["POST"])
+@app.route("/favourites/add", methods=["POST"])
 def add_favourite():
     data = request.json
     title = data.get("title", "").strip()
@@ -459,53 +484,53 @@ def add_favourite():
     if not series:
         return jsonify({"success": False, "message": "Could not extract series name"}), 400
 
-    favs = load_favorites()
+    favs = load_favourites()
     if series in favs:
         return jsonify({"success": False, "message": "Already saved"})
 
     favs.append(series)
     favs.sort()
-    save_favorites(favs)
+    save_favourites(favs)
     return jsonify({"success": True, "series": series})
 
 
-@app.route("/favorites/add_manual", methods=["POST"])
+@app.route("/favourites/add_manual", methods=["POST"])
 def add_favourite_manual():
     data = request.json
     name = sanitize_title(data.get("name", "").strip())
     if not name:
         return jsonify({"success": False, "message": "No name provided"}), 400
-    favs = load_favorites()
+    favs = load_favourites()
     if name not in favs:
         favs.append(name)
         favs.sort()
-        save_favorites(favs)
+        save_favourites(favs)
     return jsonify({"success": True})
 
 
-@app.route("/favorites/remove", methods=["POST"])
+@app.route("/favourites/remove", methods=["POST"])
 def remove_favourite():
     data = request.json
     name = data.get("name", "").strip()
-    favs = load_favorites()
+    favs = load_favourites()
     favs = [f for f in favs if f != name]
-    save_favorites(favs)
+    save_favourites(favs)
     return jsonify({"success": True})
 
 
-@app.route("/favorites/rename", methods=["POST"])
+@app.route("/favourites/rename", methods=["POST"])
 def rename_favourite():
     data = request.json
     old_name = data.get("old_name", "").strip()
     new_name = sanitize_title(data.get("new_name", "").strip())
     if not old_name or not new_name:
         return jsonify({"success": False}), 400
-    favs = load_favorites()
+    favs = load_favourites()
     if old_name in favs:
         idx = favs.index(old_name)
         favs[idx] = new_name
         favs.sort()
-        save_favorites(favs)
+        save_favourites(favs)
     return jsonify({"success": True})
 
 
@@ -522,13 +547,16 @@ def list_mappings():
 
 @app.route("/mappings/preview", methods=["POST"])
 def preview_mapping():
-    """Return what the regex would extract from a given ABB title."""
+    """Return what the regex/mapping would produce for a given ABB title,
+    plus whether an existing mapping is already applied."""
     data = request.json
     title = data.get("title", "").strip()
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
+    raw = sanitize_title(_extract_series_raw(title))
     extracted = sanitize_title(get_series_name(title))
-    return jsonify({"success": True, "extracted": extracted})
+    is_mapped = (raw in load_series_map())
+    return jsonify({"success": True, "extracted": extracted, "is_mapped": is_mapped})
 
 
 @app.route("/mappings/add", methods=["POST"])
