@@ -121,7 +121,8 @@
             <td>
                 <button onclick="window.open('{{ book.link }}', '_blank')">Details</button>
                 <button onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
-                <button class="fav-btn" onclick="saveFavourite('{{ book.title|escape }}', this)" title="Save to Favorites">⭐ Save Series</button>
+                <button class="fav-btn" onclick="saveFavorite('{{ book.title|escape }}', this)" title="Save to Favorites">⭐ Save Series</button>
+                <button class="map-btn" onclick="mapSeries('{{ book.title|escape }}')" title="Map Series Name">🗺 Map Series</button>
             </td>
         </tr>
         {% endfor %}
@@ -163,7 +164,7 @@ function renderFavorites(favs) {
             const link = document.createElement('button');
             link.className = 'fav-search-btn';
             link.textContent = name;
-            link.onclick = () => searchFavourite(name);
+            link.onclick = () => searchFavorite(name);
 
             const editBtn = document.createElement('button');
             editBtn.className = 'fav-edit-btn';
@@ -184,7 +185,6 @@ function renderFavorites(favs) {
         });
     }
 
-    // Always render the + add row at the bottom
     renderAddRow(list);
 }
 
@@ -210,14 +210,14 @@ function renderAddRow(list) {
             addBtn.textContent = '✓';
         } else {
             const name = input.value.trim();
-            if (name) saveManualFavourite(name);
+            if (name) saveManualFavorite(name);
         }
     };
 
     input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
             const name = input.value.trim();
-            if (name) saveManualFavourite(name);
+            if (name) saveManualFavorite(name);
         }
         if (e.key === 'Escape') {
             input.style.display = 'none';
@@ -231,7 +231,7 @@ function renderAddRow(list) {
 }
 
 // ── Manual add ────────────────────────────────────────────────────────────
-function saveManualFavourite(name) {
+function saveManualFavorite(name) {
     fetch('/favorites/add_manual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -285,11 +285,11 @@ function commitEdit(oldName, newName) {
 // ── Confirm before delete ─────────────────────────────────────────────────
 function confirmDelete(name) {
     if (confirm(`Remove "${name}" from favorites?`)) {
-        deleteFavourite(name);
+        deleteFavorite(name);
     }
 }
 
-function deleteFavourite(name) {
+function deleteFavorite(name) {
     fetch('/favorites/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -299,8 +299,8 @@ function deleteFavourite(name) {
     .then(() => loadFavorites());
 }
 
-// ── Search for a saved favourite (auto-submits) ───────────────────────────
-function searchFavourite(name) {
+// ── Search for a saved favorite (auto-submits) ────────────────────────────
+function searchFavorite(name) {
     const input = document.getElementById('search-input');
     if (input) {
         input.value = name;
@@ -309,7 +309,7 @@ function searchFavourite(name) {
 }
 
 // ── Save a series from a search result ────────────────────────────────────
-function saveFavourite(title, btn) {
+function saveFavorite(title, btn) {
     fetch('/favorites/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -330,6 +330,11 @@ function saveFavourite(title, btn) {
             }, 2000);
         }
     });
+}
+
+// ── Map Series — navigate to mappings page with title pre-filled ──────────
+function mapSeries(title) {
+    window.location.href = '/mappings?title=' + encodeURIComponent(title);
 }
 </script>
 
