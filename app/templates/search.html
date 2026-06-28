@@ -19,6 +19,7 @@
 <div id="page-data"
      data-has-results="{% if books %}true{% else %}false{% endif %}"
      data-save-path="{{ save_path_base }}"
+     data-page-limit="{{ page_limit }}"
      style="display:none;"></div>
 
 <div class="title-container">
@@ -122,6 +123,12 @@
     </tbody>
 </table>
 
+<!-- Load More button -->
+<div id="load-more-container" style="display:none; text-align:center; margin: 16px 0 8px;">
+    <button id="load-more-btn" class="load-more-btn" onclick="loadMore()">Load More Results</button>
+    <p id="load-more-status" style="display:none; color:var(--text-muted); font-size:0.85rem; margin-top:8px;"></p>
+</div>
+
 <!-- Download confirmation modal -->
 <div id="download-modal" style="display:none;">
     <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
@@ -181,9 +188,16 @@ function saveSearchState() {
     }
 }
 
+function resetLoadMoreState() {
+    sessionStorage.removeItem('abb_next_page');
+    var container = document.getElementById('load-more-container');
+    if (container) container.style.display = 'none';
+}
+
 function restoreSearchState() {
     if (PAGE_HAS_RESULTS) {
         saveSearchState();
+        resetLoadMoreState();  // Fresh search — reset load more state
         showClearBtn(true);
         showFilterBar(true);
         return;
@@ -201,6 +215,7 @@ function restoreSearchState() {
 function clearSearch() {
     sessionStorage.removeItem(SAVED_HTML_KEY);
     sessionStorage.removeItem(SAVED_QUERY_KEY);
+    sessionStorage.removeItem('abb_next_page');
     document.getElementById('results-table-body').innerHTML = '';
     document.getElementById('search-input').value = '';
     showClearBtn(false);
@@ -577,10 +592,132 @@ function confirmDownload() {
     });
 }
 
+// ── Load More ─────────────────────────────────────────────────────────────
+var _currentQuery  = '';
+var _nextStartPage = 1;
+var _loadingMore   = false;
+
+function initLoadMore(query, nextPage) {
+    _currentQuery  = query;
+    _nextStartPage = nextPage;
+    var container = document.getElementById('load-more-container');
+    if (container) container.style.display = nextPage > 1 ? 'block' : 'none';
+}
+
+function loadMore() {
+    if (_loadingMore || !_currentQuery) return;
+    _loadingMore = true;
+
+    var btn    = document.getElementById('load-more-btn');
+    var status = document.getElementById('load-more-status');
+    btn.textContent = 'Loading…';
+    btn.disabled    = true;
+    status.style.display = 'none';
+
+    fetch('/search_more', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: _currentQuery, start_page: _nextStartPage })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        _loadingMore = false;
+        if (data.error) {
+            btn.textContent = 'Load More Results';
+            btn.disabled    = false;
+            status.textContent  = 'Error: ' + data.error;
+            status.style.display = 'block';
+            return;
+        }
+        if (!data.books || data.books.length === 0) {
+            btn.style.display    = 'none';
+            status.textContent   = 'No more results.';
+            status.style.display = 'block';
+            return;
+        }
+
+        // Append new rows to the table
+        var tbody = document.getElementById('results-table-body');
+        data.books.forEach(function(book) {
+            var tr = document.createElement('tr');
+            tr.className = 'result-row';
+            tr.dataset.language  = book.language;
+            tr.dataset.bitrate   = book.bitrate;
+            tr.dataset.format    = book.format;
+            tr.dataset.fileSize  = book.file_size;
+            tr.dataset.postDate  = book.post_date;
+            tr.dataset.link      = book.link;
+            tr.dataset.title     = book.title;
+
+            tr.innerHTML =
+                '<td><img src="' + (book.cover || '/static/images/default_cover.jpg') + '" '
+                    + 'onerror="this.src='/static/images/default_cover.jpg'" '
+                    + 'alt="Cover Art" class="cover" width="100"></td>'
+                + '<td>'
+                    + '<p class="book-title">' + escHtml(book.title) + '</p>'
+                    + '<div class="property-results-container">'
+                        + '<span class="book-language">Language: ' + escHtml(book.language) + '</span>'
+                        + '<span class="book-bitrate">Bitrate: '   + escHtml(book.bitrate)  + '</span>'
+                        + '<span class="book-format">Format: '     + escHtml(book.format)   + '</span>'
+                        + '<span class="book-file_size">File Size: '+ escHtml(book.file_size)+ '</span>'
+                        + '<span class="book-post_date">Posted: '  + escHtml(book.post_date)+ '</span>'
+                    + '</div>'
+                + '</td>'
+                + '<td class="action-cell">'
+                    + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
+                    + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
+                    + '<button class="fav-btn"      onclick="handleFavorite(this)">⭐ Save Series</button>'
+                + '</td>';
+
+            tbody.appendChild(tr);
+        });
+
+        // Update session storage with new results
+        saveSearchState();
+
+        _nextStartPage += 1;
+        sessionStorage.setItem('abb_next_page', _nextStartPage);
+        btn.textContent = 'Load More Results';
+        btn.disabled    = false;
+
+        if (!data.has_more) {
+            btn.style.display    = 'none';
+            status.textContent   = 'All results loaded.';
+            status.style.display = 'block';
+        }
+    })
+    .catch(function(err) {
+        _loadingMore = false;
+        btn.textContent = 'Load More Results';
+        btn.disabled    = false;
+        status.textContent  = 'Failed to load more results.';
+        status.style.display = 'block';
+    });
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     restoreSearchState();
     initFavoritesVisibility();
+    // Init load more if we have a query
+    var query = document.getElementById('search-input').value.trim();
+    var tbody = document.getElementById('results-table-body');
+    var hasResults = tbody && tbody.innerHTML.trim().length > 0;
+    if (hasResults && query) {
+        var pageLimit = parseInt(document.getElementById('page-data').dataset.pageLimit || '5');
+        var savedNext = sessionStorage.getItem('abb_next_page');
+        var nextPage  = savedNext ? parseInt(savedNext) : (pageLimit + 1);
+        initLoadMore(query, nextPage);
+    }
 });
 </script>
 
