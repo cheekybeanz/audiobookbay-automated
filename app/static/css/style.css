@@ -23,7 +23,6 @@
     --nav-height:    50px;
 }
 
-/* Force html+body to full viewport width so margin:auto works on children */
 html {
     width: 100%;
     box-sizing: border-box;
@@ -104,16 +103,38 @@ h2 {
 /* ── Page content wrapper ────────────────────────────────────────── */
 .content {
     width: 100%;
-    max-width: 1100px;
+    max-width: 900px;
     margin: 0 auto;
     padding: 0 24px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 /* ── Title area ──────────────────────────────────────────────────── */
 .title-container {
-    text-align: left;
+    text-align: center;
     width: 100%;
-    margin: 28px 0 16px;
+    margin: 32px 0 20px;
+}
+
+.title-container h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+}
+
+.title-container p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* ── Buttons global reset ────────────────────────────────────────── */
+button {
+    font-family: inherit;
+    cursor: pointer;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────── */
