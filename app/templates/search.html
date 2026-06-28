@@ -50,8 +50,8 @@
   <p class="error-message">{{ error }}</p>
 {% endif %}
 
-{% if books %}
-<div id="filter-container">
+<!-- Filter bar — always in DOM, shown/hidden by JS -->
+<div id="filter-container" style="display:none;">
     <div class="filter-row">
         <div class="filter-controls">
             <select id="language-filter">
@@ -82,15 +82,15 @@
         </div>
     </div>
 </div>
-{% else %}
-<div id="filter-container" style="margin-bottom: 10px;">
+
+<!-- Favorites-only bar — shown when no results -->
+<div id="no-results-bar" style="display:none; margin-bottom: 10px;">
     <div class="filter-row">
         <div class="filter-controls">
-            <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
+            <button id="favorites-toggle-btn-empty" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
         </div>
     </div>
 </div>
-{% endif %}
 
 <!-- Favorites Panel -->
 <div id="favorites-panel" style="display:none;">
@@ -163,6 +163,7 @@ function restoreSearchState() {
     if (PAGE_HAS_RESULTS) {
         saveSearchState();
         showClearBtn(true);
+        showFilterBar(true);
         return;
     }
     var savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
@@ -171,6 +172,7 @@ function restoreSearchState() {
         document.getElementById('results-table-body').innerHTML = savedHTML;
         document.getElementById('search-input').value = savedQuery || '';
         showClearBtn(true);
+        showFilterBar(true);
     }
 }
 
@@ -180,7 +182,7 @@ function clearSearch() {
     document.getElementById('results-table-body').innerHTML = '';
     document.getElementById('search-input').value = '';
     showClearBtn(false);
-    // Show favorites panel
+    showFilterBar(false);
     var panel = document.getElementById('favorites-panel');
     panel.style.display = 'block';
     loadFavorites();
@@ -191,10 +193,18 @@ function showClearBtn(show) {
     if (btn) btn.style.display = show ? 'inline-flex' : 'none';
 }
 
+function showFilterBar(show) {
+    var filterBar = document.getElementById('filter-container');
+    var noResultsBar = document.getElementById('no-results-bar');
+    if (filterBar) filterBar.style.display = show ? 'flex' : 'none';
+    if (noResultsBar) noResultsBar.style.display = show ? 'none' : 'block';
+}
+
 // ── Favorites: auto-open when no results ──────────────────────────────────
 function initFavoritesVisibility() {
     var tbody = document.getElementById('results-table-body');
     var hasResults = tbody && tbody.innerHTML.trim().length > 0;
+    showFilterBar(hasResults);
     if (!hasResults) {
         var panel = document.getElementById('favorites-panel');
         panel.style.display = 'block';
