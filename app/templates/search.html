@@ -6,18 +6,65 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/flatpickr.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/css/nouislider.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<!-- Download confirmation modal -->
+<div id="download-modal" style="display:none;">
+    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
+    <div id="download-modal-box">
+        <h2>Confirm Download</h2>
+        <p id="modal-title-display" class="modal-book-title"></p>
+
+        <div class="modal-path-section">
+            <label class="modal-label">Series folder</label>
+            <div class="modal-series-row">
+                <input type="text" id="modal-series-input" placeholder="Series folder name">
+                <span class="modal-series-hint" id="modal-series-hint"></span>
+            </div>
+            <div class="modal-path-preview" id="modal-path-preview"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='vendor/js/flatpickr.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/js/nouislider.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/search.js') }}" defer></script>
+<!-- Download confirmation modal -->
+<div id="download-modal" style="display:none;">
+    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
+    <div id="download-modal-box">
+        <h2>Confirm Download</h2>
+        <p id="modal-title-display" class="modal-book-title"></p>
+
+        <div class="modal-path-section">
+            <label class="modal-label">Series folder</label>
+            <div class="modal-series-row">
+                <input type="text" id="modal-series-input" placeholder="Series folder name">
+                <span class="modal-series-hint" id="modal-series-hint"></span>
+            </div>
+            <div class="modal-path-preview" id="modal-path-preview"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block content %}
 
 <div id="page-data"
      data-has-results="{% if books %}true{% else %}false{% endif %}"
+     data-save-path="{{ save_path_base }}"
      style="display:none;"></div>
 
 <div class="title-container">
@@ -141,7 +188,7 @@
 <script>
 // ── Row data helpers ──────────────────────────────────────────────────────
 function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
-function handleDownload(btn) { var r = btn.closest('tr'); sendToQB(r.dataset.link, r.dataset.title); }
+function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
 function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
 function handleMap(btn)      { mapSeries(btn.closest('tr').dataset.title); }
 
@@ -389,11 +436,132 @@ function mapSeries(title) {
     window.location.href = '/mappings?title=' + encodeURIComponent(title);
 }
 
+
+// ── Download confirmation modal ───────────────────────────────────────────
+var _modalLink  = '';
+var _modalTitle = '';
+var _originalSeries = '';
+
+function openDownloadModal(link, title) {
+    _modalLink  = link;
+    _modalTitle = title;
+
+    // Ask server what series would be extracted
+    fetch('/mappings/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        _originalSeries = data.extracted || title;
+        document.getElementById('modal-title-display').textContent = title;
+        document.getElementById('modal-series-input').value = _originalSeries;
+        updateModalPath();
+        document.getElementById('download-modal').style.display = 'flex';
+        document.getElementById('modal-series-input').focus();
+    });
+}
+
+function updateModalPath() {
+    var series = document.getElementById('modal-series-input').value.trim();
+    var safeTitle = _modalTitle.replace(/[<>:"/\\|?*]/g, '').trim();
+    var safeSeries = series.replace(/[<>:"/\\|?*]/g, '').trim();
+    var hint = document.getElementById('modal-series-hint');
+    var preview = document.getElementById('modal-path-preview');
+
+    if (series !== _originalSeries) {
+        hint.textContent = '(custom)';
+        hint.style.color = 'var(--accent)';
+    } else {
+        hint.textContent = '';
+    }
+
+    var basePath = document.getElementById('page-data').dataset.savePath || '/audiobooks';
+    preview.textContent = basePath + '/' + (safeSeries || 'unknown') + '/' + safeTitle;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('modal-series-input');
+    if (input) {
+        input.addEventListener('input', updateModalPath);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') confirmDownload();
+            if (e.key === 'Escape') closeDownloadModal();
+        });
+    }
+});
+
+function closeDownloadModal() {
+    document.getElementById('download-modal').style.display = 'none';
+    _modalLink = '';
+    _modalTitle = '';
+    _originalSeries = '';
+}
+
+function confirmDownload() {
+    var seriesInput = document.getElementById('modal-series-input').value.trim();
+    var btn = document.querySelector('.modal-btn-confirm');
+    btn.textContent = 'Sending…';
+    btn.disabled = true;
+
+    // If user changed the series name, save it as a mapping first
+    var saveMapping = Promise.resolve();
+    if (seriesInput && seriesInput !== _originalSeries) {
+        saveMapping = fetch('/mappings/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extracted: _originalSeries, mapped: seriesInput })
+        }).then(function(r) { return r.json(); });
+    }
+
+    saveMapping.then(function() {
+        return fetch('/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: _modalLink, title: _modalTitle, series_override: seriesInput })
+        });
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        closeDownloadModal();
+        alert(data.message);
+    })
+    .catch(function(err) {
+        btn.textContent = 'Download to Server';
+        btn.disabled = false;
+        alert('Error: ' + err);
+    });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     restoreSearchState();
     initFavoritesVisibility();
 });
 </script>
+
+<!-- Download confirmation modal -->
+<div id="download-modal" style="display:none;">
+    <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
+    <div id="download-modal-box">
+        <h2>Confirm Download</h2>
+        <p id="modal-title-display" class="modal-book-title"></p>
+
+        <div class="modal-path-section">
+            <label class="modal-label">Series folder</label>
+            <div class="modal-series-row">
+                <input type="text" id="modal-series-input" placeholder="Series folder name">
+                <span class="modal-series-hint" id="modal-series-hint"></span>
+            </div>
+            <div class="modal-path-preview" id="modal-path-preview"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
