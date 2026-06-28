@@ -101,7 +101,7 @@
             data-post-date="{{ book.post_date }}"
             data-link="{{ book.link }}"
             data-title="{{ book.title }}">
-            <td><img src="{{ book.cover }}" alt="Cover Art" class="cover" width="100"></td>
+            <td><img src="{{ book.cover }}" alt="Cover Art" class="cover" width="100" onerror="this.src='/static/images/default_cover.jpg'"></td>
             <td>
                 <p class="book-title">{{ book.title }}</p>
                 <div class="property-results-container">
