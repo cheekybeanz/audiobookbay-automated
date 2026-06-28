@@ -157,8 +157,7 @@ form {
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
-    flex: 1;
-    min-width: 0;
+    justify-content: center;
 }
 
 .filter-buttons {
@@ -812,3 +811,51 @@ td.action-cell {
 
 .modal-btn-confirm:hover { background-color: var(--accent-hover); }
 .modal-btn-confirm:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Modal success / error result state ──────────────────────────── */
+.modal-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.modal-result-icon {
+    font-size: 2rem;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    font-weight: 700;
+}
+
+.modal-result-success .modal-result-icon {
+    background-color: rgba(46, 125, 50, 0.2);
+    color: #69f0ae;
+    border: 1px solid rgba(46, 125, 50, 0.4);
+}
+
+.modal-result-error .modal-result-icon {
+    background-color: rgba(198, 40, 40, 0.2);
+    color: #ef5350;
+    border: 1px solid rgba(198, 40, 40, 0.4);
+}
+
+.modal-result-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+
+.modal-result-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.4;
+}
