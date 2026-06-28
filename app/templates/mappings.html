@@ -17,26 +17,17 @@
 <!-- Add mapping form — always visible -->
 <div class="mappings-add-box">
     <h2>Add Mapping</h2>
-    <div class="mappings-form-col" style="margin-bottom: 12px;">
-        <label>ABB Title</label>
-        <input type="text" id="add-title" placeholder="Paste the full ABB title here e.g. Classroom of the Elite: Year 1 - Syougo Kinugasa">
-    </div>
-    <div id="extracted-preview" style="display:none; margin-bottom: 12px;">
-        <span class="preview-label">App would extract: </span>
-        <span id="extracted-value" class="preview-value"></span>
-    </div>
     <div class="mappings-form-row">
         <div class="mappings-form-col">
-            <label>Before (extracted by app)</label>
-            <input type="text" id="add-extracted" placeholder="Auto-filled from title above" readonly>
+            <label>Before (what the app extracts)</label>
+            <input type="text" id="add-extracted" placeholder="e.g. Classroom of the Elite">
         </div>
         <div class="mappings-arrow">→</div>
         <div class="mappings-form-col">
             <label>After (folder name you want)</label>
-            <input type="text" id="add-mapped" placeholder="Type the folder name you want">
+            <input type="text" id="add-mapped" placeholder="e.g. Classroom of the Elite">
         </div>
     </div>
-    <!-- Live path preview -->
     <div id="path-preview" style="display:none;">
         <div class="path-preview-row">
             <span class="path-label">Before:</span>
@@ -59,78 +50,64 @@
         <span>Current Mappings</span>
     </div>
     <div id="mappings-list">
-        <p id="mappings-empty" style="display:none; color: rgba(255,255,255,0.6); font-size: 0.9em; padding: 10px 0;">
-            No mappings yet. Paste an ABB title above to create one.
+        <p id="mappings-empty" style="color: var(--text-muted); font-size: 0.88rem; padding: 10px 0; margin: 0;">
+            No mappings yet. Add one above.
         </p>
     </div>
 </div>
 
 <script>
-const SAVE_PATH_BASE = "{{ config.get('SAVE_PATH_BASE', '/audiobooks') if config else '/audiobooks' }}";
-
 document.addEventListener('DOMContentLoaded', function() {
     loadMappings();
-    // Pre-fill from Map Series button on search page
-    const params = new URLSearchParams(window.location.search);
-    const title = params.get('title');
+    // Pre-fill from Map Series button or URL param
+    var params = new URLSearchParams(window.location.search);
+    var title = params.get('title');
     if (title) {
-        document.getElementById('add-title').value = title;
-        document.getElementById('add-title').dispatchEvent(new Event('input'));
+        fetch('/mappings/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                document.getElementById('add-extracted').value = data.extracted;
+                document.getElementById('add-mapped').value = data.extracted;
+                updatePathPreview();
+                document.getElementById('add-mapped').focus();
+                document.getElementById('add-mapped').select();
+            }
+        });
     }
 });
 
-// ── Title input — auto-extract on typing ──────────────────────────────────
-document.getElementById('add-title').addEventListener('input', function() {
-    const title = this.value.trim();
-    if (!title) {
-        document.getElementById('extracted-preview').style.display = 'none';
-        document.getElementById('add-extracted').value = '';
-        document.getElementById('path-preview').style.display = 'none';
-        return;
-    }
-    fetch('/mappings/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('extracted-value').textContent = data.extracted;
-            document.getElementById('extracted-preview').style.display = 'block';
-            document.getElementById('add-extracted').value = data.extracted;
-            updatePathPreview(title, data.extracted, document.getElementById('add-mapped').value.trim());
-        }
-    });
+// ── Live path preview ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('add-extracted').addEventListener('input', updatePathPreview);
+    document.getElementById('add-mapped').addEventListener('input', updatePathPreview);
 });
 
-// ── Mapped input — update path preview live ───────────────────────────────
-document.getElementById('add-mapped').addEventListener('input', function() {
-    const title = document.getElementById('add-title').value.trim();
-    const extracted = document.getElementById('add-extracted').value.trim();
-    updatePathPreview(title, extracted, this.value.trim());
-});
+function updatePathPreview() {
+    var extracted = document.getElementById('add-extracted').value.trim();
+    var mapped = document.getElementById('add-mapped').value.trim();
+    var preview = document.getElementById('path-preview');
 
-function updatePathPreview(title, extracted, mapped) {
-    const preview = document.getElementById('path-preview');
     if (!extracted) { preview.style.display = 'none'; return; }
 
-    // Sanitize for display (remove characters the app strips)
-    const safeTitle = title.replace(/[<>:"/\\|?*]/g, '').trim();
-    const safeExtracted = extracted.replace(/[<>:"/\\|?*]/g, '').trim();
-    const safeMapped = (mapped || extracted).replace(/[<>:"/\\|?*]/g, '').trim();
+    var safeExtracted = extracted.replace(/[<>:"/\\|?*]/g, '').trim();
+    var safeMapped = (mapped || extracted).replace(/[<>:"/\\|?*]/g, '').trim();
 
-    document.getElementById('path-before').textContent = `/audiobooks/${safeExtracted}/${safeTitle}`;
-    document.getElementById('path-after').textContent = `/audiobooks/${safeMapped}/${safeTitle}`;
+    document.getElementById('path-before').textContent = '/audiobooks/' + safeExtracted + '/[title]';
+    document.getElementById('path-after').textContent = '/audiobooks/' + safeMapped + '/[title]';
     preview.style.display = 'block';
 }
 
 // ── Add mapping ───────────────────────────────────────────────────────────
 function submitAddMapping() {
-    const extracted = document.getElementById('add-extracted').value.trim();
-    const mapped = document.getElementById('add-mapped').value.trim();
+    var extracted = document.getElementById('add-extracted').value.trim();
+    var mapped = document.getElementById('add-mapped').value.trim();
     if (!extracted || !mapped) {
-        alert('Please paste an ABB title and enter the folder name you want.');
+        alert('Please fill in both fields.');
         return;
     }
     fetch('/mappings/add', {
@@ -138,74 +115,65 @@ function submitAddMapping() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extracted: extracted, mapped: mapped })
     })
-    .then(r => r.json())
-    .then(() => {
+    .then(function(r) { return r.json(); })
+    .then(function() {
         clearAddForm();
         loadMappings();
     });
 }
 
 function clearAddForm() {
-    document.getElementById('add-title').value = '';
     document.getElementById('add-extracted').value = '';
     document.getElementById('add-mapped').value = '';
-    document.getElementById('extracted-preview').style.display = 'none';
     document.getElementById('path-preview').style.display = 'none';
-}
-
-// ── Fill form from external call (Map Series button on search page) ────────
-function fillFromTitle(title) {
-    document.getElementById('add-title').value = title;
-    document.getElementById('add-title').dispatchEvent(new Event('input'));
-    document.getElementById('add-mapped').focus();
 }
 
 // ── Load mappings ─────────────────────────────────────────────────────────
 function loadMappings() {
     fetch('/mappings/list')
-        .then(r => r.json())
-        .then(data => renderMappings(data.mappings || {}));
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderMappings(data.mappings || {}); });
 }
 
 function renderMappings(mappings) {
-    const list = document.getElementById('mappings-list');
-    const empty = document.getElementById('mappings-empty');
-    list.querySelectorAll('.mapping-entry').forEach(el => el.remove());
+    var list = document.getElementById('mappings-list');
+    var empty = document.getElementById('mappings-empty');
+    list.querySelectorAll('.mapping-entry').forEach(function(el) { el.remove(); });
 
-    const keys = Object.keys(mappings).sort();
+    var keys = Object.keys(mappings).sort();
     if (keys.length === 0) {
         empty.style.display = 'block';
         return;
     }
     empty.style.display = 'none';
 
-    keys.forEach(key => {
-        const entry = document.createElement('div');
+    keys.forEach(function(key) {
+        var entry = document.createElement('div');
         entry.className = 'mapping-entry';
 
-        const from = document.createElement('span');
+        var from = document.createElement('span');
         from.className = 'mapping-from';
         from.textContent = key;
 
-        const arrow = document.createElement('span');
+        var arrow = document.createElement('span');
         arrow.className = 'mapping-arrow-inline';
         arrow.textContent = '→';
 
-        const to = document.createElement('span');
+        var to = document.createElement('span');
         to.className = 'mapping-to';
         to.textContent = mappings[key];
 
-        const editBtn = document.createElement('button');
+        var editBtn = document.createElement('button');
         editBtn.className = 'map-edit-btn';
         editBtn.textContent = '✏️';
         editBtn.title = 'Edit';
-        editBtn.onclick = () => startEditMapping(entry, key, mappings[key]);
+        editBtn.onclick = function() { startEditMapping(entry, key, mappings[key]); };
 
-        const delBtn = document.createElement('button');
+        var delBtn = document.createElement('button');
         delBtn.className = 'map-delete-btn';
         delBtn.textContent = '✕';
         delBtn.title = 'Remove';
-        delBtn.onclick = () => confirmDeleteMapping(key);
+        delBtn.onclick = function() { confirmDeleteMapping(key); };
 
         entry.appendChild(from);
         entry.appendChild(arrow);
@@ -219,29 +187,31 @@ function renderMappings(mappings) {
 function startEditMapping(entry, oldKey, oldValue) {
     entry.innerHTML = '';
 
-    const fromInput = document.createElement('input');
+    var fromInput = document.createElement('input');
     fromInput.type = 'text';
     fromInput.className = 'mapping-edit-input';
     fromInput.value = oldKey;
 
-    const arrow = document.createElement('span');
+    var arrow = document.createElement('span');
     arrow.className = 'mapping-arrow-inline';
     arrow.textContent = '→';
 
-    const toInput = document.createElement('input');
+    var toInput = document.createElement('input');
     toInput.type = 'text';
     toInput.className = 'mapping-edit-input';
     toInput.value = oldValue;
 
-    const saveBtn = document.createElement('button');
+    var saveBtn = document.createElement('button');
     saveBtn.className = 'map-edit-btn';
+    saveBtn.style.opacity = '1';
     saveBtn.textContent = '✓';
-    saveBtn.onclick = () => commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim());
+    saveBtn.onclick = function() { commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim()); };
 
-    const cancelBtn = document.createElement('button');
+    var cancelBtn = document.createElement('button');
     cancelBtn.className = 'map-delete-btn';
+    cancelBtn.style.opacity = '1';
     cancelBtn.textContent = '✕';
-    cancelBtn.onclick = () => loadMappings();
+    cancelBtn.onclick = function() { loadMappings(); };
 
     entry.appendChild(fromInput);
     entry.appendChild(arrow);
@@ -249,6 +219,15 @@ function startEditMapping(entry, oldKey, oldValue) {
     entry.appendChild(saveBtn);
     entry.appendChild(cancelBtn);
     fromInput.focus();
+
+    fromInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim());
+        if (e.key === 'Escape') loadMappings();
+    });
+    toInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim());
+        if (e.key === 'Escape') loadMappings();
+    });
 }
 
 function commitEditMapping(oldKey, newKey, newValue) {
@@ -258,19 +237,19 @@ function commitEditMapping(oldKey, newKey, newValue) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: oldKey, new_extracted: newKey, new_mapped: newValue })
     })
-    .then(r => r.json())
-    .then(() => loadMappings());
+    .then(function(r) { return r.json(); })
+    .then(function() { loadMappings(); });
 }
 
 function confirmDeleteMapping(key) {
-    if (confirm(`Remove mapping for "${key}"?`)) {
+    if (confirm('Remove mapping for "' + key + '"?')) {
         fetch('/mappings/remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: key })
         })
-        .then(r => r.json())
-        .then(() => loadMappings());
+        .then(function(r) { return r.json(); })
+        .then(function() { loadMappings(); });
     }
 }
 </script>
