@@ -590,3 +590,53 @@ td.action-cell {
         height: 56px;
     }
 }
+
+/* ── Clear search button (next to Search) ────────────────────────── */
+.clear-button {
+    padding: 11px 18px;
+    background-color: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+}
+
+.clear-button:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+/* ── Map Series button — match other action buttons ──────────────── */
+.map-btn {
+    display: block;
+    width: 100%;
+    background-color: transparent;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 7px 10px;
+    margin: 0;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.map-btn:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--accent) !important;
+    color: var(--accent);
+}
