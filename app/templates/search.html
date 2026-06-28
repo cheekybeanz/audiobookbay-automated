@@ -119,10 +119,10 @@
                 </div>
             </td>
             <td>
-                <button onclick="window.open('{{ book.link }}', '_blank')">Details</button>
-                <button onclick="sendToQB('{{ book.link|escape }}', '{{ book.title|escape }}')">Download to Server</button>
-                <button class="fav-btn" onclick="saveFavorite('{{ book.title|escape }}', this)" title="Save to Favorites">⭐ Save Series</button>
-                <button class="map-btn" onclick="mapSeries('{{ book.title|escape }}')" title="Map Series Name">🗺 Map Series</button>
+                <button onclick="window.open({{ book.link | tojson }}, '_blank')">Details</button>
+                <button onclick="sendToQB({{ book.link | tojson }}, {{ book.title | tojson }})">Download to Server</button>
+                <button class="fav-btn" onclick="saveFavorite({{ book.title | tojson }}, this)" title="Save to Favorites">⭐ Save Series</button>
+                <button class="map-btn" onclick="mapSeries({{ book.title | tojson }})" title="Map Series Name">🗺 Map Series</button>
             </td>
         </tr>
         {% endfor %}
@@ -130,6 +130,50 @@
 </table>
 
 <script>
+// ── Session persistence: save & restore search results across page navigation ──
+// Flag so we know whether the current page was a real search or a restore
+const PAGE_HAS_RESULTS = {{ 'true' if books else 'false' }};
+const SAVED_QUERY_KEY  = 'abb_search_query';
+const SAVED_HTML_KEY   = 'abb_search_html';
+
+function saveSearchState() {
+    const tbody = document.getElementById('results-table-body');
+    const query = document.getElementById('search-input').value;
+    if (tbody && tbody.innerHTML.trim()) {
+        sessionStorage.setItem(SAVED_HTML_KEY, tbody.innerHTML);
+        sessionStorage.setItem(SAVED_QUERY_KEY, query);
+    }
+}
+
+function restoreSearchState() {
+    // Only restore if Flask didn't already render results
+    if (PAGE_HAS_RESULTS) {
+        // Save what Flask just rendered so it's available next visit
+        saveSearchState();
+        return;
+    }
+    const savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
+    const savedQuery = sessionStorage.getItem(SAVED_QUERY_KEY);
+    if (savedHTML) {
+        document.getElementById('results-table-body').innerHTML = savedHTML;
+        document.getElementById('search-input').value = savedQuery || '';
+    }
+}
+
+// ── Favorites visibility: auto-open when no results, collapsible otherwise ──
+function initFavoritesVisibility() {
+    const panel  = document.getElementById('favorites-panel');
+    const tbody  = document.getElementById('results-table-body');
+    const hasResults = tbody && tbody.innerHTML.trim().length > 0;
+
+    if (!hasResults) {
+        // No results on page — open favorites automatically, no toggle needed
+        panel.style.display = 'block';
+        loadFavorites();
+    }
+    // If there ARE results, favorites stay closed until the user clicks ⭐ Favorites
+}
+
 // ── Favorites panel toggle ────────────────────────────────────────────────
 function toggleFavorites() {
     const panel = document.getElementById('favorites-panel');
@@ -146,7 +190,7 @@ function loadFavorites() {
 }
 
 function renderFavorites(favs) {
-    const list = document.getElementById('favorites-list');
+    const list  = document.getElementById('favorites-list');
     const empty = document.getElementById('favorites-empty');
 
     list.querySelectorAll('.fav-entry').forEach(el => el.remove());
@@ -161,22 +205,40 @@ function renderFavorites(favs) {
             entry.className = 'fav-entry';
             entry.dataset.name = name;
 
+            // Clicking the row highlights it (shows edit/delete buttons)
+            entry.addEventListener('click', function (e) {
+                // Don't deselect if they clicked a button inside the entry
+                if (e.target.tagName === 'BUTTON') return;
+                const alreadyActive = entry.classList.contains('active');
+                document.querySelectorAll('.fav-entry').forEach(i => i.classList.remove('active'));
+                if (!alreadyActive) entry.classList.add('active');
+            });
+
             const link = document.createElement('button');
             link.className = 'fav-search-btn';
             link.textContent = name;
-            link.onclick = () => searchFavorite(name);
+            link.onclick = (e) => {
+                e.stopPropagation();
+                searchFavorite(name);
+            };
 
             const editBtn = document.createElement('button');
             editBtn.className = 'fav-edit-btn';
             editBtn.textContent = '✏️';
             editBtn.title = 'Edit';
-            editBtn.onclick = () => startEdit(entry, name);
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                startEdit(entry, name);
+            };
 
             const del = document.createElement('button');
             del.className = 'fav-delete-btn';
             del.textContent = '✕';
             del.title = 'Remove';
-            del.onclick = () => confirmDelete(name);
+            del.onclick = (e) => {
+                e.stopPropagation();
+                confirmDelete(name);
+            };
 
             entry.appendChild(link);
             entry.appendChild(editBtn);
@@ -336,6 +398,12 @@ function saveFavorite(title, btn) {
 function mapSeries(title) {
     window.location.href = '/mappings?title=' + encodeURIComponent(title);
 }
+
+// ── Run on page load ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    restoreSearchState();
+    initFavoritesVisibility();
+});
 </script>
 
 {% endblock %}
