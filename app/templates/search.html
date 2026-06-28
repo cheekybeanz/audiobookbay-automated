@@ -10,22 +10,25 @@
 <div id="download-modal" style="display:none;">
     <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
     <div id="download-modal-box">
-        <h2>Confirm Download</h2>
-        <p id="modal-title-display" class="modal-book-title"></p>
+        <div id="download-modal-form">
+            <h2>Confirm Download</h2>
+            <p id="modal-title-display" class="modal-book-title"></p>
 
-        <div class="modal-path-section">
-            <label class="modal-label">Series folder</label>
-            <div class="modal-series-row">
-                <input type="text" id="modal-series-input" placeholder="Series folder name">
-                <span class="modal-series-hint" id="modal-series-hint"></span>
+            <div class="modal-path-section">
+                <label class="modal-label">Series folder</label>
+                <div class="modal-series-row">
+                    <input type="text" id="modal-series-input" placeholder="Series folder name">
+                    <span class="modal-series-hint" id="modal-series-hint"></span>
+                </div>
+                <div class="modal-path-preview" id="modal-path-preview"></div>
             </div>
-            <div class="modal-path-preview" id="modal-path-preview"></div>
-        </div>
 
-        <div class="modal-actions">
-            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            </div>
         </div>
+        <div id="download-modal-result" style="display:none;"></div>
     </div>
 </div>
 
@@ -39,22 +42,25 @@
 <div id="download-modal" style="display:none;">
     <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
     <div id="download-modal-box">
-        <h2>Confirm Download</h2>
-        <p id="modal-title-display" class="modal-book-title"></p>
+        <div id="download-modal-form">
+            <h2>Confirm Download</h2>
+            <p id="modal-title-display" class="modal-book-title"></p>
 
-        <div class="modal-path-section">
-            <label class="modal-label">Series folder</label>
-            <div class="modal-series-row">
-                <input type="text" id="modal-series-input" placeholder="Series folder name">
-                <span class="modal-series-hint" id="modal-series-hint"></span>
+            <div class="modal-path-section">
+                <label class="modal-label">Series folder</label>
+                <div class="modal-series-row">
+                    <input type="text" id="modal-series-input" placeholder="Series folder name">
+                    <span class="modal-series-hint" id="modal-series-hint"></span>
+                </div>
+                <div class="modal-path-preview" id="modal-path-preview"></div>
             </div>
-            <div class="modal-path-preview" id="modal-path-preview"></div>
-        </div>
 
-        <div class="modal-actions">
-            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            </div>
         </div>
+        <div id="download-modal-result" style="display:none;"></div>
     </div>
 </div>
 
@@ -482,6 +488,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function closeDownloadModal() {
     document.getElementById('download-modal').style.display = 'none';
+    // Reset form to original state so next open is clean
+    document.getElementById('download-modal-form').style.display = 'block';
+    var result = document.getElementById('download-modal-result');
+    result.style.display = 'none';
+    result.innerHTML = '';
+    // Reset form fields
+    document.getElementById('modal-title-display').textContent = '';
+    document.getElementById('modal-series-input').value = '';
+    document.getElementById('modal-series-hint').textContent = '';
+    document.getElementById('modal-path-preview').textContent = '';
+    // Re-enable buttons
+    var confirmBtn = document.querySelector('.modal-btn-confirm');
+    var cancelBtn = document.querySelector('.modal-btn-cancel');
+    if (confirmBtn) { confirmBtn.textContent = 'Download to Server'; confirmBtn.disabled = false; }
+    if (cancelBtn) { cancelBtn.disabled = false; }
     _modalLink = '';
     _modalTitle = '';
     _originalSeries = '';
@@ -513,23 +534,27 @@ function confirmDownload() {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        // Show success state inside the modal, then close
-        var box = document.getElementById('download-modal-box');
-        box.innerHTML = '<div class="modal-result modal-result-success">'
+        // Show success in result div, hide form — modal HTML stays intact
+        document.getElementById('download-modal-form').style.display = 'none';
+        var result = document.getElementById('download-modal-result');
+        result.innerHTML = '<div class="modal-result modal-result-success">'
             + '<div class="modal-result-icon">✓</div>'
             + '<p class="modal-result-title">Added to queue</p>'
             + '<p class="modal-result-sub">' + (_modalTitle || '') + '</p>'
             + '</div>';
+        result.style.display = 'block';
         setTimeout(function() { closeDownloadModal(); }, 2000);
     })
     .catch(function(err) {
-        var box = document.getElementById('download-modal-box');
-        box.innerHTML = '<div class="modal-result modal-result-error">'
+        document.getElementById('download-modal-form').style.display = 'none';
+        var result = document.getElementById('download-modal-result');
+        result.innerHTML = '<div class="modal-result modal-result-error">'
             + '<div class="modal-result-icon">✕</div>'
             + '<p class="modal-result-title">Failed to add</p>'
             + '<p class="modal-result-sub">' + err + '</p>'
             + '<button class="modal-btn-cancel" onclick="closeDownloadModal()" style="margin-top:14px;">Close</button>'
             + '</div>';
+        result.style.display = 'block';
     });
 }
 
@@ -544,22 +569,25 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="download-modal" style="display:none;">
     <div id="download-modal-backdrop" onclick="closeDownloadModal()"></div>
     <div id="download-modal-box">
-        <h2>Confirm Download</h2>
-        <p id="modal-title-display" class="modal-book-title"></p>
+        <div id="download-modal-form">
+            <h2>Confirm Download</h2>
+            <p id="modal-title-display" class="modal-book-title"></p>
 
-        <div class="modal-path-section">
-            <label class="modal-label">Series folder</label>
-            <div class="modal-series-row">
-                <input type="text" id="modal-series-input" placeholder="Series folder name">
-                <span class="modal-series-hint" id="modal-series-hint"></span>
+            <div class="modal-path-section">
+                <label class="modal-label">Series folder</label>
+                <div class="modal-series-row">
+                    <input type="text" id="modal-series-input" placeholder="Series folder name">
+                    <span class="modal-series-hint" id="modal-series-hint"></span>
+                </div>
+                <div class="modal-path-preview" id="modal-path-preview"></div>
             </div>
-            <div class="modal-path-preview" id="modal-path-preview"></div>
-        </div>
 
-        <div class="modal-actions">
-            <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
-            <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeDownloadModal()">Cancel</button>
+                <button class="modal-btn-confirm" onclick="confirmDownload()">Download to Server</button>
+            </div>
         </div>
+        <div id="download-modal-result" style="display:none;"></div>
     </div>
 </div>
 
