@@ -200,6 +200,9 @@ function restoreSearchState() {
         resetLoadMoreState();  // Fresh search — reset load more state
         showClearBtn(true);
         showFilterBar(true);
+        // Show Load More for fresh search
+        var lmc = document.getElementById('load-more-container');
+        if (lmc) lmc.style.display = 'block';
         return;
     }
     var savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
@@ -209,6 +212,14 @@ function restoreSearchState() {
         document.getElementById('search-input').value = savedQuery || '';
         showClearBtn(true);
         showFilterBar(true);
+        // Re-init filters since search.js runs before rows are restored
+        if (typeof initializeFilters === 'function') {
+            try { initializeFilters(); } catch(e) {}
+            var filterBtn = document.getElementById('filter-button');
+            var clearBtn  = document.getElementById('clear-button');
+            if (filterBtn) filterBtn.addEventListener('click', applyFilters);
+            if (clearBtn)  clearBtn.addEventListener('click', clearFilters);
+        }
     }
 }
 
@@ -600,8 +611,11 @@ var _loadingMore   = false;
 function initLoadMore(query, nextPage) {
     _currentQuery  = query;
     _nextStartPage = nextPage;
+    // Always show the button — hide only if we somehow already know there's nothing more
     var container = document.getElementById('load-more-container');
-    if (container) container.style.display = nextPage > 1 ? 'block' : 'none';
+    if (container) container.style.display = 'block';
+    var btn = document.getElementById('load-more-btn');
+    if (btn) { btn.style.display = 'block'; btn.textContent = 'Load More Results'; btn.disabled = false; }
 }
 
 function loadMore() {
@@ -717,6 +731,9 @@ document.addEventListener('DOMContentLoaded', function() {
         var savedNext = sessionStorage.getItem('abb_next_page');
         var nextPage  = savedNext ? parseInt(savedNext) : (pageLimit + 1);
         initLoadMore(query, nextPage);
+        // Show load more container
+        var lmc = document.getElementById('load-more-container');
+        if (lmc) lmc.style.display = 'block';
     }
 });
 </script>
