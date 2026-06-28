@@ -1,4 +1,5 @@
 import os
+import time
 import pwd
 import grp
 import json
@@ -113,6 +114,11 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
             url = f"https://{ABB_HOSTNAME}/page/{page}/?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}"
         else:
             url = f"https://{ABB_HOSTNAME}/page/{page}/"
+
+        # Polite delay between pages to avoid rate limiting
+        if page > start_page:
+            time.sleep(0.75)
+
         try:
             response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
