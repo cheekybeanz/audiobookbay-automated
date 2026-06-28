@@ -2,18 +2,21 @@
    Search page styles
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Search bar row ──────────────────────────────────────────────── */
+/* ── Search bar area ─────────────────────────────────────────────── */
+.search-container {
+    width: 100%;
+}
+
 form {
     margin: 0 0 20px 0;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
 }
 
 .search-form {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 8px;
     width: 100%;
     max-width: 680px;
@@ -102,9 +105,7 @@ form {
 
 .message-scroller {
     display: none;
-    text-align: center;
-    margin: 0 auto;
-    width: fit-content;
+    text-align: left;
     color: var(--text-muted);
     font-size: 0.85rem;
 }
@@ -124,14 +125,12 @@ form {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin: 0 auto 20px;
+    margin: 0 0 20px;
     width: 100%;
-    max-width: 1000px;
 }
 
 .filter-row {
     display: flex;
-    justify-content: center;
     align-items: center;
     width: 100%;
     gap: 10px;
@@ -281,12 +280,12 @@ form {
 table {
     width: 100%;
     max-width: 1000px;
-    margin: 0 auto 20px;
     border-collapse: collapse;
     background-color: var(--bg-panel);
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--border);
+    margin-bottom: 20px;
 }
 
 td {
@@ -347,99 +346,94 @@ p.book-title {
     }
 }
 
-/* ── Result action buttons (Details / Download / Save / Map) ─────── */
-td:last-child {
+/* ── Action button column ────────────────────────────────────────── */
+/* Fixed width column for the buttons on the right */
+td.action-cell {
     width: 160px;
-    min-width: 140px;
+    min-width: 150px;
 }
 
-/* Base reset for all buttons in results */
-td:last-child button {
+/* All action buttons share a base style */
+.btn-details,
+.btn-download,
+.fav-btn {
     display: block;
     width: 100%;
     margin-bottom: 5px;
     padding: 7px 10px;
     border-radius: 5px;
-    border: none;
     font-size: 0.82rem;
     font-family: inherit;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, color 0.2s;
     text-align: center;
+    border: none;
 }
 
-td:last-child button:last-child {
-    margin-bottom: 0;
-}
-
-/* Details button */
-td:last-child button:nth-child(1) {
+/* Details */
+.btn-details {
     background-color: var(--bg-panel-alt);
     color: var(--text-muted);
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--border-strong) !important;
 }
-td:last-child button:nth-child(1):hover {
-    background-color: rgba(255,255,255,0.08);
+.btn-details:hover {
+    background-color: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
 }
 
-/* Download button */
-td:last-child button:nth-child(2) {
+/* Download */
+.btn-download {
     background-color: var(--accent);
     color: white;
 }
-td:last-child button:nth-child(2):hover {
+.btn-download:hover {
     background-color: var(--accent-hover);
 }
 
-/* Save Series button */
+/* Save Series */
 .fav-btn {
-    background-color: var(--bg-panel-alt) !important;
-    color: var(--text-muted) !important;
+    background-color: var(--bg-panel-alt);
+    color: var(--text-muted);
     border: 1px solid var(--border-strong) !important;
-    font-size: 0.82rem !important;
-    padding: 7px 10px !important;
-    margin-bottom: 5px !important;
+    margin-bottom: 4px;
 }
-
 .fav-btn:hover {
-    background-color: rgba(255,255,255,0.06) !important;
-    color: var(--text-primary) !important;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
 }
-
 .fav-btn:disabled {
-    background-color: rgba(46, 125, 50, 0.3) !important;
-    color: #81c784 !important;
-    border-color: rgba(46,125,50,0.4) !important;
-    cursor: default !important;
+    background-color: rgba(46, 125, 50, 0.3);
+    color: #81c784;
+    border-color: rgba(46, 125, 50, 0.4) !important;
+    cursor: default;
 }
 
-/* Map Series button — slim inline style, not a full block */
+/* Map Series — slim text link, no block box */
 .map-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--text-dim) !important;
-    font-size: 0.78rem !important;
-    padding: 4px 0 !important;
-    margin-bottom: 0 !important;
-    width: auto !important;
-    display: inline-block !important;
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    font-family: inherit;
+    padding: 3px 0;
+    margin-bottom: 0;
     cursor: pointer;
-    transition: color 0.2s !important;
-    text-align: left !important;
+    text-align: left;
+    transition: color 0.2s;
 }
-
 .map-btn:hover {
-    background: none !important;
-    color: var(--accent) !important;
+    background: none;
+    color: var(--accent);
 }
 
 /* ── Favorites panel ─────────────────────────────────────────────── */
 #favorites-panel {
     width: 100%;
     max-width: 1000px;
-    margin: 0 auto 20px;
+    margin: 0 0 20px;
     background-color: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -451,28 +445,28 @@ td:last-child button:nth-child(2):hover {
     justify-content: space-between;
     align-items: center;
     font-weight: 600;
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-bottom: 10px;
     color: var(--text-muted);
 }
 
 #favorites-close-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--text-dim) !important;
-    font-size: 0.9rem !important;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.9rem;
     cursor: pointer;
-    padding: 0 !important;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    transition: color 0.2s !important;
+    padding: 0;
+    width: auto;
+    margin-bottom: 0;
+    transition: color 0.2s;
 }
 
 #favorites-close-btn:hover {
-    background: none !important;
-    color: var(--text-primary) !important;
+    background: none;
+    color: var(--text-primary);
 }
 
 /* ── Individual favourite entry ──────────────────────────────────── */
@@ -500,22 +494,22 @@ td:last-child button:nth-child(2):hover {
 }
 
 .fav-search-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--text-primary) !important;
-    font-size: 0.9rem !important;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
     cursor: pointer;
-    padding: 0 !important;
+    padding: 0;
     text-align: left;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    transition: color 0.2s !important;
+    width: auto;
+    margin-bottom: 0;
+    transition: color 0.2s;
     flex-grow: 1;
 }
 
 .fav-search-btn:hover {
-    background: none !important;
-    color: var(--accent) !important;
+    background: none;
+    color: var(--accent);
 }
 
 /* Edit and delete hidden until row is hovered or active */
@@ -524,6 +518,12 @@ td:last-child button:nth-child(2):hover {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-bottom: 0;
+    width: auto;
+    flex-shrink: 0;
 }
 
 .fav-entry:hover .fav-edit-btn,
@@ -535,38 +535,27 @@ td:last-child button:nth-child(2):hover {
 }
 
 .fav-delete-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--text-dim) !important;
-    font-size: 0.82rem !important;
-    cursor: pointer;
-    padding: 0 0 0 8px !important;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    flex-shrink: 0;
-    transition: color 0.2s, opacity 0.15s !important;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    padding: 0 0 0 8px;
+    transition: color 0.2s, opacity 0.15s;
 }
 
 .fav-delete-btn:hover {
-    background: none !important;
-    color: #ef5350 !important;
+    background: none;
+    color: #ef5350;
 }
 
 .fav-edit-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--text-dim) !important;
-    font-size: 0.82rem !important;
-    cursor: pointer;
-    padding: 0 4px !important;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    transition: color 0.2s, opacity 0.15s !important;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    padding: 0 4px;
+    transition: color 0.2s, opacity 0.15s;
 }
 
 .fav-edit-btn:hover {
-    background: none !important;
-    color: var(--accent) !important;
+    background: none;
+    color: var(--accent);
 }
 
 /* ── Add row ─────────────────────────────────────────────────────── */
@@ -600,28 +589,29 @@ td:last-child button:nth-child(2):hover {
 }
 
 .fav-add-btn {
-    background: none !important;
-    border: 1px solid var(--border-strong) !important;
-    color: var(--text-muted) !important;
+    background: none;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
     border-radius: 5px;
     cursor: pointer;
-    padding: 4px 10px !important;
-    font-size: 1rem !important;
-    width: auto !important;
-    margin-bottom: 0 !important;
-    transition: background-color 0.2s, border-color 0.2s !important;
+    padding: 4px 10px;
+    font-size: 1rem;
+    width: auto;
+    margin-bottom: 0;
+    transition: background-color 0.2s, border-color 0.2s;
 }
 
 .fav-add-btn:hover {
-    background-color: var(--accent-subtle) !important;
-    border-color: var(--accent) !important;
-    color: var(--text-primary) !important;
+    background-color: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text-primary);
 }
 
 #favorites-empty {
     color: var(--text-muted);
     font-size: 0.88rem;
     padding: 10px 0;
+    margin: 0;
 }
 
 /* ── Mobile tweaks ───────────────────────────────────────────────── */
@@ -630,12 +620,14 @@ td:last-child button:nth-child(2):hover {
         font-size: 0.9rem;
     }
 
-    td:last-child {
+    td.action-cell {
         width: 120px;
         min-width: 110px;
     }
 
-    td:last-child button {
+    .btn-details,
+    .btn-download,
+    .fav-btn {
         font-size: 0.76rem;
         padding: 6px 8px;
     }
