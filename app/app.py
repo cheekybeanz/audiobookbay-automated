@@ -435,6 +435,45 @@ def get_series_name(title):
     return series
 
 
+def _normalize_for_fuzzy(name):
+    """Strip punctuation and lowercase a string for fuzzy folder matching."""
+    name = name.lower()
+    # Remove all punctuation and symbols, keep letters, digits, spaces
+    name = re.sub(r"[^a-z0-9\s]", "", name)
+    # Collapse whitespace
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+
+def _find_series_folder(scan_base, series_name):
+    """
+    Find the best matching series folder under scan_base for the given series name.
+    First tries an exact match (case-insensitive), then falls back to fuzzy matching
+    by stripping punctuation from both the target and each folder on disk.
+    Returns the full path of the matched folder, or None if no match found.
+    """
+    if not os.path.isdir(scan_base):
+        return None
+
+    normalized_target = _normalize_for_fuzzy(series_name)
+    best_match = None
+
+    try:
+        for entry in os.scandir(scan_base):
+            if not entry.is_dir():
+                continue
+            # Exact case-insensitive match first
+            if entry.name.lower() == series_name.lower():
+                return entry.path
+            # Fuzzy match — compare with punctuation stripped
+            if _normalize_for_fuzzy(entry.name) == normalized_target:
+                best_match = entry.path
+    except PermissionError:
+        pass
+
+    return best_match
+
+
 # ── Routes ─────────────────────────────────────────────────────────────────
 @app.route("/", methods=["GET", "POST"])
 def search():
@@ -758,21 +797,34 @@ def check_exists():
         return jsonify({"exists": False})
 
     def extract_vol_num(t):
-        # Bracket format at start e.g. [16] Series Title
-        m = re.search(r"^\[([0-9]+(?:[.][0-9]+)?)\]", t.strip())
+        # Strip author suffix (everything after last " - ") before processing
+        authorless = t.rsplit(" - ", 1)[0].strip() if " - " in t else t.strip()
+
+        # 1. Bracket format anywhere in title: [16], - [16], [16] at start or end
+        m = re.search(r"(?:^|-\s*)\[([0-9]+(?:[.][0-9]+)?)\]", authorless)
         if m:
             return m.group(1)
-        # Keyword-based match — take the last one
+
+        # 2. Keyword-based match anywhere — Vol./Volume/Book/Part/Year N
+        #    Take the last match to handle edge cases like "Book 1 Vol. 2"
         matches = list(re.finditer(
             r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
-            t, re.IGNORECASE
+            authorless, re.IGNORECASE
         ))
         if matches:
             return matches[-1].group(1)
-        # Bare trailing number or number before colon
-        authorless = t.rsplit(" - ", 1)[0] if " - " in t else t
-        m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless.strip())
-        return m.group(1) if m else None
+
+        # 3. Bare number at start: "16 Series Title"
+        m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", authorless)
+        if m:
+            return m.group(1)
+
+        # 4. Bare number at end: "Series Title 16" or "Series Title 16:"
+        m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless)
+        if m:
+            return m.group(1)
+
+        return None
 
     vol_num = extract_vol_num(title)
     if not vol_num:
@@ -789,11 +841,16 @@ def check_exists():
     except ValueError:
         variants = [vol_num]
 
+    # Use fuzzy folder matching to find the series folder even if punctuation differs
     safe_series = sanitize_title(series) if series else ""
-    scan_path   = os.path.join(SCAN_PATH_BASE, safe_series) if safe_series else SCAN_PATH_BASE
-
-    if not os.path.isdir(scan_path):
-        return jsonify({"exists": False})
+    if safe_series:
+        scan_path = _find_series_folder(SCAN_PATH_BASE, safe_series)
+        if not scan_path:
+            return jsonify({"exists": False})
+    else:
+        scan_path = SCAN_PATH_BASE
+        if not os.path.isdir(scan_path):
+            return jsonify({"exists": False})
 
     try:
         for entry in os.scandir(scan_path):
