@@ -903,6 +903,54 @@ td.action-cell {
     cursor: default;
 }
 
+/* ── Favorites sort row ──────────────────────────────────────────── */
+.fav-sort-row {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px 4px;
+    gap: 0;
+}
+
+.fav-sort-btn {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    width: auto;
+    white-space: nowrap;
+    transition: color 0.15s;
+    line-height: 1;
+}
+
+/* Bell sort sits above the bell column — match bell button width */
+#fav-sort-bell {
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+    padding-right: 6px;
+}
+
+/* Title sort sits above the series name — fills remaining space */
+#fav-sort-title {
+    flex-grow: 1;
+    text-align: left;
+}
+
+.fav-sort-btn:hover {
+    background: none !important;
+    color: var(--text-muted);
+}
+
+.fav-sort-btn.fav-sort-active {
+    color: var(--accent);
+}
+
 /* ── Alert bell button ───────────────────────────────────────────── */
 .fav-bell-btn {
     background: none !important;
@@ -1001,7 +1049,7 @@ td.action-cell {
     background: none !important;
     border: none !important;
     color: var(--text-dim);
-    font-size: 0.95rem;
+    font-size: 0.62rem !important;
     cursor: pointer;
     padding: 0 2px;
     width: auto;
