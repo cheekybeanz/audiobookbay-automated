@@ -68,20 +68,18 @@
     </div>
 </div>
 
-<!-- Favorites toggle row — always visible, always centered -->
-<div id="favorites-bar">
-    <button id="favorites-toggle-btn" onclick="toggleFavorites()">⭐ Favorites</button>
-</div>
-
-<!-- Favorites Panel -->
-<div id="favorites-panel" style="display:none;">
-    <div id="favorites-header" onclick="toggleFavorites()" title="Click to collapse">
+<!-- Favorites Panel — always visible, header toggles content -->
+<div id="favorites-panel">
+    <div id="favorites-header" onclick="toggleFavorites()" title="Click to expand or collapse">
         <span id="favorites-header-label">⭐ Favorites</span>
+        <span id="favorites-header-arrow">▾</span>
     </div>
-    <div id="favorites-list">
-        <p id="favorites-empty" style="display:none;">
-            No favorites saved yet. Use the ⭐ Save Series button on a search result to add one.
-        </p>
+    <div id="favorites-body" style="display:none;">
+        <div id="favorites-list">
+            <p id="favorites-empty" style="display:none;">
+                No favorites saved yet. Use the ⭐ Save Series button on a search result to add one.
+            </p>
+        </div>
     </div>
 </div>
 
