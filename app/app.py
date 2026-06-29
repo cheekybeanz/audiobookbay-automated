@@ -44,7 +44,9 @@ else:
 DL_USERNAME    = os.getenv("DL_USERNAME")
 DL_PASSWORD    = os.getenv("DL_PASSWORD")
 DL_CATEGORY    = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
-SAVE_PATH_BASE = os.getenv("SAVE_PATH_BASE")
+SAVE_PATH_BASE  = os.getenv("SAVE_PATH_BASE")
+SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)  # Falls back to SAVE_PATH_BASE
+REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.75"))
 
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
@@ -58,6 +60,8 @@ print(f"DL_URL: {DL_URL}")
 print(f"DL_USERNAME: {DL_USERNAME}")
 print(f"DL_CATEGORY: {DL_CATEGORY}")
 print(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
+print(f"SCAN_PATH_BASE: {SCAN_PATH_BASE}")
+print(f"REQUEST_DELAY: {REQUEST_DELAY}")
 print(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
 print(f"NAV_LINK_URL: {NAV_LINK_URL}")
 print(f"PAGE_LIMIT: {PAGE_LIMIT}")
@@ -77,36 +81,68 @@ if not os.path.exists(_env_template):
         f.write("""# ABB Automated Configuration
 # Edit this file and restart the container to apply changes.
 # Lines starting with # are comments and are ignored.
+# Variables marked [default: x] will use that value if left commented out.
+# Variables marked [required] must be set for that feature to work.
 
-# AudioBookBay hostname (change if the domain moves)
+# ── AudioBookBay ──────────────────────────────────────────────────────────
+
+# AudioBookBay hostname — update if the domain moves  [default: audiobookbay.lu]
 # ABB_HOSTNAME=audiobookbay.lu
 
-# Number of pages to load per search / Load More batch
+# Pages to load per search and per Load More click    [default: 5]
 # PAGE_LIMIT=5
 
-# Download client: qbittorrent, transmission, or delugeweb
-# DOWNLOAD_CLIENT=qbittorrent
+# Delay in seconds between page fetches               [default: 0.75]
+# Increase if you get rate limited, decrease if behind a VPN
+# REQUEST_DELAY=0.75
 
-# Download client connection (use DL_URL or individual settings)
+# ── Download client ───────────────────────────────────────────────────────
+# Uncomment ONE block below depending on your torrent client.  [required]
+
+# ── qBittorrent ──
+# DOWNLOAD_CLIENT=qbittorrent
 # DL_URL=http://192.168.1.100:8080
+# DL_USERNAME=admin
+# DL_PASSWORD=password
+
+# ── Transmission ──
+# DOWNLOAD_CLIENT=transmission
 # DL_HOST=192.168.1.100
-# DL_PORT=8080
+# DL_PORT=9091
 # DL_SCHEME=http
 # DL_USERNAME=admin
 # DL_PASSWORD=password
 
-# Category/label assigned to downloads in the torrent client
+# ── Deluge Web ──
+# DOWNLOAD_CLIENT=delugeweb
+# DL_URL=http://192.168.1.100:8112
+# DL_PASSWORD=password
+
+# Category/label assigned to downloads in the torrent client  [default: Audiobookbay-Audiobooks]
 # DL_CATEGORY=Audiobookbay-Audiobooks
 
-# Base path where audiobooks are saved (as seen by the torrent client container)
+# ── Paths ─────────────────────────────────────────────────────────────────
+
+# Path where audiobooks are saved — as seen by the torrent client  [required]
 # SAVE_PATH_BASE=/data/media/books/audiobooks
 
-# Optional: custom nav link shown in the navbar
+# Path used to scan for existing volumes on disk.                  [optional]
+# Step 1: In Unraid add a path mapping:
+#           Host Path:      /mnt/user/data/media/books/audiobooks
+#           Container Path: /audiobooks  (or any name you like)
+#           Access:         Read Only
+# Step 2: Uncomment and set SCAN_PATH_BASE to match the container path above.
+# If not set, falls back to SAVE_PATH_BASE (requires matching path mapping in Unraid).
+# SCAN_PATH_BASE=/audiobooks
+
+# ── Web UI ────────────────────────────────────────────────────────────────
+
+# Port the web UI runs on                             [default: 5078]
+# PORT=5078
+
+# Optional custom link shown in the navbar            [optional]
 # NAV_LINK_NAME=Audiobookshelf
 # NAV_LINK_URL=http://192.168.1.100:13378
-
-# Port the web UI runs on
-# PORT=5078
 """)
     print(f"[INFO] Created config template at {_env_template}")
 
@@ -181,7 +217,7 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
 
         # Polite delay between pages to avoid rate limiting
         if page > start_page:
-            time.sleep(0.75)
+            time.sleep(REQUEST_DELAY)
 
         try:
             response = requests.get(url, headers=headers, timeout=15)
@@ -683,7 +719,7 @@ def check_exists():
     title  = data.get("title", "").strip()
     series = data.get("series", "").strip()
 
-    if not SAVE_PATH_BASE or not title:
+    if not SCAN_PATH_BASE or not title:
         return jsonify({"exists": False})
 
     def extract_vol_num(t):
@@ -713,7 +749,7 @@ def check_exists():
         variants = [vol_num]
 
     safe_series = sanitize_title(series) if series else ""
-    scan_path   = os.path.join(SAVE_PATH_BASE, safe_series) if safe_series else SAVE_PATH_BASE
+    scan_path   = os.path.join(SCAN_PATH_BASE, safe_series) if safe_series else SCAN_PATH_BASE
 
     if not os.path.isdir(scan_path):
         return jsonify({"exists": False})
