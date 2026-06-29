@@ -229,6 +229,7 @@ function showScrollingMessages() {
 
 // ── Alerts state ──────────────────────────────────────────────────────────
 var _alertsData = {};
+var _openNotifPanel = null; // currently visible notification panel
 
 function loadAlertsStatus() {
     fetch('/alerts/status')
@@ -237,7 +238,7 @@ function loadAlertsStatus() {
             _alertsData = data;
             refreshAlertBells();
         })
-        .catch(function() {});
+        .catch(function(e) { console.warn('[Alerts] Failed to load status:', e); });
 }
 
 function refreshAlertBells() {
@@ -254,30 +255,53 @@ function refreshAlertBells() {
 }
 
 function updateBellState(bell, enabled, notifications, series) {
-    // Remove existing notification panel if any
-    var existing = bell.parentElement.querySelector('.fav-notif-panel');
-    if (existing) existing.remove();
-
     if (!enabled) {
         bell.className = 'fav-bell-btn bell-dim';
         bell.title = 'Click to enable new volume alerts for this series';
-        bell.onclick = function(e) { e.stopPropagation(); toggleAlert(series, true); };
+        bell.onclick = function(e) {
+            e.stopPropagation();
+            closeNotifPanel();
+            toggleAlert(series, true);
+        };
     } else if (notifications.length > 0) {
         bell.className = 'fav-bell-btn bell-glow';
-        bell.title = '';
-        bell.onclick = function(e) { e.stopPropagation(); };
-        // Build notification panel
-        buildNotifPanel(bell, series, notifications);
+        bell.title = 'New volumes found — click to view';
+        bell.onclick = function(e) {
+            e.stopPropagation();
+            toggleNotifPanel(bell, series, notifications);
+        };
     } else {
         bell.className = 'fav-bell-btn bell-active';
         bell.title = 'Monitoring for new volumes — click to disable';
-        bell.onclick = function(e) { e.stopPropagation(); toggleAlert(series, false); };
+        bell.onclick = function(e) {
+            e.stopPropagation();
+            closeNotifPanel();
+            toggleAlert(series, false);
+        };
     }
+}
+
+function closeNotifPanel() {
+    if (_openNotifPanel) {
+        _openNotifPanel.remove();
+        _openNotifPanel = null;
+    }
+}
+
+function toggleNotifPanel(bell, series, notifications) {
+    // If panel already open for this bell, close it
+    if (_openNotifPanel && _openNotifPanel.dataset.series === series) {
+        closeNotifPanel();
+        return;
+    }
+    closeNotifPanel();
+    buildNotifPanel(bell, series, notifications);
 }
 
 function buildNotifPanel(bell, series, notifications) {
     var panel = document.createElement('div');
     panel.className = 'fav-notif-panel';
+    panel.dataset.series = series;
 
     var header = document.createElement('div');
     header.className = 'fav-notif-header';
@@ -305,11 +329,9 @@ function buildNotifPanel(bell, series, notifications) {
             dismissNotification(series, n.url, n.title, n.matched_as);
         };
         row.appendChild(dismiss);
-
         panel.appendChild(row);
     });
 
-    // Clear / Clear All button
     var clearBtn = document.createElement('button');
     clearBtn.className = 'fav-notif-clear-btn';
     clearBtn.textContent = notifications.length > 1 ? 'Clear All' : 'Clear';
@@ -319,8 +341,21 @@ function buildNotifPanel(bell, series, notifications) {
     };
     panel.appendChild(clearBtn);
 
-    bell.parentElement.appendChild(panel);
+    // Position panel below the bell using fixed coords
+    document.body.appendChild(panel);
+    _openNotifPanel = panel;
+
+    var rect = bell.getBoundingClientRect();
+    panel.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+    panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 }
+
+// Close panel when clicking outside
+document.addEventListener('click', function(e) {
+    if (_openNotifPanel && !_openNotifPanel.contains(e.target)) {
+        closeNotifPanel();
+    }
+});
 
 function toggleAlert(series, enable) {
     fetch('/alerts/toggle', {
