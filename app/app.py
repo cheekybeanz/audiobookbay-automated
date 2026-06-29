@@ -4,6 +4,7 @@ import grp
 import json
 import re
 import time
+import logging
 import requests
 from flask import Flask, request, render_template, jsonify
 from bs4 import BeautifulSoup
@@ -13,6 +14,14 @@ from deluge_web_client import DelugeWebClient as delugewebclient
 from deluge_web_client import TorrentOptions as delugetorrentoptions
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+
+# ── Logging setup ──────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -52,20 +61,41 @@ NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
 FLASK_PORT    = int(os.getenv("PORT", 5078))
 
-print(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
-print(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
-print(f"DL_HOST: {DL_HOST}")
-print(f"DL_PORT: {DL_PORT}")
-print(f"DL_URL: {DL_URL}")
-print(f"DL_USERNAME: {DL_USERNAME}")
-print(f"DL_CATEGORY: {DL_CATEGORY}")
-print(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
-print(f"SCAN_PATH_BASE: {SCAN_PATH_BASE}")
-print(f"REQUEST_DELAY: {REQUEST_DELAY}")
-print(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
-print(f"NAV_LINK_URL: {NAV_LINK_URL}")
-print(f"PAGE_LIMIT: {PAGE_LIMIT}")
-print(f"PORT: {FLASK_PORT}")
+log.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
+log.info(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
+log.info(f"DL_HOST: {DL_HOST}")
+log.info(f"DL_PORT: {DL_PORT}")
+log.info(f"DL_URL: {DL_URL}")
+log.info(f"DL_USERNAME: {DL_USERNAME}")
+log.info(f"DL_CATEGORY: {DL_CATEGORY}")
+log.info(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
+log.info(f"SCAN_PATH_BASE: {SCAN_PATH_BASE}")
+log.info(f"REQUEST_DELAY: {REQUEST_DELAY}")
+log.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
+log.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
+log.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
+log.info(f"PORT: {FLASK_PORT}")
+
+# ── Startup config validation ──────────────────────────────────────────────
+_valid_clients = ("qbittorrent", "transmission", "delugeweb")
+if not DOWNLOAD_CLIENT:
+    log.warning("DOWNLOAD_CLIENT is not set — downloads will not work. "
+                "Set it to one of: qbittorrent, transmission, delugeweb")
+elif DOWNLOAD_CLIENT not in _valid_clients:
+    log.warning(f"DOWNLOAD_CLIENT '{DOWNLOAD_CLIENT}' is not recognised. "
+                f"Valid options are: {', '.join(_valid_clients)}")
+
+if DOWNLOAD_CLIENT in ("qbittorrent", "transmission"):
+    if not DL_HOST:
+        log.warning("DL_HOST is not set — downloads will not work.")
+    if not DL_PORT:
+        log.warning("DL_PORT is not set — downloads will not work.")
+
+if DOWNLOAD_CLIENT == "delugeweb" and not DL_URL:
+    log.warning("DL_URL is not set — Deluge downloads will not work.")
+
+if not SAVE_PATH_BASE:
+    log.warning("SAVE_PATH_BASE is not set — downloads will have no save path.")
 
 # ── Config / persistent data ───────────────────────────────────────────────
 CONFIG_DIR      = "/config"
@@ -146,7 +176,7 @@ if not os.path.exists(_env_template):
 # NAV_LINK_NAME=Audiobookshelf
 # NAV_LINK_URL=http://192.168.1.100:13378
 """)
-    print(f"[INFO] Created config template at {_env_template}")
+    log.info(f"Created config template at {_env_template}")
 
 if not os.path.exists(FAVORITES_PATH):
     with open(FAVORITES_PATH, "w") as f:
@@ -165,7 +195,7 @@ try:
         os.chown(_env_template, nobody.pw_uid, users_gid)
         os.chmod(_env_template, 0o664)
 except Exception as e:
-    print(f"[WARN] Could not set config file ownership: {e}")
+    log.warning(f"Could not set config file ownership: {e}")
 
 
 @app.context_processor
@@ -208,9 +238,9 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
     results = []
 
     if query:
-        print(f"Searching for '{query}' on https://{ABB_HOSTNAME}...")
+        log.info(f"Searching for '{query}' on https://{ABB_HOSTNAME}...")
     else:
-        print(f"Fetching new releases from https://{ABB_HOSTNAME}...")
+        log.info(f"Fetching new releases from https://{ABB_HOSTNAME}...")
 
     for page in range(start_page, start_page + max_pages):
         if query:
@@ -226,33 +256,33 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
         try:
             response = requests.get(url, headers=headers, timeout=15)
         except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to fetch page {page}. Reason: {e}")
+            log.error(f"Failed to fetch page {page}. Reason: {e}")
             break
 
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Check for rate limiting / ban first
         if _page_is_rate_limited(soup, response):
-            print(f"[WARNING] Rate limited or banned on page {page}. "
-                  f"Status: {response.status_code}.")
+            log.warning(f"Rate limited or banned on page {page}. "
+                        f"Status: {response.status_code}.")
             raise RuntimeError("rate_limited")
 
         if response.status_code != 200:
-            print(f"[ERROR] Page {page} returned HTTP {response.status_code}. Stopping.")
+            log.error(f"Page {page} returned HTTP {response.status_code}. Stopping.")
             break
 
         # Verify page structure looks like ABB
         if not _page_looks_valid(soup):
-            print(f"[WARNING] Page {page} doesn't look like a valid ABB page — "
-                  f"structure may have changed.")
+            log.warning(f"Page {page} doesn't look like a valid ABB page — "
+                        f"structure may have changed.")
             break
 
         posts = soup.select(".post")
         if not posts:
-            print(f"No more results found on page {page}.")
+            log.info(f"No more results found on page {page}.")
             break
 
-        print(f"Processing {len(posts)} posts on page {page}...")
+        log.info(f"Processing {len(posts)} posts on page {page}...")
 
         for post in posts:
             try:
@@ -311,7 +341,7 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
                     "file_size": file_size,
                 })
             except Exception as e:
-                print(f"[ERROR] Could not process a post. Details: {e}")
+                log.error(f"Could not process a post. Details: {e}")
                 continue
 
     return results
@@ -327,14 +357,14 @@ def extract_magnet_link(details_url):
     try:
         response = requests.get(details_url, headers=headers)
         if response.status_code != 200:
-            print(f"[ERROR] Failed to fetch details page. Status Code: {response.status_code}")
+            log.error(f"Failed to fetch details page. Status Code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
 
         info_hash_row = soup.find("td", string=re.compile(r"Info Hash", re.IGNORECASE))
         if not info_hash_row:
-            print("[ERROR] Info Hash not found on the page.")
+            log.error("Info Hash not found on the page.")
             return None
         info_hash = info_hash_row.find_next_sibling("td").text.strip()
 
@@ -355,11 +385,11 @@ def extract_magnet_link(details_url):
             f"tr={requests.utils.quote(t)}" for t in trackers
         )
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&{trackers_query}"
-        print(f"[DEBUG] Generated Magnet Link: {magnet_link}")
+        log.debug(f"Generated Magnet Link: {magnet_link}")
         return magnet_link
 
     except Exception as e:
-        print(f"[ERROR] Failed to extract magnet link: {e}")
+        log.error(f"Failed to extract magnet link: {e}")
         return None
 
 
@@ -430,7 +460,7 @@ def search():
             save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
         )
     except Exception as e:
-        print(f"[ERROR] Failed to search: {e}")
+        log.error(f"Failed to search: {e}")
         return render_template(
             "search.html", books=books, error=f"Failed to search. {str(e)}",
             query=query, save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
@@ -533,6 +563,7 @@ def status():
                 }
                 for torrent in torrents
             ]
+            return render_template("status.html", torrents=torrent_list)
         elif DOWNLOAD_CLIENT == "delugeweb":
             delugeweb = delugewebclient(url=DL_URL, password=DL_PASSWORD)
             delugeweb.login()
