@@ -6,6 +6,7 @@ import re
 import time
 import logging
 import requests
+from datetime import datetime
 from flask import Flask, request, render_template, jsonify
 from bs4 import BeautifulSoup
 from qbittorrentapi import Client
@@ -14,6 +15,7 @@ from deluge_web_client import DelugeWebClient as delugewebclient
 from deluge_web_client import TorrentOptions as delugetorrentoptions
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+from apscheduler.schedulers.background import BackgroundScheduler
 
 # ── Logging setup ──────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -54,12 +56,16 @@ DL_USERNAME    = os.getenv("DL_USERNAME")
 DL_PASSWORD    = os.getenv("DL_PASSWORD")
 DL_CATEGORY    = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
 SAVE_PATH_BASE  = os.getenv("SAVE_PATH_BASE")
-SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)  # Falls back to SAVE_PATH_BASE
+SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)
 REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.75"))
 
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
 FLASK_PORT    = int(os.getenv("PORT", 5078))
+
+# Alert scheduler config
+ALERT_CHECK_INTERVAL  = int(os.getenv("ALERT_CHECK_INTERVAL", 5))    # minutes between series checks
+ALERT_CYCLE_COOLDOWN  = int(os.getenv("ALERT_CYCLE_COOLDOWN", 1440)) # minutes between full cycles
 
 log.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
 log.info(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
@@ -75,6 +81,8 @@ log.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
 log.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
 log.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
 log.info(f"PORT: {FLASK_PORT}")
+log.info(f"ALERT_CHECK_INTERVAL: {ALERT_CHECK_INTERVAL}m")
+log.info(f"ALERT_CYCLE_COOLDOWN: {ALERT_CYCLE_COOLDOWN}m")
 
 # ── Startup config validation ──────────────────────────────────────────────
 _valid_clients = ("qbittorrent", "transmission", "delugeweb")
@@ -98,9 +106,11 @@ if not SAVE_PATH_BASE:
     log.warning("SAVE_PATH_BASE is not set — downloads will have no save path.")
 
 # ── Config / persistent data ───────────────────────────────────────────────
-CONFIG_DIR      = "/config"
-FAVORITES_PATH  = os.path.join(CONFIG_DIR, "favorites.json")
-SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
+CONFIG_DIR        = "/config"
+FAVORITES_PATH    = os.path.join(CONFIG_DIR, "favorites.json")
+SERIES_MAP_PATH   = os.path.join(CONFIG_DIR, "series_map.json")
+ALERTS_PATH       = os.path.join(CONFIG_DIR, "alerts.json")
+BLOCKLIST_PATH    = os.path.join(CONFIG_DIR, "alert_blocklist.json")
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
 
@@ -175,6 +185,14 @@ if not os.path.exists(_env_template):
 # Optional custom link shown in the navbar            [optional]
 # NAV_LINK_NAME=Audiobookshelf
 # NAV_LINK_URL=http://192.168.1.100:13378
+
+# ── New volume alerts ─────────────────────────────────────────────────────
+
+# Minutes between checking each series on ABB         [default: 5]
+# ALERT_CHECK_INTERVAL=5
+
+# Minutes to wait after completing a full cycle       [default: 1440 = 24 hours]
+# ALERT_CYCLE_COOLDOWN=1440
 """)
     log.info(f"Created config template at {_env_template}")
 
@@ -184,13 +202,19 @@ if not os.path.exists(FAVORITES_PATH):
 if not os.path.exists(SERIES_MAP_PATH):
     with open(SERIES_MAP_PATH, "w") as f:
         json.dump({}, f)
+if not os.path.exists(ALERTS_PATH):
+    with open(ALERTS_PATH, "w") as f:
+        json.dump({}, f)
+if not os.path.exists(BLOCKLIST_PATH):
+    with open(BLOCKLIST_PATH, "w") as f:
+        json.dump([], f)
 
 try:
     nobody    = pwd.getpwnam("nobody")
     users_gid = grp.getgrnam("users").gr_gid
-    for _path in [FAVORITES_PATH, SERIES_MAP_PATH]:
+    for _path in [FAVORITES_PATH, SERIES_MAP_PATH, ALERTS_PATH, BLOCKLIST_PATH]:
         os.chown(_path, nobody.pw_uid, users_gid)
-        os.chmod(_path, 0o664)  # rw-rw-r-- owner and group can read/write
+        os.chmod(_path, 0o664)
     if os.path.exists(_env_template):
         os.chown(_env_template, nobody.pw_uid, users_gid)
         os.chmod(_env_template, 0o664)
@@ -207,18 +231,15 @@ def inject_nav_link():
 
 
 # ── Scraper helpers ────────────────────────────────────────────────────────
-# Structural markers we expect on a real ABB page
 _ABB_REQUIRED_MARKERS = [".post", ".postTitle", "#sidebar"]
 
 def _page_looks_valid(soup):
-    """Return True if the page has the structure we expect from ABB."""
     for marker in _ABB_REQUIRED_MARKERS:
         if soup.select(marker):
             return True
     return False
 
 def _page_is_rate_limited(soup, response):
-    """Detect common signs of rate limiting or IP bans."""
     if response.status_code in (429, 403):
         return True
     text = response.text.lower()
@@ -249,7 +270,6 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
         else:
             url = f"https://{ABB_HOSTNAME}/page/{page}/"
 
-        # Polite delay between pages to avoid rate limiting
         if page > start_page:
             time.sleep(REQUEST_DELAY)
 
@@ -261,20 +281,16 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Check for rate limiting / ban first
         if _page_is_rate_limited(soup, response):
-            log.warning(f"Rate limited or banned on page {page}. "
-                        f"Status: {response.status_code}.")
+            log.warning(f"Rate limited or banned on page {page}. Status: {response.status_code}.")
             raise RuntimeError("rate_limited")
 
         if response.status_code != 200:
             log.error(f"Page {page} returned HTTP {response.status_code}. Stopping.")
             break
 
-        # Verify page structure looks like ABB
         if not _page_looks_valid(soup):
-            log.warning(f"Page {page} doesn't look like a valid ABB page — "
-                        f"structure may have changed.")
+            log.warning(f"Page {page} doesn't look like a valid ABB page — structure may have changed.")
             break
 
         posts = soup.select(".post")
@@ -293,7 +309,6 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
                 title = title_element.text.strip()
                 link  = f"https://{ABB_HOSTNAME}{title_element['href']}"
 
-                # Use cover URL directly — browser handles broken images via onerror
                 cover_url = (
                     post.select_one("img")["src"] if post.select_one("img") else None
                 )
@@ -381,9 +396,7 @@ def extract_magnet_link(details_url):
                 "udp://tracker.leechers-paradise.org:6969",
             ]
 
-        trackers_query = "&".join(
-            f"tr={requests.utils.quote(t)}" for t in trackers
-        )
+        trackers_query = "&".join(f"tr={requests.utils.quote(t)}" for t in trackers)
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&{trackers_query}"
         log.debug(f"Generated Magnet Link: {magnet_link}")
         return magnet_link
@@ -399,7 +412,6 @@ def sanitize_title(title):
 
 
 def _extract_series_raw(title):
-    """Extract series name before any mapping is applied."""
     if " - " in title:
         authorless = title.rsplit(" - ", 1)[0].strip()
     else:
@@ -414,12 +426,10 @@ def _extract_series_raw(title):
 
 
 def get_series_name(title):
-    """Extract series name and apply any custom mapping."""
     series = _extract_series_raw(title)
     if not series:
         series = title
 
-    # Check custom series map
     if os.path.exists(SERIES_MAP_PATH):
         try:
             with open(SERIES_MAP_PATH) as f:
@@ -436,22 +446,13 @@ def get_series_name(title):
 
 
 def _normalize_for_fuzzy(name):
-    """Strip punctuation and lowercase a string for fuzzy folder matching."""
     name = name.lower()
-    # Remove all punctuation and symbols, keep letters, digits, spaces
     name = re.sub(r"[^a-z0-9\s]", "", name)
-    # Collapse whitespace
     name = re.sub(r"\s+", " ", name).strip()
     return name
 
 
 def _find_series_folder(scan_base, series_name):
-    """
-    Find the best matching series folder under scan_base for the given series name.
-    First tries an exact match (case-insensitive), then falls back to fuzzy matching
-    by stripping punctuation from both the target and each folder on disk.
-    Returns the full path of the matched folder, or None if no match found.
-    """
     if not os.path.isdir(scan_base):
         return None
 
@@ -462,16 +463,231 @@ def _find_series_folder(scan_base, series_name):
         for entry in os.scandir(scan_base):
             if not entry.is_dir():
                 continue
-            # Exact case-insensitive match first
             if entry.name.lower() == series_name.lower():
                 return entry.path
-            # Fuzzy match — compare with punctuation stripped
             if _normalize_for_fuzzy(entry.name) == normalized_target:
                 best_match = entry.path
     except PermissionError:
         pass
 
     return best_match
+
+
+# ── Volume number extraction (shared) ─────────────────────────────────────
+def extract_vol_num(t):
+    """Extract a volume number from a title string. Returns string or None."""
+    authorless = t.rsplit(" - ", 1)[0].strip() if " - " in t else t.strip()
+
+    # 1. Bracket format anywhere: [16], - [16]
+    m = re.search(r"(?:^|-\s*)\[([0-9]+(?:[.][0-9]+)?)\]", authorless)
+    if m:
+        return m.group(1)
+
+    # 2. Keyword-based: Vol./Volume/Book/Part/Year N — take last match
+    matches = list(re.finditer(
+        r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
+        authorless, re.IGNORECASE
+    ))
+    if matches:
+        return matches[-1].group(1)
+
+    # 3. Bare number at start: "16 Series Title"
+    m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", authorless)
+    if m:
+        return m.group(1)
+
+    # 4. Bare number at end: "Series Title 16"
+    m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless)
+    if m:
+        return m.group(1)
+
+    return None
+
+
+def _get_highest_vol_on_disk(series_name):
+    """Return the highest volume number found on disk for a series, or -1 if none found."""
+    if not SCAN_PATH_BASE:
+        return -1
+
+    safe_series = sanitize_title(series_name) if series_name else ""
+    if safe_series:
+        scan_path = _find_series_folder(SCAN_PATH_BASE, safe_series)
+    else:
+        scan_path = SCAN_PATH_BASE
+
+    if not scan_path or not os.path.isdir(scan_path):
+        return -1
+
+    highest = -1
+    try:
+        for entry in os.scandir(scan_path):
+            if not entry.is_dir():
+                continue
+            vol = extract_vol_num(entry.name)
+            if vol:
+                try:
+                    highest = max(highest, int(float(vol)))
+                except ValueError:
+                    pass
+    except PermissionError:
+        pass
+
+    return highest
+
+
+# ── Alert helpers ──────────────────────────────────────────────────────────
+def load_alerts():
+    if os.path.exists(ALERTS_PATH):
+        try:
+            with open(ALERTS_PATH) as f:
+                content = f.read().strip()
+                return json.loads(content) if content else {}
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def save_alerts(data):
+    with open(ALERTS_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def load_blocklist():
+    if os.path.exists(BLOCKLIST_PATH):
+        try:
+            with open(BLOCKLIST_PATH) as f:
+                content = f.read().strip()
+                return json.loads(content) if content else []
+        except json.JSONDecodeError:
+            return []
+    return []
+
+
+def save_blocklist(data):
+    with open(BLOCKLIST_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def _is_blocked(url):
+    return any(entry.get("url") == url for entry in load_blocklist())
+
+
+# ── Alert scheduler ────────────────────────────────────────────────────────
+_alert_series_queue = []
+_alert_cycle_start  = None
+
+def _alert_tick():
+    """
+    Called every ALERT_CHECK_INTERVAL minutes.
+    Works through the queue one series at a time to avoid bursting ABB.
+    """
+    global _alert_series_queue, _alert_cycle_start
+
+    alerts = load_alerts()
+
+    # Build queue of series that have alerts enabled
+    enabled = [s for s, v in alerts.items() if v.get("enabled")]
+    if not enabled:
+        return
+
+    # If queue is empty, check cooldown before starting a new cycle
+    if not _alert_series_queue:
+        now = datetime.utcnow()
+        if _alert_cycle_start is not None:
+            elapsed = (now - _alert_cycle_start).total_seconds() / 60
+            if elapsed < ALERT_CYCLE_COOLDOWN:
+                log.info(f"[Alerts] Cooldown active — {ALERT_CYCLE_COOLDOWN - elapsed:.0f}m remaining before next cycle.")
+                return
+        _alert_series_queue = list(enabled)
+        _alert_cycle_start  = now
+        log.info(f"[Alerts] Starting new check cycle for {len(_alert_series_queue)} series.")
+
+    # Pop one series and check it
+    series = _alert_series_queue.pop(0)
+    _check_series_for_new_volume(series, alerts)
+
+
+def _check_series_for_new_volume(series, alerts):
+    """Search ABB page 1 for a series and flag any volumes higher than what's on disk."""
+    log.info(f"[Alerts] Checking '{series}' for new volumes...")
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/115.0.0.0 Safari/537.36"
+    }
+
+    url = (f"https://{ABB_HOSTNAME}/page/1/"
+           f"?s={requests.utils.quote(series.lower().replace(' ', '+'), safe='+')}")
+
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+    except requests.exceptions.RequestException as e:
+        log.error(f"[Alerts] Failed to fetch ABB for '{series}': {e}")
+        return
+
+    if _page_is_rate_limited(BeautifulSoup(response.text, "html.parser"), response):
+        log.warning(f"[Alerts] Rate limited while checking '{series}'. Will retry next cycle.")
+        return
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    if not _page_looks_valid(soup):
+        log.warning(f"[Alerts] ABB page for '{series}' didn't look valid.")
+        return
+
+    highest_on_disk = _get_highest_vol_on_disk(series)
+    blocklist       = load_blocklist()
+    blocked_urls    = {e.get("url") for e in blocklist}
+
+    alerts = load_alerts()
+    series_data = alerts.get(series, {})
+    existing_notifications = {n["url"] for n in series_data.get("notifications", [])}
+    new_notifications = list(series_data.get("notifications", []))
+
+    posts = soup.select(".post")
+    for post in posts:
+        try:
+            title_el = post.select_one(".postTitle > h2 > a")
+            if not title_el:
+                continue
+            title = title_el.text.strip()
+            link  = f"https://{ABB_HOSTNAME}{title_el['href']}"
+
+            if link in blocked_urls or link in existing_notifications:
+                continue
+
+            vol = extract_vol_num(title)
+            if vol is None:
+                continue
+
+            try:
+                vol_int = int(float(vol))
+            except ValueError:
+                continue
+
+            if highest_on_disk >= 0 and vol_int > highest_on_disk:
+                log.info(f"[Alerts] New volume found for '{series}': {title} (Vol {vol_int} > disk {highest_on_disk})")
+                new_notifications.append({
+                    "url":        link,
+                    "title":      title,
+                    "matched_as": f"Vol. {vol_int}",
+                    "found_at":   datetime.utcnow().strftime("%Y-%m-%d"),
+                })
+        except Exception as e:
+            log.error(f"[Alerts] Error processing post for '{series}': {e}")
+            continue
+
+    series_data["notifications"] = new_notifications
+    series_data["last_checked"]  = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    alerts[series] = series_data
+    save_alerts(alerts)
+
+
+# ── Start scheduler ────────────────────────────────────────────────────────
+_scheduler = BackgroundScheduler(daemon=True)
+_scheduler.add_job(_alert_tick, "interval", minutes=ALERT_CHECK_INTERVAL)
+_scheduler.start()
+log.info(f"[Alerts] Scheduler started — checking one series every {ALERT_CHECK_INTERVAL}m.")
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -704,6 +920,10 @@ def remove_favorite():
     favs = load_favorites()
     favs = [f for f in favs if f != name]
     save_favorites(favs)
+    # Also clean up alerts entry for this series
+    alerts = load_alerts()
+    alerts.pop(name, None)
+    save_alerts(alerts)
     return jsonify({"success": True})
 
 
@@ -720,6 +940,11 @@ def rename_favorite():
         favs[idx] = new_name
         favs.sort()
         save_favorites(favs)
+    # Migrate alerts entry to new name
+    alerts = load_alerts()
+    if old_name in alerts:
+        alerts[new_name] = alerts.pop(old_name)
+        save_alerts(alerts)
     return jsonify({"success": True})
 
 
@@ -785,46 +1010,184 @@ def rename_mapping():
     return jsonify({"success": True})
 
 
+# ── Alert routes ───────────────────────────────────────────────────────────
+@app.route("/alerts/status")
+def alerts_status():
+    """Return alert state for all favorites."""
+    alerts = load_alerts()
+    favs   = load_favorites()
+    result = {}
+    for series in favs:
+        data = alerts.get(series, {})
+        result[series] = {
+            "enabled":       data.get("enabled", False),
+            "notifications": data.get("notifications", []),
+            "last_checked":  data.get("last_checked"),
+        }
+    return jsonify(result)
+
+
+@app.route("/alerts/toggle", methods=["POST"])
+def alerts_toggle():
+    """Enable or disable alerts for a specific series."""
+    data    = request.json
+    series  = data.get("series", "").strip()
+    enabled = data.get("enabled", False)
+    if not series:
+        return jsonify({"success": False}), 400
+
+    alerts = load_alerts()
+    if series not in alerts:
+        alerts[series] = {}
+    alerts[series]["enabled"] = enabled
+    save_alerts(alerts)
+    log.info(f"[Alerts] {'Enabled' if enabled else 'Disabled'} alerts for '{series}'.")
+    return jsonify({"success": True})
+
+
+@app.route("/alerts/dismiss", methods=["POST"])
+def alerts_dismiss():
+    """Dismiss a specific notification URL and add it to the blocklist."""
+    data   = request.json
+    series = data.get("series", "").strip()
+    url    = data.get("url", "").strip()
+    title  = data.get("title", "").strip()
+    matched_as = data.get("matched_as", "").strip()
+    if not series or not url:
+        return jsonify({"success": False}), 400
+
+    # Remove from notifications
+    alerts = load_alerts()
+    if series in alerts:
+        alerts[series]["notifications"] = [
+            n for n in alerts[series].get("notifications", [])
+            if n.get("url") != url
+        ]
+        save_alerts(alerts)
+
+    # Add to blocklist
+    blocklist = load_blocklist()
+    if not any(e.get("url") == url for e in blocklist):
+        blocklist.append({
+            "url":        url,
+            "title":      title,
+            "matched_as": matched_as,
+            "series":     series,
+            "blocked_at": datetime.utcnow().strftime("%Y-%m-%d"),
+        })
+        save_blocklist(blocklist)
+
+    return jsonify({"success": True})
+
+
+@app.route("/alerts/dismiss_all", methods=["POST"])
+def alerts_dismiss_all():
+    """Dismiss all notifications for a series and block all their URLs."""
+    data   = request.json
+    series = data.get("series", "").strip()
+    if not series:
+        return jsonify({"success": False}), 400
+
+    alerts = load_alerts()
+    notifications = alerts.get(series, {}).get("notifications", [])
+
+    blocklist = load_blocklist()
+    blocked_urls = {e.get("url") for e in blocklist}
+    for n in notifications:
+        if n.get("url") not in blocked_urls:
+            blocklist.append({
+                "url":        n.get("url"),
+                "title":      n.get("title"),
+                "matched_as": n.get("matched_as"),
+                "series":     series,
+                "blocked_at": datetime.utcnow().strftime("%Y-%m-%d"),
+            })
+    save_blocklist(blocklist)
+
+    if series in alerts:
+        alerts[series]["notifications"] = []
+        save_alerts(alerts)
+
+    return jsonify({"success": True})
+
+
+@app.route("/alerts/test/<path:series>")
+def alerts_test(series):
+    """Inject fake notifications for testing the UI.
+    Optional query param: ?count=N (default 1, max 10)
+    Example: /alerts/test/My Series?count=3
+    """
+    try:
+        count = max(1, min(10, int(request.args.get("count", 1))))
+    except (ValueError, TypeError):
+        count = 1
+
+    alerts = load_alerts()
+    if series not in alerts:
+        alerts[series] = {"enabled": True}
+    existing     = alerts[series].get("notifications", [])
+    existing_urls = {n.get("url") for n in existing}
+
+    added = 0
+    for i in range(count):
+        vol_num  = 97 + i   # 97, 98, 99 etc. so they look distinct
+        fake_url = f"https://{ABB_HOSTNAME}/test-notification-{vol_num}-do-not-download/"
+        if fake_url not in existing_urls:
+            existing.append({
+                "url":        fake_url,
+                "title":      f"{series} Vol. {vol_num} — TEST NOTIFICATION",
+                "matched_as": f"Vol. {vol_num}",
+                "found_at":   datetime.utcnow().strftime("%Y-%m-%d"),
+            })
+            existing_urls.add(fake_url)
+            added += 1
+
+    alerts[series]["notifications"] = existing
+    save_alerts(alerts)
+    log.info(f"[Alerts] Injected {added} test notification(s) for '{series}'.")
+    return jsonify({"success": True, "message": f"Injected {added} test notification(s) for '{series}'"})
+
+
+@app.route("/alerts/test_clear/<path:series>")
+def alerts_test_clear(series):
+    """Clear all test notifications for a series without adding to blocklist."""
+    alerts = load_alerts()
+    if series in alerts:
+        alerts[series]["notifications"] = [
+            n for n in alerts[series].get("notifications", [])
+            if "test-notification" not in n.get("url", "")
+        ]
+        save_alerts(alerts)
+    log.info(f"[Alerts] Cleared test notifications for '{series}'.")
+    return jsonify({"success": True})
+
+
+# ── Blocklist routes ───────────────────────────────────────────────────────
+@app.route("/blocklist")
+def get_blocklist():
+    return jsonify({"blocklist": load_blocklist()})
+
+
+@app.route("/blocklist/remove", methods=["POST"])
+def remove_from_blocklist():
+    data = request.json
+    url  = data.get("url", "").strip()
+    if not url:
+        return jsonify({"success": False}), 400
+    blocklist = [e for e in load_blocklist() if e.get("url") != url]
+    save_blocklist(blocklist)
+    return jsonify({"success": True})
+
+
 # ── Volume existence check ─────────────────────────────────────────────────
 @app.route("/check_exists", methods=["POST"])
 def check_exists():
-    """Fuzzy-check if a volume already exists on disk."""
     data   = request.json
     title  = data.get("title", "").strip()
     series = data.get("series", "").strip()
 
     if not SCAN_PATH_BASE or not title:
         return jsonify({"exists": False})
-
-    def extract_vol_num(t):
-        # Strip author suffix (everything after last " - ") before processing
-        authorless = t.rsplit(" - ", 1)[0].strip() if " - " in t else t.strip()
-
-        # 1. Bracket format anywhere in title: [16], - [16], [16] at start or end
-        m = re.search(r"(?:^|-\s*)\[([0-9]+(?:[.][0-9]+)?)\]", authorless)
-        if m:
-            return m.group(1)
-
-        # 2. Keyword-based match anywhere — Vol./Volume/Book/Part/Year N
-        #    Take the last match to handle edge cases like "Book 1 Vol. 2"
-        matches = list(re.finditer(
-            r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
-            authorless, re.IGNORECASE
-        ))
-        if matches:
-            return matches[-1].group(1)
-
-        # 3. Bare number at start: "16 Series Title"
-        m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", authorless)
-        if m:
-            return m.group(1)
-
-        # 4. Bare number at end: "Series Title 16" or "Series Title 16:"
-        m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless)
-        if m:
-            return m.group(1)
-
-        return None
 
     vol_num = extract_vol_num(title)
     if not vol_num:
@@ -841,7 +1204,6 @@ def check_exists():
     except ValueError:
         variants = [vol_num]
 
-    # Use fuzzy folder matching to find the series folder even if punctuation differs
     safe_series = sanitize_title(series) if series else ""
     if safe_series:
         scan_path = _find_series_folder(SCAN_PATH_BASE, safe_series)
