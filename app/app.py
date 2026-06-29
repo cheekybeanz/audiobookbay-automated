@@ -727,12 +727,18 @@ def check_exists():
         return jsonify({"exists": False})
 
     def extract_vol_num(t):
+        # Bracket format at start e.g. [16] Series Title
+        m = re.search(r"^\[([0-9]+(?:[.][0-9]+)?)\]", t.strip())
+        if m:
+            return m.group(1)
+        # Keyword-based match — take the last one
         matches = list(re.finditer(
             r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
             t, re.IGNORECASE
         ))
         if matches:
             return matches[-1].group(1)
+        # Bare trailing number or number before colon
         authorless = t.rsplit(" - ", 1)[0] if " - " in t else t
         m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless.strip())
         return m.group(1) if m else None
