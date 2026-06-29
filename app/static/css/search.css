@@ -423,6 +423,7 @@ td.action-cell {
     justify-content: flex-end;
     align-items: center;
     margin-bottom: 6px;
+    position: relative;
 }
 
 #favorites-close-btn {
@@ -559,6 +560,31 @@ td.action-cell {
         width: 56px;
         height: 56px;
     }
+}
+
+/* ── Cancel search button ────────────────────────────────────────── */
+.cancel-button {
+    padding: 11px 18px;
+    background-color: rgba(239, 83, 80, 0.15);
+    border: 1px solid rgba(239, 83, 80, 0.4);
+    border-radius: 8px;
+    color: #ef5350;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    width: auto;
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+}
+.cancel-button:hover {
+    background-color: rgba(239, 83, 80, 0.25);
+    border-color: #ef5350;
+    color: #ff6b6b;
 }
 
 /* ── Clear search button (next to Search) ────────────────────────── */
@@ -898,14 +924,7 @@ td.action-cell {
     cursor: default;
 }
 
-/* ── Favorites sort row ──────────────────────────────────────────── */
-.fav-sort-row {
-    display: flex;
-    align-items: center;
-    padding: 2px 8px 4px;
-    gap: 0;
-}
-
+/* ── Favorites sort buttons (live in #favorites-header) ──────────── */
 .fav-sort-btn {
     background: none !important;
     border: none !important;
@@ -923,18 +942,17 @@ td.action-cell {
     line-height: 1;
 }
 
-/* Bell sort — fixed width matching the bell icon column */
+/* Bell sort — stays left, at the start of the header */
 #fav-sort-bell {
     flex-shrink: 0;
-    width: 28px;
-    text-align: left;
+    margin-right: auto;
 }
 
-/* Title sort — centered to align with the Favorites button above */
+/* Title sort — centered in header to align with Favorites button above */
 #fav-sort-title {
-    flex-grow: 1;
-    text-align: center;
-    padding-left: 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .fav-sort-btn:hover {
