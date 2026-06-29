@@ -284,3 +284,75 @@
     background: none;
     color: #ef5350;
 }
+
+/* ── Alert Blocklist section ─────────────────────────────────────── */
+.blocklist-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+    border-radius: 4px;
+    transition: background-color 0.15s;
+}
+
+.blocklist-entry:last-child {
+    border-bottom: none;
+}
+
+.blocklist-entry:hover {
+    background-color: var(--bg-panel-alt);
+}
+
+.blocklist-title {
+    flex: 1;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    min-width: 0;
+    word-break: break-word;
+}
+
+.blocklist-meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.blocklist-link-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0 4px;
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+.blocklist-link-btn:hover {
+    background: none;
+    color: var(--accent);
+}
+
+.blocklist-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0 4px;
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: color 0.2s, opacity 0.15s;
+}
+.blocklist-entry:hover .blocklist-remove-btn {
+    opacity: 1;
+}
+.blocklist-remove-btn:hover {
+    background: none;
+    color: #ef5350;
+}
