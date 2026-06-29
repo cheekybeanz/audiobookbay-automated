@@ -198,27 +198,6 @@ form {
     color: var(--text-primary);
 }
 
-/* ── Favorites toggle button ─────────────────────────────────────── */
-#favorites-toggle-btn {
-    padding: 7px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border-strong);
-    background-color: var(--bg-panel-alt);
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    margin-bottom: 0;
-    white-space: nowrap;
-    width: auto;
-}
-
-#favorites-toggle-btn:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
 
 /* ── File size slider ────────────────────────────────────────────── */
 .file-size-filter-wrapper {
@@ -408,36 +387,70 @@ td.action-cell {
 }
 
 
+/* ── Favorites toggle bar — always visible, always centered ──────── */
+#favorites-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0;
+}
+
+#favorites-toggle-btn {
+    padding: 7px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-panel-alt);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    margin-bottom: 0;
+    white-space: nowrap;
+    width: auto;
+}
+#favorites-toggle-btn:hover,
+#favorites-toggle-btn.fav-toggle-open {
+    background-color: var(--accent-subtle);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
 /* ── Favorites panel ─────────────────────────────────────────────── */
 #favorites-panel {
     width: 100%;
-    margin: 0 0 16px;
+    margin: 8px 0 16px;
     background-color: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 14px 18px;
+    padding: 0 18px 14px;
 }
 
 #favorites-header {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
-    margin-bottom: 6px;
-    position: relative;
+    padding: 12px 0 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+    transition: background-color 0.15s;
+    border-radius: 10px 10px 0 0;
+    margin: 0 -18px;
+    padding-left: 18px;
+    padding-right: 18px;
+}
+#favorites-header:hover {
+    background-color: rgba(255,255,255,0.03);
 }
 
-#favorites-close-btn {
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    cursor: pointer;
-    padding: 0;
-    width: auto;
-    margin-bottom: 0;
-    transition: color 0.2s;
+#favorites-header-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    user-select: none;
 }
-#favorites-close-btn:hover { background: none; color: var(--text-primary); }
 
 .fav-entry {
     display: flex;
@@ -621,26 +634,6 @@ td.action-cell {
     margin-bottom: 10px;
 }
 
-#favorites-toggle-btn-empty {
-    padding: 7px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border-strong);
-    background-color: var(--bg-panel-alt);
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    margin-bottom: 0;
-    white-space: nowrap;
-    width: auto;
-}
-
-#favorites-toggle-btn-empty:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
 
 /* ── Download confirmation modal ─────────────────────────────────── */
 #download-modal {
@@ -924,7 +917,14 @@ td.action-cell {
     cursor: default;
 }
 
-/* ── Favorites sort buttons (live in #favorites-header) ──────────── */
+/* ── Favorites sort row ──────────────────────────────────────────── */
+.fav-sort-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0 4px;
+    margin-bottom: 4px;
+}
+
 .fav-sort-btn {
     background: none !important;
     border: none !important;
@@ -942,17 +942,19 @@ td.action-cell {
     line-height: 1;
 }
 
-/* Bell sort — stays left, at the start of the header */
+/* Bell sort — left-aligned to match bell icons in entries below */
 #fav-sort-bell {
     flex-shrink: 0;
-    margin-right: auto;
+    width: 28px;
+    text-align: left;
+    margin-right: 0;
 }
 
-/* Title sort — centered in header to align with Favorites button above */
+/* Title sort — fills remaining space, left-aligned with series names */
 #fav-sort-title {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    flex-grow: 1;
+    text-align: left;
+    padding-left: 0;
 }
 
 .fav-sort-btn:hover {
