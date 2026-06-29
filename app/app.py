@@ -878,6 +878,70 @@ def get_favorites():
     return jsonify({"favorites": load_favorites()})
 
 
+@app.route("/favorites/preview", methods=["POST"])
+def favorites_preview():
+    """Return extracted series name, mapping info, and disk scan for Save Series modal."""
+    data  = request.json
+    title = data.get("title", "").strip()
+    if not title:
+        return jsonify({"success": False, "message": "No title provided"}), 400
+
+    extracted   = sanitize_title(_extract_series_raw(title))
+    series_map  = load_series_map()
+    is_mapped   = extracted in series_map
+    mapped_to   = series_map.get(extracted)  # what the mapping resolves to, if any
+
+    # Check if series folder already exists on disk using extracted name
+    disk_path = None
+    if SCAN_PATH_BASE:
+        search_name = mapped_to if mapped_to else extracted
+        found = _find_series_folder(SCAN_PATH_BASE, search_name)
+        if found:
+            disk_path = found
+
+    # Check if already in favorites (check both extracted and mapped name)
+    favs = load_favorites()
+    already_saved = extracted in favs or (mapped_to and mapped_to in favs)
+
+    return jsonify({
+        "success":       True,
+        "extracted":     extracted,
+        "is_mapped":     is_mapped,
+        "mapped_to":     mapped_to,
+        "disk_path":     disk_path,
+        "already_saved": already_saved,
+    })
+
+
+@app.route("/favorites/add_with_options", methods=["POST"])
+def add_favorite_with_options():
+    """Add to favorites with optional name edit and alert toggle. Never creates mappings."""
+    data          = request.json
+    series_name   = sanitize_title(data.get("series_name", "").strip())
+    enable_alerts = data.get("enable_alerts", False)
+
+    if not series_name:
+        return jsonify({"success": False, "message": "No series name provided"}), 400
+
+    # Add to favorites if not already there
+    favs = load_favorites()
+    if series_name not in favs:
+        favs.append(series_name)
+        favs.sort()
+        save_favorites(favs)
+
+    # Enable alerts if requested
+    if enable_alerts:
+        alerts = load_alerts()
+        if series_name not in alerts:
+            alerts[series_name] = {}
+        alerts[series_name]["enabled"] = True
+        save_alerts(alerts)
+        log.info(f"[Favorites] Alerts enabled for '{series_name}'")
+
+    return jsonify({"success": True, "series": series_name})
+
+
 @app.route("/favorites/add", methods=["POST"])
 def add_favorite():
     data  = request.json
