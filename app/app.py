@@ -101,13 +101,15 @@ if not os.path.exists(_env_template):
 
 # ── qBittorrent ──
 # DOWNLOAD_CLIENT=qbittorrent
-# DL_URL=http://192.168.1.100:8080
+# DL_HOST=qbittorrent        # use container name and internal port
+# DL_HOST=192.168.1.100      # or use IP address and host-mapped port
+# DL_PORT=8080
 # DL_USERNAME=admin
 # DL_PASSWORD=password
 
 # ── Transmission ──
 # DOWNLOAD_CLIENT=transmission
-# DL_HOST=192.168.1.100
+# DL_HOST=transmission       # container name and internal port, or IP and host-mapped port
 # DL_PORT=9091
 # DL_SCHEME=http
 # DL_USERNAME=admin
@@ -115,7 +117,7 @@ if not os.path.exists(_env_template):
 
 # ── Deluge Web ──
 # DOWNLOAD_CLIENT=delugeweb
-# DL_URL=http://192.168.1.100:8112
+# DL_URL=http://deluge:8112  # container name and internal port, or IP and host-mapped port
 # DL_PASSWORD=password
 
 # Category/label assigned to downloads in the torrent client  [default: Audiobookbay-Audiobooks]
