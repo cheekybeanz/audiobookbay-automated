@@ -27,7 +27,7 @@
 
 <div class="search-container" id="search-container">
     <div class="search-form">
-        <input type="text" id="search-input" placeholder="Search, or leave empty for new releases…" class="search-bar">
+        <input type="text" id="search-input" placeholder="Search, or leave empty for new releases&hellip;" class="search-bar">
         <button type="button" class="search-button" id="search-btn" onclick="startSearch()">
             <span class="button-text">Search</span>
             <div class="button-spinner" id="button-spinner" style="display: none;">
@@ -45,12 +45,12 @@
 
 <div class="loading-spinner" id="loading-spinner">
     <div class="spinner"></div>
-    <p>Searching…</p>
+    <p>Searching&hellip;</p>
 </div>
 
 <p class="error-message" id="search-error" style="display:none;"></p>
 
-<!-- Filter bar — always in DOM, shown/hidden by JS -->
+<!-- Filter bar -->
 <div id="filter-container" style="display:none;">
     <div class="filter-row">
         <select id="language-filter"><option value="">All Languages</option></select>
@@ -71,13 +71,13 @@
 <!-- Favorites Panel — always visible, header toggles content -->
 <div id="favorites-panel">
     <div id="favorites-header" onclick="toggleFavorites()" title="Click to expand or collapse">
-        <span id="favorites-header-label">⭐ Favorites</span>
-        <span id="favorites-header-arrow">▾</span>
+        <span id="favorites-header-label">&#11088; Favorites</span>
+        <span id="favorites-header-arrow">&#9662;</span>
     </div>
     <div id="favorites-body" style="display:none;">
         <div id="favorites-list">
             <p id="favorites-empty" style="display:none;">
-                No favorites saved yet. Use the ⭐ Save Series button on a search result to add one.
+                No favorites saved yet. Use the &#11088; Save Series button on a search result to add one.
             </p>
         </div>
     </div>
@@ -101,9 +101,8 @@
             <h2>Confirm Download</h2>
             <p id="modal-title-display" class="modal-book-title"></p>
 
-            <!-- Existing volume warning -->
             <div id="modal-exists-warning" style="display:none;" class="modal-exists-warning">
-                <span class="modal-exists-icon">⚠</span>
+                <span class="modal-exists-icon">&#9888;</span>
                 <div class="modal-exists-text">
                     <span class="modal-exists-title">Volume may already exist</span>
                     <span class="modal-exists-path" id="modal-exists-path"></span>
@@ -131,13 +130,66 @@
     </div>
 </div>
 
+<!-- Save Series modal -->
+<div id="save-series-modal" style="display:none;">
+    <div id="save-series-modal-backdrop" onclick="closeSaveSeriesModal()"></div>
+    <div id="save-series-modal-box">
+        <div id="save-series-modal-form">
+            <h2>Save Series</h2>
+            <p id="save-series-title-display" class="modal-book-title"></p>
+
+            <div id="save-series-already-saved" style="display:none;" class="modal-exists-warning save-series-notice-green">
+                <span class="modal-exists-icon">&#10003;</span>
+                <div class="modal-exists-text">
+                    <span class="modal-exists-title">Already in favorites</span>
+                </div>
+            </div>
+
+            <div id="save-series-disk-found" style="display:none;" class="modal-exists-warning save-series-notice-blue">
+                <span class="modal-exists-icon">&#128193;</span>
+                <div class="modal-exists-text">
+                    <span class="modal-exists-title">Series folder found on disk</span>
+                    <span class="modal-exists-path" id="save-series-disk-path"></span>
+                </div>
+            </div>
+
+            <!-- Folder mapping info — read only, shown if a mapping exists -->
+            <div id="save-series-mapping-info" style="display:none;" class="modal-exists-warning save-series-notice-purple">
+                <span class="modal-exists-icon">&#128193;</span>
+                <div class="modal-exists-text">
+                    <span class="modal-exists-title">Folder mapping set</span>
+                    <span class="modal-exists-path" id="save-series-mapping-text"></span>
+                </div>
+            </div>
+
+            <div class="modal-path-section">
+                <label class="modal-label">Series name for ABB search &amp; alerts (edit if needed)</label>
+                <div class="modal-series-row">
+                    <input type="text" id="save-series-input" placeholder="Series name">
+                    <span class="modal-series-hint" id="save-series-hint"></span>
+                </div>
+            </div>
+
+            <label class="save-series-alert-label">
+                <input type="checkbox" id="save-series-alerts">
+                <span>Enable new volume alerts for this series</span>
+            </label>
+
+            <div class="modal-actions">
+                <button class="modal-btn-cancel" onclick="closeSaveSeriesModal()">Cancel</button>
+                <button class="modal-btn-confirm" id="save-series-confirm-btn" onclick="confirmSaveSeries()">&#11088; Save Series</button>
+            </div>
+        </div>
+        <div id="save-series-modal-result" style="display:none;"></div>
+    </div>
+</div>
+
 <script>
 function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
 function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
-function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
+function handleSaveSeries(btn) { openSaveSeriesModal(btn.closest('tr').dataset.title, btn); }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Allow Enter key to trigger search
     document.getElementById('search-input').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') startSearch();
     });
