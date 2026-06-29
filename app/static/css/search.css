@@ -420,14 +420,9 @@ td.action-cell {
 
 #favorites-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    color: var(--text-muted);
+    margin-bottom: 6px;
 }
 
 #favorites-close-btn {
@@ -917,7 +912,7 @@ td.action-cell {
     box-shadow: none !important;
     outline: none !important;
     color: var(--text-dim);
-    font-size: 0.68rem;
+    font-size: 0.88rem;
     font-family: inherit;
     cursor: pointer;
     padding: 0;
@@ -928,18 +923,18 @@ td.action-cell {
     line-height: 1;
 }
 
-/* Bell sort sits above the bell column — match bell button width */
+/* Bell sort — fixed width matching the bell icon column */
 #fav-sort-bell {
     flex-shrink: 0;
-    width: 22px;
-    text-align: center;
-    padding-right: 6px;
+    width: 28px;
+    text-align: left;
 }
 
-/* Title sort sits above the series name — fills remaining space */
+/* Title sort — pushed right to align with series names, not the bells */
 #fav-sort-title {
     flex-grow: 1;
     text-align: left;
+    padding-left: 4px;
 }
 
 .fav-sort-btn:hover {
@@ -1049,7 +1044,7 @@ td.action-cell {
     background: none !important;
     border: none !important;
     color: var(--text-dim);
-    font-size: 0.62rem !important;
+    font-size: 0.78rem !important;
     cursor: pointer;
     padding: 0 2px;
     width: auto;
