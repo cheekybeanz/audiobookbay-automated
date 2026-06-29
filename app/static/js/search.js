@@ -122,26 +122,21 @@ function populateSelectFilters() {
 
 // ── Apply / clear filters ─────────────────────────────────────────────────
 function applyFilters() {
-    const language     = document.getElementById("language-filter").value;
-    const bitrate      = document.getElementById("bitrate-filter").value;
-    const format       = document.getElementById("format-filter").value;
+    const language      = document.getElementById("language-filter").value;
+    const bitrate       = document.getElementById("bitrate-filter").value;
+    const format        = document.getElementById("format-filter").value;
     const selectedDates = datePicker ? datePicker.selectedDates : [];
-    const sizeRange    = fileSizeSlider ? fileSizeSlider.get().map(parseFloat) : null;
+    const sizeRange     = fileSizeSlider ? fileSizeSlider.get().map(parseFloat) : null;
 
     document.querySelectorAll(".result-row").forEach(row => {
         let visible = true;
-
         if (language && row.dataset.language !== language) visible = false;
         if (bitrate  && row.dataset.bitrate  !== bitrate)  visible = false;
         if (format   && row.dataset.format   !== format)   visible = false;
-
         if (sizeRange) {
             const rowSizeMB = parseFileSizeToMB(row.dataset.fileSize);
-            if (rowSizeMB !== null && (rowSizeMB < sizeRange[0] || rowSizeMB > sizeRange[1])) {
-                visible = false;
-            }
+            if (rowSizeMB !== null && (rowSizeMB < sizeRange[0] || rowSizeMB > sizeRange[1])) visible = false;
         }
-
         if (selectedDates.length === 2) {
             const rowDateStr = row.dataset.postDate;
             if (!rowDateStr || rowDateStr === 'N/A') {
@@ -152,12 +147,9 @@ function applyFilters() {
                     const rowDate = new Date(formattedStr);
                     rowDate.setHours(0, 0, 0, 0);
                     if (rowDate < selectedDates[0] || rowDate > selectedDates[1]) visible = false;
-                } catch (e) {
-                    visible = false;
-                }
+                } catch (e) { visible = false; }
             }
         }
-
         row.style.display = visible ? "" : "none";
     });
 }
@@ -166,7 +158,7 @@ function clearFilters() {
     document.getElementById("language-filter").value = "";
     document.getElementById("bitrate-filter").value  = "";
     document.getElementById("format-filter").value   = "";
-    if (datePicker)    datePicker.clear();
+    if (datePicker)     datePicker.clear();
     if (fileSizeSlider) fileSizeSlider.reset();
     document.querySelectorAll(".result-row").forEach(row => row.style.display = "");
 }
@@ -228,8 +220,9 @@ function showScrollingMessages() {
 }
 
 // ── Alerts state ──────────────────────────────────────────────────────────
-var _alertsData = {};
-var _openNotifPanel = null; // currently visible notification panel
+var _alertsData      = {};
+var _openNotifPanel  = null;
+var _panelLeaveTimer = null;
 
 function loadAlertsStatus() {
     fetch('/alerts/status')
@@ -247,15 +240,15 @@ function refreshAlertBells() {
         if (!series) return;
         var bell = entry.querySelector('.fav-bell-btn');
         if (!bell) return;
-        var data = _alertsData[series] || {};
-        var enabled = data.enabled || false;
+        var data          = _alertsData[series] || {};
+        var enabled       = data.enabled || false;
         var notifications = data.notifications || [];
         updateBellState(bell, enabled, notifications, series);
     });
 }
 
 function updateBellState(bell, enabled, notifications, series) {
-    // Replace bell node to clear all old event listeners cleanly
+    // Clone to wipe all old event listeners cleanly
     var newBell = bell.cloneNode(true);
     bell.parentNode.replaceChild(newBell, bell);
     bell = newBell;
@@ -274,13 +267,14 @@ function updateBellState(bell, enabled, notifications, series) {
         bell.onclick = null;
         var hoverTimer = null;
         bell.addEventListener('mouseenter', function() {
+            clearTimeout(_panelLeaveTimer);
             hoverTimer = setTimeout(function() {
-                closeNotifPanel();
                 buildNotifPanel(bell, series, notifications);
             }, 300);
         });
         bell.addEventListener('mouseleave', function() {
             clearTimeout(hoverTimer);
+            _panelLeaveTimer = setTimeout(closeNotifPanel, 200);
         });
     } else {
         bell.className = 'fav-bell-btn bell-active';
@@ -294,30 +288,30 @@ function updateBellState(bell, enabled, notifications, series) {
 }
 
 function closeNotifPanel() {
+    clearTimeout(_panelLeaveTimer);
     if (_openNotifPanel) {
         _openNotifPanel.remove();
         _openNotifPanel = null;
     }
 }
 
-function toggleNotifPanel(bell, series, notifications) {
-    // If panel already open for this bell, close it
-    if (_openNotifPanel && _openNotifPanel.dataset.series === series) {
-        closeNotifPanel();
-        return;
-    }
-    closeNotifPanel();
-    buildNotifPanel(bell, series, notifications);
-}
-
 function buildNotifPanel(bell, series, notifications) {
+    if (_openNotifPanel && _openNotifPanel.dataset.series === series) return;
+    closeNotifPanel();
+
     var panel = document.createElement('div');
     panel.className = 'fav-notif-panel';
     panel.dataset.series = series;
 
+    // Keep panel open while mouse is inside it
+    panel.addEventListener('mouseenter', function() { clearTimeout(_panelLeaveTimer); });
+    panel.addEventListener('mouseleave', function() {
+        _panelLeaveTimer = setTimeout(closeNotifPanel, 200);
+    });
+
     var header = document.createElement('div');
     header.className = 'fav-notif-header';
-    header.textContent = '🔔 New volumes found on ABB';
+    header.textContent = '\uD83D\uDD14 New volumes found on ABB';
     panel.appendChild(header);
 
     notifications.forEach(function(n) {
@@ -334,11 +328,11 @@ function buildNotifPanel(bell, series, notifications) {
 
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
-        dismiss.textContent = '⊗';
-        dismiss.title = 'Add to blocklist — won\'t show again for this specific upload';
+        dismiss.textContent = '\u229B';
+        dismiss.title = "Add to blocklist \u2014 won't show again for this specific upload";
         dismiss.onclick = function(e) {
             e.stopPropagation();
-            dismissNotification(series, n.url, n.title, n.matched_as);
+            dismissNotification(series, n.url, n.title, n.matched_as, notifications.length);
         };
         row.appendChild(dismiss);
         panel.appendChild(row);
@@ -354,7 +348,6 @@ function buildNotifPanel(bell, series, notifications) {
     };
     panel.appendChild(clearBtn);
 
-    // Position panel below the bell using fixed coords
     document.body.appendChild(panel);
     _openNotifPanel = panel;
 
@@ -362,13 +355,6 @@ function buildNotifPanel(bell, series, notifications) {
     panel.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 }
-
-// Close panel when clicking outside
-document.addEventListener('click', function(e) {
-    if (_openNotifPanel && !_openNotifPanel.contains(e.target)) {
-        closeNotifPanel();
-    }
-});
 
 function toggleAlert(series, enable) {
     fetch('/alerts/toggle', {
@@ -380,15 +366,17 @@ function toggleAlert(series, enable) {
     .then(function() { loadAlertsStatus(); });
 }
 
-function dismissNotification(series, url, title, matched_as) {
-    closeNotifPanel();
+function dismissNotification(series, url, title, matched_as, totalCount) {
     fetch('/alerts/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ series: series, url: url, title: title, matched_as: matched_as })
     })
     .then(function(r) { return r.json(); })
-    .then(function() { loadAlertsStatus(); });
+    .then(function() {
+        if (totalCount <= 1) closeNotifPanel();
+        loadAlertsStatus();
+    });
 }
 
 function dismissAllNotifications(series) {
@@ -410,10 +398,23 @@ function toggleFavorites() {
     if (!isOpen) loadFavorites();
 }
 
-// ── Sort state ────────────────────────────────────────────────────────────
-var _sortCol = 'title';
-var _sortDir = 'asc';
+// ── Sort state (persisted to localStorage) ────────────────────────────────
+var SORT_KEY  = 'abb_fav_sort';
+var _sortCol  = 'title';
+var _sortDir  = 'asc';
 var _favsCache = [];
+
+(function() {
+    try {
+        var saved = JSON.parse(localStorage.getItem(SORT_KEY) || '{}');
+        if (saved.col) _sortCol = saved.col;
+        if (saved.dir) _sortDir = saved.dir;
+    } catch(e) {}
+})();
+
+function saveSortPref() {
+    try { localStorage.setItem(SORT_KEY, JSON.stringify({ col: _sortCol, dir: _sortDir })); } catch(e) {}
+}
 
 function loadFavorites() {
     fetch('/favorites')
@@ -451,19 +452,22 @@ function cycleSortCol(col) {
         _sortCol = col;
         _sortDir = 'asc';
     }
+    saveSortPref();
     renderFavorites(_favsCache);
     refreshAlertBells();
     updateSortButtons();
 }
 
 function updateSortButtons() {
-    var titleBtn = document.getElementById('fav-sort-title');
     var bellBtn  = document.getElementById('fav-sort-bell');
-    if (!titleBtn || !bellBtn) return;
-    titleBtn.textContent = 'Title ' + (_sortCol === 'title' ? (_sortDir === 'asc' ? '↑' : '↓') : '↕');
-    bellBtn.textContent  = '🔔 '    + (_sortCol === 'bell'  ? (_sortDir === 'asc' ? '↑' : '↓') : '↕');
-    titleBtn.classList.toggle('fav-sort-active', _sortCol === 'title');
+    var titleBtn = document.getElementById('fav-sort-title');
+    if (!bellBtn || !titleBtn) return;
+    var bArrow = _sortCol === 'bell'  ? (_sortDir === 'asc' ? ' \u2191' : ' \u2193') : ' \u2195';
+    var tArrow = _sortCol === 'title' ? (_sortDir === 'asc' ? ' \u2191' : ' \u2193') : ' \u2195';
+    bellBtn.textContent  = '\uD83D\uDD14' + bArrow;
+    titleBtn.textContent = 'Title' + tArrow;
     bellBtn.classList.toggle('fav-sort-active',  _sortCol === 'bell');
+    titleBtn.classList.toggle('fav-sort-active', _sortCol === 'title');
 }
 
 function renderFavorites(favs) {
@@ -471,36 +475,27 @@ function renderFavorites(favs) {
     var empty = document.getElementById('favorites-empty');
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
+    list.querySelectorAll('.fav-sort-row').forEach(function(el) { el.remove(); });
 
-    // Inject sort buttons into header if not already present
-    var header = document.getElementById('favorites-header');
-    if (header && !document.getElementById('fav-sort-title')) {
-        var sortWrap = document.createElement('div');
-        sortWrap.className = 'fav-sort-btns';
+    // Sort row — bell button aligns above bell icons, title button above series names
+    var sortRow = document.createElement('div');
+    sortRow.className = 'fav-sort-row';
 
-        var titleBtn = document.createElement('button');
-        titleBtn.id = 'fav-sort-title';
-        titleBtn.className = 'fav-sort-btn fav-sort-active';
-        titleBtn.textContent = 'Title ↑';
-        titleBtn.title = 'Sort by title';
-        titleBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
-        sortWrap.appendChild(titleBtn);
+    var bellSortBtn = document.createElement('button');
+    bellSortBtn.id = 'fav-sort-bell';
+    bellSortBtn.className = 'fav-sort-btn';
+    bellSortBtn.title = 'Sort by alert state';
+    bellSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
+    sortRow.appendChild(bellSortBtn);
 
-        var bellBtn = document.createElement('button');
-        bellBtn.id = 'fav-sort-bell';
-        bellBtn.className = 'fav-sort-btn';
-        bellBtn.textContent = '🔔 ↕';
-        bellBtn.title = 'Sort by alert state — active alerts first';
-        bellBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
-        sortWrap.appendChild(bellBtn);
+    var titleSortBtn = document.createElement('button');
+    titleSortBtn.id = 'fav-sort-title';
+    titleSortBtn.className = 'fav-sort-btn';
+    titleSortBtn.title = 'Sort by title';
+    titleSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
+    sortRow.appendChild(titleSortBtn);
 
-        var closeBtn = document.getElementById('favorites-close-btn');
-        if (closeBtn) {
-            header.insertBefore(sortWrap, closeBtn);
-        } else {
-            header.appendChild(sortWrap);
-        }
-    }
+    list.appendChild(sortRow);
 
     var sorted = applySortedFavs(favs);
 
@@ -515,7 +510,7 @@ function renderFavorites(favs) {
 
             var bell = document.createElement('button');
             bell.className = 'fav-bell-btn bell-dim';
-            bell.textContent = '🔔';
+            bell.textContent = '\uD83D\uDD14';
             bell.title = 'Click to enable new volume alerts for this series';
             entry.appendChild(bell);
 
@@ -527,14 +522,14 @@ function renderFavorites(favs) {
 
             var editBtn = document.createElement('button');
             editBtn.className = 'fav-edit-btn';
-            editBtn.textContent = '✏️';
+            editBtn.textContent = '\u270F\uFE0F';
             editBtn.title = 'Edit';
             editBtn.onclick = function(e) { e.stopPropagation(); startEdit(entry, name); };
             entry.appendChild(editBtn);
 
             var del = document.createElement('button');
             del.className = 'fav-delete-btn';
-            del.textContent = '✕';
+            del.textContent = '\u2715';
             del.title = 'Remove';
             del.onclick = function(e) { e.stopPropagation(); confirmDelete(name); };
             entry.appendChild(del);
@@ -553,7 +548,7 @@ function renderAddRow(list) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'fav-manual-input';
-    input.placeholder = 'Add a series manually…';
+    input.placeholder = 'Add a series manually\u2026';
     input.style.display = 'none';
 
     var addBtn = document.createElement('button');
@@ -563,7 +558,7 @@ function renderAddRow(list) {
         if (input.style.display === 'none') {
             input.style.display = 'block';
             input.focus();
-            addBtn.textContent = '✓';
+            addBtn.textContent = '\u2713';
         } else {
             var name = input.value.trim();
             if (name) saveManualFavorite(name);
@@ -597,12 +592,12 @@ function startEdit(entry, oldName) {
 
     var saveBtn = document.createElement('button');
     saveBtn.className = 'fav-edit-btn';
-    saveBtn.textContent = '✓';
+    saveBtn.textContent = '\u2713';
     saveBtn.onclick = function() { commitEdit(oldName, input.value.trim()); };
 
     var cancelBtn = document.createElement('button');
     cancelBtn.className = 'fav-delete-btn';
-    cancelBtn.textContent = '✕';
+    cancelBtn.textContent = '\u2715';
     cancelBtn.onclick = function() { loadFavorites(); };
 
     entry.appendChild(input);
@@ -653,13 +648,13 @@ function saveFavorite(title, btn) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.success) {
-            btn.textContent = '✓ Saved';
+            btn.textContent = '\u2713 Saved';
             btn.disabled = true;
             var panel = document.getElementById('favorites-panel');
             if (panel.style.display !== 'none') loadFavorites();
         } else {
             btn.textContent = data.message || 'Already saved';
-            setTimeout(function() { btn.textContent = '⭐ Save Series'; btn.disabled = false; }, 2000);
+            setTimeout(function() { btn.textContent = '\u2B50 Save Series'; btn.disabled = false; }, 2000);
         }
     });
 }
@@ -794,9 +789,7 @@ function checkVolumeExists(title, series) {
             warning.style.display = 'none';
         }
     })
-    .catch(function() {
-        document.getElementById('modal-exists-warning').style.display = 'none';
-    });
+    .catch(function() { document.getElementById('modal-exists-warning').style.display = 'none'; });
 }
 
 function onSkipSeriesChange() {
@@ -807,9 +800,9 @@ function onSkipSeriesChange() {
 }
 
 function updateModalPath() {
-    var skip      = document.getElementById('modal-skip-series').checked;
-    var series    = document.getElementById('modal-series-input').value.trim();
-    var basePath  = document.getElementById('page-data').dataset.savePath || '/audiobooks';
+    var skip       = document.getElementById('modal-skip-series').checked;
+    var series     = document.getElementById('modal-series-input').value.trim();
+    var basePath   = document.getElementById('page-data').dataset.savePath || '/audiobooks';
     var safeTitle  = _modalTitle.replace(/[<>:"/\\|?*]/g, '').trim();
     var safeSeries = series.replace(/[<>:"/\\|?*]/g, '').trim();
     var hint       = document.getElementById('modal-series-hint');
@@ -825,7 +818,7 @@ function updateModalPath() {
     if (skip) {
         preview.textContent = basePath + '/' + safeTitle;
     } else {
-        preview.textContent = basePath + '/' + (safeSeries || '…') + '/' + safeTitle;
+        preview.textContent = basePath + '/' + (safeSeries || '\u2026') + '/' + safeTitle;
     }
 }
 
@@ -866,8 +859,8 @@ function confirmDownload() {
     var seriesInput = skip ? '' : document.getElementById('modal-series-input').value.trim();
     var btn         = document.querySelector('.modal-btn-confirm');
     var cancelBtn   = document.querySelector('.modal-btn-cancel');
-    btn.textContent = 'Sending…';
-    btn.disabled    = true;
+    btn.textContent    = 'Sending\u2026';
+    btn.disabled       = true;
     cancelBtn.disabled = true;
 
     var saveMapping = Promise.resolve();
@@ -896,7 +889,7 @@ function confirmDownload() {
         document.getElementById('download-modal-form').style.display = 'none';
         var result = document.getElementById('download-modal-result');
         result.innerHTML = '<div class="modal-result modal-result-success">'
-            + '<div class="modal-result-icon">✓</div>'
+            + '<div class="modal-result-icon">\u2713</div>'
             + '<p class="modal-result-title">Added to queue</p>'
             + '<p class="modal-result-sub">' + (_modalTitle || '') + '</p>'
             + '</div>';
@@ -907,7 +900,7 @@ function confirmDownload() {
         document.getElementById('download-modal-form').style.display = 'none';
         var result = document.getElementById('download-modal-result');
         result.innerHTML = '<div class="modal-result modal-result-error">'
-            + '<div class="modal-result-icon">✕</div>'
+            + '<div class="modal-result-icon">\u2715</div>'
             + '<p class="modal-result-title">Failed to add</p>'
             + '<p class="modal-result-sub">' + err + '</p>'
             + '<button class="modal-btn-cancel" onclick="closeDownloadModal()" style="margin-top:14px;">Close</button>'
@@ -951,7 +944,7 @@ function loadMore() {
         if (data.error) {
             btn.textContent = 'Load More Results';
             btn.disabled    = false;
-            status.textContent  = 'Error: ' + data.error;
+            status.textContent   = 'Error: ' + data.error;
             status.style.display = 'block';
             return;
         }
@@ -966,13 +959,13 @@ function loadMore() {
         data.books.forEach(function(book) {
             var tr = document.createElement('tr');
             tr.className = 'result-row';
-            tr.dataset.language  = book.language;
-            tr.dataset.bitrate   = book.bitrate;
-            tr.dataset.format    = book.format;
-            tr.dataset.fileSize  = book.file_size;
-            tr.dataset.postDate  = book.post_date;
-            tr.dataset.link      = book.link;
-            tr.dataset.title     = book.title;
+            tr.dataset.language = book.language;
+            tr.dataset.bitrate  = book.bitrate;
+            tr.dataset.format   = book.format;
+            tr.dataset.fileSize = book.file_size;
+            tr.dataset.postDate = book.post_date;
+            tr.dataset.link     = book.link;
+            tr.dataset.title    = book.title;
 
             var defaultCover = '/static/images/default_cover.jpg';
             var coverSrc = book.cover || defaultCover;
@@ -993,9 +986,8 @@ function loadMore() {
                 + '<td class="action-cell">'
                     + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
                     + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
-                    + '<button class="fav-btn"      onclick="handleFavorite(this)">&#11088; Save Series</button>'
+                    + '<button class="fav-btn"      onclick="handleFavorite(this)">\u2B50 Save Series</button>'
                 + '</td>';
-
             tbody.appendChild(tr);
         });
 
@@ -1011,11 +1003,11 @@ function loadMore() {
             status.style.display = 'block';
         }
     })
-    .catch(function(err) {
+    .catch(function() {
         _loadingMore = false;
         stopLoadingDots(btn, 'Load More Results');
         btn.disabled = false;
-        status.textContent  = 'Failed to load more results.';
+        status.textContent   = 'Failed to load more results.';
         status.style.display = 'block';
     });
 }
@@ -1029,7 +1021,7 @@ function escHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-// ── Loading dots animation ────────────────────────────────────────────────
+// ── Loading dots ──────────────────────────────────────────────────────────
 var _dotsInterval = null;
 
 function startLoadingDots(btn) {
@@ -1043,14 +1035,11 @@ function startLoadingDots(btn) {
 }
 
 function stopLoadingDots(btn, label) {
-    if (_dotsInterval) {
-        clearInterval(_dotsInterval);
-        _dotsInterval = null;
-    }
+    if (_dotsInterval) { clearInterval(_dotsInterval); _dotsInterval = null; }
     btn.textContent = label;
 }
 
-// ── Row data helpers ──────────────────────────────────────────────────────
+// ── Row helpers ───────────────────────────────────────────────────────────
 function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
 function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
 function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
