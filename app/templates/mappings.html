@@ -14,7 +14,7 @@
     </p>
 </div>
 
-<!-- Add mapping form — always visible -->
+<!-- Add mapping form -->
 <div class="mappings-add-box">
     <h2>Add Mapping</h2>
     <div class="mappings-form-row">
@@ -56,10 +56,18 @@
     </div>
 </div>
 
+<!-- Alert Blocklist -->
+<div class="mappings-list-box" id="blocklist-box" style="display:none;">
+    <div class="mappings-list-header">
+        <span>Alert Blocklist</span>
+    </div>
+    <div id="blocklist-list"></div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     loadMappings();
-    // Pre-fill from Map Series button or URL param
+    loadBlocklist();
     var params = new URLSearchParams(window.location.search);
     var title = params.get('title');
     if (title) {
@@ -81,7 +89,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ── Live path preview ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-extracted').addEventListener('input', updatePathPreview);
     document.getElementById('add-mapped').addEventListener('input', updatePathPreview);
@@ -91,35 +98,25 @@ function updatePathPreview() {
     var extracted = document.getElementById('add-extracted').value.trim();
     var mapped = document.getElementById('add-mapped').value.trim();
     var preview = document.getElementById('path-preview');
-
     if (!extracted) { preview.style.display = 'none'; return; }
-
     var safeExtracted = extracted.replace(/[<>:"/\\|?*]/g, '').trim();
     var safeMapped = (mapped || extracted).replace(/[<>:"/\\|?*]/g, '').trim();
-
     document.getElementById('path-before').textContent = '/audiobooks/' + safeExtracted + '/[title]';
     document.getElementById('path-after').textContent = '/audiobooks/' + safeMapped + '/[title]';
     preview.style.display = 'block';
 }
 
-// ── Add mapping ───────────────────────────────────────────────────────────
 function submitAddMapping() {
     var extracted = document.getElementById('add-extracted').value.trim();
     var mapped = document.getElementById('add-mapped').value.trim();
-    if (!extracted || !mapped) {
-        alert('Please fill in both fields.');
-        return;
-    }
+    if (!extracted || !mapped) { alert('Please fill in both fields.'); return; }
     fetch('/mappings/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extracted: extracted, mapped: mapped })
     })
     .then(function(r) { return r.json(); })
-    .then(function() {
-        clearAddForm();
-        loadMappings();
-    });
+    .then(function() { clearAddForm(); loadMappings(); });
 }
 
 function clearAddForm() {
@@ -128,7 +125,6 @@ function clearAddForm() {
     document.getElementById('path-preview').style.display = 'none';
 }
 
-// ── Load mappings ─────────────────────────────────────────────────────────
 function loadMappings() {
     fetch('/mappings/list')
         .then(function(r) { return r.json(); })
@@ -139,42 +135,31 @@ function renderMappings(mappings) {
     var list = document.getElementById('mappings-list');
     var empty = document.getElementById('mappings-empty');
     list.querySelectorAll('.mapping-entry').forEach(function(el) { el.remove(); });
-
     var keys = Object.keys(mappings).sort();
-    if (keys.length === 0) {
-        empty.style.display = 'block';
-        return;
-    }
+    if (keys.length === 0) { empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-
     keys.forEach(function(key) {
         var entry = document.createElement('div');
         entry.className = 'mapping-entry';
-
         var from = document.createElement('span');
         from.className = 'mapping-from';
         from.textContent = key;
-
         var arrow = document.createElement('span');
         arrow.className = 'mapping-arrow-inline';
         arrow.textContent = '→';
-
         var to = document.createElement('span');
         to.className = 'mapping-to';
         to.textContent = mappings[key];
-
         var editBtn = document.createElement('button');
         editBtn.className = 'map-edit-btn';
         editBtn.textContent = '✏️';
         editBtn.title = 'Edit';
         editBtn.onclick = function() { startEditMapping(entry, key, mappings[key]); };
-
         var delBtn = document.createElement('button');
         delBtn.className = 'map-delete-btn';
         delBtn.textContent = '✕';
         delBtn.title = 'Remove';
         delBtn.onclick = function() { confirmDeleteMapping(key); };
-
         entry.appendChild(from);
         entry.appendChild(arrow);
         entry.appendChild(to);
@@ -186,40 +171,33 @@ function renderMappings(mappings) {
 
 function startEditMapping(entry, oldKey, oldValue) {
     entry.innerHTML = '';
-
     var fromInput = document.createElement('input');
     fromInput.type = 'text';
     fromInput.className = 'mapping-edit-input';
     fromInput.value = oldKey;
-
     var arrow = document.createElement('span');
     arrow.className = 'mapping-arrow-inline';
     arrow.textContent = '→';
-
     var toInput = document.createElement('input');
     toInput.type = 'text';
     toInput.className = 'mapping-edit-input';
     toInput.value = oldValue;
-
     var saveBtn = document.createElement('button');
     saveBtn.className = 'map-edit-btn';
     saveBtn.style.opacity = '1';
     saveBtn.textContent = '✓';
     saveBtn.onclick = function() { commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim()); };
-
     var cancelBtn = document.createElement('button');
     cancelBtn.className = 'map-delete-btn';
     cancelBtn.style.opacity = '1';
     cancelBtn.textContent = '✕';
     cancelBtn.onclick = function() { loadMappings(); };
-
     entry.appendChild(fromInput);
     entry.appendChild(arrow);
     entry.appendChild(toInput);
     entry.appendChild(saveBtn);
     entry.appendChild(cancelBtn);
     fromInput.focus();
-
     fromInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') commitEditMapping(oldKey, fromInput.value.trim(), toInput.value.trim());
         if (e.key === 'Escape') loadMappings();
@@ -251,6 +229,66 @@ function confirmDeleteMapping(key) {
         .then(function(r) { return r.json(); })
         .then(function() { loadMappings(); });
     }
+}
+
+// ── Blocklist ─────────────────────────────────────────────────────────────
+function loadBlocklist() {
+    fetch('/blocklist')
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderBlocklist(data.blocklist || []); });
+}
+
+function renderBlocklist(entries) {
+    var box  = document.getElementById('blocklist-box');
+    var list = document.getElementById('blocklist-list');
+    list.innerHTML = '';
+
+    if (entries.length === 0) {
+        box.style.display = 'none';
+        return;
+    }
+    box.style.display = 'block';
+
+    entries.forEach(function(entry) {
+        var row = document.createElement('div');
+        row.className = 'blocklist-entry';
+
+        var titleEl = document.createElement('span');
+        titleEl.className = 'blocklist-title';
+        titleEl.textContent = entry.title || entry.url;
+        row.appendChild(titleEl);
+
+        var meta = document.createElement('span');
+        meta.className = 'blocklist-meta';
+        meta.textContent = entry.matched_as || '';
+        row.appendChild(meta);
+
+        var linkBtn = document.createElement('button');
+        linkBtn.className = 'blocklist-link-btn';
+        linkBtn.textContent = '🔗';
+        linkBtn.title = 'Open on ABB';
+        linkBtn.onclick = function() { window.open(entry.url, '_blank', 'noopener,noreferrer'); };
+        row.appendChild(linkBtn);
+
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'blocklist-remove-btn';
+        removeBtn.textContent = '✕';
+        removeBtn.title = 'Remove from blocklist — this URL may appear in alerts again';
+        removeBtn.onclick = function() { removeFromBlocklist(entry.url); };
+        row.appendChild(removeBtn);
+
+        list.appendChild(row);
+    });
+}
+
+function removeFromBlocklist(url) {
+    fetch('/blocklist/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { loadBlocklist(); });
 }
 </script>
 
