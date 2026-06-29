@@ -1128,6 +1128,31 @@ def alerts_clear_all():
     return jsonify({"success": True})
 
 
+@app.route("/alerts/force_check/<path:series>")
+def alerts_force_check(series):
+    """Immediately run a real ABB check for a specific series outside the scheduler."""
+    favs = load_favorites()
+    if series not in favs:
+        return jsonify({"success": False, "message": f"'{series}' is not in your favorites."}), 404
+
+    alerts = load_alerts()
+    if series not in alerts:
+        alerts[series] = {"enabled": True}
+        save_alerts(alerts)
+
+    log.info(f"[Alerts] Force check triggered for '{series}'.")
+    _check_series_for_new_volume(series, load_alerts())
+    updated = load_alerts().get(series, {})
+    notifications = updated.get("notifications", [])
+    log.info(f"[Alerts] Force check complete for '{series}' — {len(notifications)} notification(s).")
+    return jsonify({
+        "success":       True,
+        "series":        series,
+        "notifications": notifications,
+        "message":       f"Check complete. {len(notifications)} new volume(s) found."
+    })
+
+
 @app.route("/alerts/test/<path:series>")
 def alerts_test(series):
     """Inject fake notifications for testing the UI.
