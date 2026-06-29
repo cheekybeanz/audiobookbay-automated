@@ -900,7 +900,8 @@ td.action-cell {
 .fav-sort-row {
     display: flex;
     align-items: center;
-    padding: 8px 0 4px;
+    /* Match fav-entry left padding so bell sort aligns with bells below */
+    padding: 8px 8px 4px 8px;
     margin-bottom: 4px;
     position: relative;
 }
@@ -922,10 +923,10 @@ td.action-cell {
     line-height: 1;
 }
 
-/* Bell sort — matches the 28px bell button width + 6px right padding of .fav-bell-btn */
+/* Bell sort — same width as .fav-bell-btn (emoji + 6px padding-right) */
 #fav-sort-bell {
     flex-shrink: 0;
-    width: 34px;
+    width: 28px;
     text-align: left;
 }
 
