@@ -392,11 +392,11 @@ function clearSearch() {
     showFilterBar(false);
     hideError();
 
-    // Show favorites panel
-    var panel = document.getElementById('favorites-panel');
-    var btn   = document.getElementById('favorites-toggle-btn');
-    if (panel) panel.style.display = 'block';
-    if (btn)   btn.classList.add('fav-toggle-open');
+    // Open favorites body
+    var body  = document.getElementById('favorites-body');
+    var arrow = document.getElementById('favorites-header-arrow');
+    if (body)  body.style.display = 'block';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
     loadFavorites();
 }
 
@@ -439,10 +439,10 @@ function hideError() {
 }
 
 function hideFavoritesPanel() {
-    var panel = document.getElementById('favorites-panel');
-    var btn   = document.getElementById('favorites-toggle-btn');
-    if (panel) panel.style.display = 'none';
-    if (btn)   btn.classList.remove('fav-toggle-open');
+    var body  = document.getElementById('favorites-body');
+    var arrow = document.getElementById('favorites-header-arrow');
+    if (body)  body.style.display = 'none';
+    if (arrow) arrow.style.transform = '';
 }
 
 function showClearBtn(show) {
@@ -459,17 +459,17 @@ function initFavoritesVisibility() {
     var tbody = document.getElementById('results-table-body');
     var hasResults = tbody && tbody.innerHTML.trim().length > 0;
     showFilterBar(hasResults);
-    var panel = document.getElementById('favorites-panel');
-    var btn   = document.getElementById('favorites-toggle-btn');
+    var body  = document.getElementById('favorites-body');
+    var arrow = document.getElementById('favorites-header-arrow');
     if (!hasResults) {
         // Open by default when no results
-        if (panel) panel.style.display = 'block';
-        if (btn)   btn.classList.add('fav-toggle-open');
+        if (body)  body.style.display = 'block';
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
         loadFavorites();
     } else {
         // Collapsed when results are showing
-        if (panel) panel.style.display = 'none';
-        if (btn)   btn.classList.remove('fav-toggle-open');
+        if (body)  body.style.display = 'none';
+        if (arrow) arrow.style.transform = '';
     }
 }
 
@@ -663,12 +663,17 @@ function dismissAllNotifications(series) {
 
 // ── Favorites panel ───────────────────────────────────────────────────────
 function toggleFavorites() {
-    var panel  = document.getElementById('favorites-panel');
-    var btn    = document.getElementById('favorites-toggle-btn');
-    var isOpen = panel.style.display !== 'none';
-    panel.style.display = isOpen ? 'none' : 'block';
-    if (btn) btn.classList.toggle('fav-toggle-open', !isOpen);
-    if (!isOpen) loadFavorites();
+    var body  = document.getElementById('favorites-body');
+    var arrow = document.getElementById('favorites-header-arrow');
+    var isOpen = body && body.style.display !== 'none';
+    if (isOpen) {
+        if (body)  body.style.display = 'none';
+        if (arrow) arrow.style.transform = '';
+    } else {
+        if (body)  body.style.display = 'block';
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        loadFavorites();
+    }
 }
 
 // ── Sort state (persisted to localStorage) ────────────────────────────────
@@ -746,6 +751,7 @@ function updateSortButtons() {
 function renderFavorites(favs) {
     var list  = document.getElementById('favorites-list');
     var empty = document.getElementById('favorites-empty');
+    if (!list) return;
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
 
@@ -921,8 +927,8 @@ function saveFavorite(title, btn) {
         if (data.success) {
             btn.textContent = '\u2713 Saved';
             btn.disabled = true;
-            var panel = document.getElementById('favorites-panel');
-            if (panel && panel.style.display !== 'none') loadFavorites();
+            var body = document.getElementById('favorites-body');
+            if (body && body.style.display !== 'none') loadFavorites();
         } else {
             btn.textContent = data.message || 'Already saved';
             setTimeout(function() { btn.textContent = '\u2B50 Save Series'; btn.disabled = false; }, 2000);
