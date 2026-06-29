@@ -316,9 +316,8 @@ def search():
     query = ""
     try:
         if request.method == "POST":
-            query = request.form["query"]
-            if query:
-                books = search_audiobookbay(query)
+            query = request.form.get("query", "").strip()
+            books = search_audiobookbay(query)
         return render_template("search.html", books=books, query=query,
                                save_path_base=SAVE_PATH_BASE or "",
                                page_limit=PAGE_LIMIT)
