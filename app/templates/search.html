@@ -61,7 +61,6 @@
         <button id="clear-button">Clear Filters</button>
     </div>
     <div class="filter-row filter-row-secondary">
-        <button id="favorites-toggle-btn" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
         <div class="file-size-filter-wrapper">
             <label>File Size:</label>
             <div id="file-size-slider"></div>
@@ -69,17 +68,15 @@
     </div>
 </div>
 
-<!-- Favorites-only bar — shown when no results -->
-<div id="no-results-bar" style="display:none; margin-bottom: 10px;">
-    <div class="filter-row">
-        <button id="favorites-toggle-btn-empty" onclick="toggleFavorites()" title="Favorites">⭐ Favorites</button>
-    </div>
+<!-- Favorites toggle row — always visible, always centered -->
+<div id="favorites-bar">
+    <button id="favorites-toggle-btn" onclick="toggleFavorites()">⭐ Favorites</button>
 </div>
 
 <!-- Favorites Panel -->
 <div id="favorites-panel" style="display:none;">
-    <div id="favorites-header">
-        <button id="favorites-close-btn" onclick="toggleFavorites()">✕</button>
+    <div id="favorites-header" onclick="toggleFavorites()" title="Click to collapse">
+        <span id="favorites-header-label">⭐ Favorites</span>
     </div>
     <div id="favorites-list">
         <p id="favorites-empty" style="display:none;">
