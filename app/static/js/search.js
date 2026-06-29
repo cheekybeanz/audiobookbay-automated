@@ -332,7 +332,7 @@ function buildNotifPanel(bell, series, notifications) {
 
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
-        dismiss.textContent = '\u229B';
+        dismiss.textContent = '🚫';
         dismiss.title = "Add to blocklist \u2014 won't show again for this specific upload";
         dismiss.onclick = function(e) {
             e.stopPropagation();
