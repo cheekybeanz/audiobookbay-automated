@@ -255,6 +255,11 @@ function refreshAlertBells() {
 }
 
 function updateBellState(bell, enabled, notifications, series) {
+    // Replace bell node to clear all old event listeners cleanly
+    var newBell = bell.cloneNode(true);
+    bell.parentNode.replaceChild(newBell, bell);
+    bell = newBell;
+
     if (!enabled) {
         bell.className = 'fav-bell-btn bell-dim';
         bell.title = 'Click to enable new volume alerts for this series';
@@ -265,11 +270,18 @@ function updateBellState(bell, enabled, notifications, series) {
         };
     } else if (notifications.length > 0) {
         bell.className = 'fav-bell-btn bell-glow';
-        bell.title = 'New volumes found — click to view';
-        bell.onclick = function(e) {
-            e.stopPropagation();
-            toggleNotifPanel(bell, series, notifications);
-        };
+        bell.title = '';
+        bell.onclick = null;
+        var hoverTimer = null;
+        bell.addEventListener('mouseenter', function() {
+            hoverTimer = setTimeout(function() {
+                closeNotifPanel();
+                buildNotifPanel(bell, series, notifications);
+            }, 300);
+        });
+        bell.addEventListener('mouseleave', function() {
+            clearTimeout(hoverTimer);
+        });
     } else {
         bell.className = 'fav-bell-btn bell-active';
         bell.title = 'Monitoring for new volumes — click to disable';
@@ -323,7 +335,7 @@ function buildNotifPanel(bell, series, notifications) {
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
         dismiss.textContent = '⊗';
-        dismiss.title = 'Dismiss and don\'t show again';
+        dismiss.title = 'Add to blocklist — won\'t show again for this specific upload';
         dismiss.onclick = function(e) {
             e.stopPropagation();
             dismissNotification(series, n.url, n.title, n.matched_as);
@@ -337,6 +349,7 @@ function buildNotifPanel(bell, series, notifications) {
     clearBtn.textContent = notifications.length > 1 ? 'Clear All' : 'Clear';
     clearBtn.onclick = function(e) {
         e.stopPropagation();
+        closeNotifPanel();
         dismissAllNotifications(series);
     };
     panel.appendChild(clearBtn);
@@ -368,6 +381,7 @@ function toggleAlert(series, enable) {
 }
 
 function dismissNotification(series, url, title, matched_as) {
+    closeNotifPanel();
     fetch('/alerts/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -378,7 +392,8 @@ function dismissNotification(series, url, title, matched_as) {
 }
 
 function dismissAllNotifications(series) {
-    fetch('/alerts/dismiss_all', {
+    closeNotifPanel();
+    fetch('/alerts/clear_all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ series: series })
@@ -395,13 +410,60 @@ function toggleFavorites() {
     if (!isOpen) loadFavorites();
 }
 
+// ── Sort state ────────────────────────────────────────────────────────────
+var _sortCol = 'title';
+var _sortDir = 'asc';
+var _favsCache = [];
+
 function loadFavorites() {
     fetch('/favorites')
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            renderFavorites(data.favorites || []);
+            _favsCache = data.favorites || [];
+            renderFavorites(_favsCache);
             loadAlertsStatus();
         });
+}
+
+function applySortedFavs(favs) {
+    if (_sortCol === 'title') {
+        return favs.slice().sort(function(a, b) {
+            return _sortDir === 'asc' ? a.localeCompare(b) : b.localeCompare(a);
+        });
+    } else {
+        return favs.slice().sort(function(a, b) {
+            var aEnabled = (_alertsData[a] || {}).enabled ? 1 : 0;
+            var bEnabled = (_alertsData[b] || {}).enabled ? 1 : 0;
+            if (_sortDir === 'asc') {
+                if (bEnabled !== aEnabled) return bEnabled - aEnabled;
+            } else {
+                if (bEnabled !== aEnabled) return aEnabled - bEnabled;
+            }
+            return a.localeCompare(b);
+        });
+    }
+}
+
+function cycleSortCol(col) {
+    if (_sortCol === col) {
+        _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _sortCol = col;
+        _sortDir = 'asc';
+    }
+    renderFavorites(_favsCache);
+    refreshAlertBells();
+    updateSortButtons();
+}
+
+function updateSortButtons() {
+    var titleBtn = document.getElementById('fav-sort-title');
+    var bellBtn  = document.getElementById('fav-sort-bell');
+    if (!titleBtn || !bellBtn) return;
+    titleBtn.textContent = 'Title ' + (_sortCol === 'title' ? (_sortDir === 'asc' ? '↑' : '↓') : '↕');
+    bellBtn.textContent  = '🔔 '    + (_sortCol === 'bell'  ? (_sortDir === 'asc' ? '↑' : '↓') : '↕');
+    titleBtn.classList.toggle('fav-sort-active', _sortCol === 'title');
+    bellBtn.classList.toggle('fav-sort-active',  _sortCol === 'bell');
 }
 
 function renderFavorites(favs) {
@@ -410,16 +472,47 @@ function renderFavorites(favs) {
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
 
-    if (favs.length === 0) {
+    // Inject sort buttons into header if not already present
+    var header = document.getElementById('favorites-header');
+    if (header && !document.getElementById('fav-sort-title')) {
+        var sortWrap = document.createElement('div');
+        sortWrap.className = 'fav-sort-btns';
+
+        var titleBtn = document.createElement('button');
+        titleBtn.id = 'fav-sort-title';
+        titleBtn.className = 'fav-sort-btn fav-sort-active';
+        titleBtn.textContent = 'Title ↑';
+        titleBtn.title = 'Sort by title';
+        titleBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
+        sortWrap.appendChild(titleBtn);
+
+        var bellBtn = document.createElement('button');
+        bellBtn.id = 'fav-sort-bell';
+        bellBtn.className = 'fav-sort-btn';
+        bellBtn.textContent = '🔔 ↕';
+        bellBtn.title = 'Sort by alert state — active alerts first';
+        bellBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
+        sortWrap.appendChild(bellBtn);
+
+        var closeBtn = document.getElementById('favorites-close-btn');
+        if (closeBtn) {
+            header.insertBefore(sortWrap, closeBtn);
+        } else {
+            header.appendChild(sortWrap);
+        }
+    }
+
+    var sorted = applySortedFavs(favs);
+
+    if (sorted.length === 0) {
         empty.style.display = 'block';
     } else {
         empty.style.display = 'none';
-        favs.forEach(function(name) {
+        sorted.forEach(function(name) {
             var entry = document.createElement('div');
             entry.className = 'fav-entry';
             entry.dataset.series = name;
 
-            // Bell button — always visible, state set by refreshAlertBells()
             var bell = document.createElement('button');
             bell.className = 'fav-bell-btn bell-dim';
             bell.textContent = '🔔';
@@ -450,6 +543,7 @@ function renderFavorites(favs) {
         });
     }
     renderAddRow(list);
+    updateSortButtons();
 }
 
 function renderAddRow(list) {
