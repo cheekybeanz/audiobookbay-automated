@@ -193,8 +193,9 @@ const messages = [
     "Almost there... just need to find the right key...",
 ];
 
-var _msgIndex    = 0;
-var _msgInterval = null;
+var _msgIndex     = 0;
+var _msgInterval  = null;
+var _msgStartTimer = null;  // tracks the 5s delay before messages begin
 
 function startScrollingMessages() {
     var scroller = document.getElementById("message-scroller");
@@ -210,7 +211,8 @@ function startScrollingMessages() {
 }
 
 function stopScrollingMessages() {
-    if (_msgInterval) { clearInterval(_msgInterval); _msgInterval = null; }
+    if (_msgStartTimer) { clearTimeout(_msgStartTimer); _msgStartTimer = null; }
+    if (_msgInterval)   { clearInterval(_msgInterval);  _msgInterval = null; }
     var scroller = document.getElementById("message-scroller");
     if (scroller) scroller.style.display = "none";
     _msgIndex = 0;
@@ -315,7 +317,7 @@ function setSearchingState(searching) {
         if (spinner)    spinner.style.display = 'inline-block';
         if (cancelBtn)  cancelBtn.style.display = 'inline-flex';
         if (clearBtn)   clearBtn.style.display = 'none';
-        setTimeout(startScrollingMessages, 5000);
+        _msgStartTimer = setTimeout(startScrollingMessages, 5000);
     } else {
         if (searchBtn)  searchBtn.disabled = false;
         if (btnText)    btnText.style.display = '';
@@ -392,7 +394,9 @@ function clearSearch() {
 
     // Show favorites panel
     var panel = document.getElementById('favorites-panel');
+    var btn   = document.getElementById('favorites-toggle-btn');
     if (panel) panel.style.display = 'block';
+    if (btn)   btn.classList.add('fav-toggle-open');
     loadFavorites();
 }
 
@@ -436,7 +440,9 @@ function hideError() {
 
 function hideFavoritesPanel() {
     var panel = document.getElementById('favorites-panel');
+    var btn   = document.getElementById('favorites-toggle-btn');
     if (panel) panel.style.display = 'none';
+    if (btn)   btn.classList.remove('fav-toggle-open');
 }
 
 function showClearBtn(show) {
@@ -445,19 +451,25 @@ function showClearBtn(show) {
 }
 
 function showFilterBar(show) {
-    var filterBar    = document.getElementById('filter-container');
-    var noResultsBar = document.getElementById('no-results-bar');
-    if (filterBar)    filterBar.style.display    = show ? 'flex' : 'none';
-    if (noResultsBar) noResultsBar.style.display = show ? 'none' : 'block';
+    var filterBar = document.getElementById('filter-container');
+    if (filterBar) filterBar.style.display = show ? 'flex' : 'none';
 }
 
 function initFavoritesVisibility() {
     var tbody = document.getElementById('results-table-body');
     var hasResults = tbody && tbody.innerHTML.trim().length > 0;
     showFilterBar(hasResults);
+    var panel = document.getElementById('favorites-panel');
+    var btn   = document.getElementById('favorites-toggle-btn');
     if (!hasResults) {
-        document.getElementById('favorites-panel').style.display = 'block';
+        // Open by default when no results
+        if (panel) panel.style.display = 'block';
+        if (btn)   btn.classList.add('fav-toggle-open');
         loadFavorites();
+    } else {
+        // Collapsed when results are showing
+        if (panel) panel.style.display = 'none';
+        if (btn)   btn.classList.remove('fav-toggle-open');
     }
 }
 
@@ -651,9 +663,11 @@ function dismissAllNotifications(series) {
 
 // ── Favorites panel ───────────────────────────────────────────────────────
 function toggleFavorites() {
-    var panel = document.getElementById('favorites-panel');
+    var panel  = document.getElementById('favorites-panel');
+    var btn    = document.getElementById('favorites-toggle-btn');
     var isOpen = panel.style.display !== 'none';
     panel.style.display = isOpen ? 'none' : 'block';
+    if (btn) btn.classList.toggle('fav-toggle-open', !isOpen);
     if (!isOpen) loadFavorites();
 }
 
@@ -735,30 +749,26 @@ function renderFavorites(favs) {
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
 
-    // Inject sort buttons into header if not already there
-    var header = document.getElementById('favorites-header');
-    if (header && !document.getElementById('fav-sort-bell')) {
-        var bellSortBtn = document.createElement('button');
-        bellSortBtn.id = 'fav-sort-bell';
-        bellSortBtn.className = 'fav-sort-btn';
-        bellSortBtn.title = 'Sort by alert state';
-        bellSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
+    // Sort row — injected into list, below header, above entries
+    list.querySelectorAll('.fav-sort-row').forEach(function(el) { el.remove(); });
+    var sortRow = document.createElement('div');
+    sortRow.className = 'fav-sort-row';
 
-        var titleSortBtn = document.createElement('button');
-        titleSortBtn.id = 'fav-sort-title';
-        titleSortBtn.className = 'fav-sort-btn';
-        titleSortBtn.title = 'Sort by title';
-        titleSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
+    var bellSortBtn = document.createElement('button');
+    bellSortBtn.id = 'fav-sort-bell';
+    bellSortBtn.className = 'fav-sort-btn';
+    bellSortBtn.title = 'Sort by alert state';
+    bellSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
+    sortRow.appendChild(bellSortBtn);
 
-        var closeBtn = document.getElementById('favorites-close-btn');
-        if (closeBtn) {
-            header.insertBefore(titleSortBtn, closeBtn);
-            header.insertBefore(bellSortBtn, titleSortBtn);
-        } else {
-            header.appendChild(bellSortBtn);
-            header.appendChild(titleSortBtn);
-        }
-    }
+    var titleSortBtn = document.createElement('button');
+    titleSortBtn.id = 'fav-sort-title';
+    titleSortBtn.className = 'fav-sort-btn';
+    titleSortBtn.title = 'Sort by title';
+    titleSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
+    sortRow.appendChild(titleSortBtn);
+
+    list.appendChild(sortRow);
 
     var sorted = applySortedFavs(favs);
 
