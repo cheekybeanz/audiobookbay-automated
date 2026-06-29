@@ -1111,6 +1111,23 @@ def alerts_dismiss_all():
     return jsonify({"success": True})
 
 
+@app.route("/alerts/clear_all", methods=["POST"])
+def alerts_clear_all():
+    """Clear all notifications for a series without adding to blocklist."""
+    data   = request.json
+    series = data.get("series", "").strip()
+    if not series:
+        return jsonify({"success": False}), 400
+
+    alerts = load_alerts()
+    if series in alerts:
+        alerts[series]["notifications"] = []
+        save_alerts(alerts)
+
+    log.info(f"[Alerts] Cleared notifications for '{series}' (no blocklist).")
+    return jsonify({"success": True})
+
+
 @app.route("/alerts/test/<path:series>")
 def alerts_test(series):
     """Inject fake notifications for testing the UI.
