@@ -1,9 +1,11 @@
 document.addEventListener("DOMContentLoaded", function () {
-    if (document.querySelectorAll(".result-row").length > 0) {
-        initializeFilters();
-        document.getElementById("filter-button").addEventListener("click", applyFilters);
-        document.getElementById("clear-button").addEventListener("click", clearFilters);
-    }
+    restoreSearchState();
+    initFavoritesVisibility();
+
+    var filterBtn = document.getElementById('filter-button');
+    var clearBtn  = document.getElementById('clear-button');
+    if (filterBtn) filterBtn.addEventListener('click', applyFilters);
+    if (clearBtn)  clearBtn.addEventListener('click', clearFilters);
 });
 
 let datePicker;
@@ -48,12 +50,10 @@ function initializeDateRangePicker() {
         .filter(date => date !== null);
 
     let options = { mode: "range", dateFormat: "Y-m-d" };
-
     if (allDates.length > 0) {
         options.minDate = new Date(Math.min.apply(null, allDates));
         options.maxDate = new Date(Math.max.apply(null, allDates));
     }
-
     if (datePicker) datePicker.destroy();
     datePicker = flatpickr("#date-range-filter", options);
 }
@@ -76,10 +76,7 @@ function initializeFileSizeSlider() {
         from: value => Number(parseFileSizeToMB(value))
     };
 
-    if (fileSizeSlider) {
-        fileSizeSlider.destroy();
-        fileSizeSlider = null;
-    }
+    if (fileSizeSlider) { fileSizeSlider.destroy(); fileSizeSlider = null; }
 
     fileSizeSlider = noUiSlider.create(sliderElement, {
         start: [minSize, maxSize],
@@ -163,13 +160,6 @@ function clearFilters() {
     document.querySelectorAll(".result-row").forEach(row => row.style.display = "");
 }
 
-// ── Loading spinner ───────────────────────────────────────────────────────
-function showLoadingSpinner() {
-    const buttonSpinner = document.getElementById("button-spinner");
-    if (buttonSpinner) buttonSpinner.style.display = "inline-block";
-    setTimeout(showScrollingMessages, 5000);
-}
-
 // ── Scrolling messages ────────────────────────────────────────────────────
 const messages = [
     "Searching... This better be worth it!",
@@ -203,20 +193,272 @@ const messages = [
     "Almost there... just need to find the right key...",
 ];
 
-let messageIndex = 0;
-let intervalId   = null;
+var _msgIndex    = 0;
+var _msgInterval = null;
 
-function showScrollingMessages() {
-    const messageScroller  = document.getElementById("message-scroller");
-    const scrollingMessage = document.getElementById("scrolling-message");
-    if (!scrollingMessage) return;
-    const shuffled = messages.sort(() => Math.random() - 0.5);
-    messageScroller.style.display = "block";
-    scrollingMessage.textContent  = shuffled[messageIndex];
-    intervalId = setInterval(() => {
-        messageIndex = (messageIndex + 1) % messages.length;
-        scrollingMessage.textContent = shuffled[messageIndex];
+function startScrollingMessages() {
+    var scroller = document.getElementById("message-scroller");
+    var msg      = document.getElementById("scrolling-message");
+    if (!msg) return;
+    var shuffled = messages.slice().sort(() => Math.random() - 0.5);
+    scroller.style.display = "block";
+    msg.textContent = shuffled[_msgIndex];
+    _msgInterval = setInterval(function() {
+        _msgIndex = (_msgIndex + 1) % shuffled.length;
+        msg.textContent = shuffled[_msgIndex];
     }, 5000);
+}
+
+function stopScrollingMessages() {
+    if (_msgInterval) { clearInterval(_msgInterval); _msgInterval = null; }
+    var scroller = document.getElementById("message-scroller");
+    if (scroller) scroller.style.display = "none";
+    _msgIndex = 0;
+}
+
+// ── AJAX Search ───────────────────────────────────────────────────────────
+var _searchController = null; // AbortController for in-flight search
+var SAVED_QUERY_KEY   = 'abb_search_query';
+var SAVED_HTML_KEY    = 'abb_search_html';
+var SKIP_SERIES_KEY   = 'abb_skip_series';
+
+function startSearch() {
+    var query = document.getElementById('search-input').value.trim();
+    performSearch(query);
+}
+
+function performSearch(query) {
+    // Cancel any in-flight search
+    if (_searchController) { _searchController.abort(); }
+    _searchController = new AbortController();
+
+    // Clear previous results and state
+    clearResults();
+    sessionStorage.removeItem(SAVED_HTML_KEY);
+    sessionStorage.removeItem(SAVED_QUERY_KEY);
+    sessionStorage.removeItem('abb_next_page');
+
+    // Update UI to searching state
+    document.getElementById('search-input').value = query;
+    setSearchingState(true);
+    hideError();
+
+    var pageLimit = parseInt(document.getElementById('page-data').dataset.pageLimit || '5');
+
+    fetch('/search_more', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query, start_page: 1 }),
+        signal: _searchController.signal
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        _searchController = null;
+        setSearchingState(false);
+
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+
+        if (!data.books || data.books.length === 0) {
+            showError(query
+                ? 'No results found for "' + query + '".'
+                : 'No new releases found.');
+            return;
+        }
+
+        appendBooks(data.books);
+        showClearBtn(true);
+        showFilterBar(true);
+        hideFavoritesPanel();
+
+        // Save state
+        saveSearchState(query);
+
+        // Init load more
+        if (data.has_more !== false) {
+            initLoadMore(query, 2);
+        }
+
+        // Init filters now that rows exist
+        try { initializeFilters(); } catch(e) {}
+    })
+    .catch(function(err) {
+        if (err.name === 'AbortError') return; // cancelled — do nothing
+        _searchController = null;
+        setSearchingState(false);
+        showError('Search failed. Check your connection or try again.');
+    });
+}
+
+function cancelSearch() {
+    if (_searchController) {
+        _searchController.abort();
+        _searchController = null;
+    }
+    setSearchingState(false);
+    stopScrollingMessages();
+    // Leave page as-is (results or blank)
+}
+
+function setSearchingState(searching) {
+    var searchBtn  = document.getElementById('search-btn');
+    var cancelBtn  = document.getElementById('cancel-search-btn');
+    var clearBtn   = document.getElementById('clear-search-btn');
+    var spinner    = document.getElementById('button-spinner');
+    var btnText    = searchBtn ? searchBtn.querySelector('.button-text') : null;
+
+    if (searching) {
+        if (searchBtn)  searchBtn.disabled = true;
+        if (btnText)    btnText.style.display = 'none';
+        if (spinner)    spinner.style.display = 'inline-block';
+        if (cancelBtn)  cancelBtn.style.display = 'inline-flex';
+        if (clearBtn)   clearBtn.style.display = 'none';
+        setTimeout(startScrollingMessages, 5000);
+    } else {
+        if (searchBtn)  searchBtn.disabled = false;
+        if (btnText)    btnText.style.display = '';
+        if (spinner)    spinner.style.display = 'none';
+        if (cancelBtn)  cancelBtn.style.display = 'none';
+        stopScrollingMessages();
+        // Show clear only if results exist
+        var tbody = document.getElementById('results-table-body');
+        var hasResults = tbody && tbody.innerHTML.trim().length > 0;
+        if (clearBtn) clearBtn.style.display = hasResults ? 'inline-flex' : 'none';
+    }
+}
+
+function appendBooks(books) {
+    var tbody = document.getElementById('results-table-body');
+    books.forEach(function(book) {
+        var tr = document.createElement('tr');
+        tr.className = 'result-row';
+        tr.dataset.language = book.language;
+        tr.dataset.bitrate  = book.bitrate;
+        tr.dataset.format   = book.format;
+        tr.dataset.fileSize = book.file_size;
+        tr.dataset.postDate = book.post_date;
+        tr.dataset.link     = book.link;
+        tr.dataset.title    = book.title;
+
+        var coverSrc = book.cover || '/static/images/default_cover.jpg';
+        tr.innerHTML =
+            '<td><img src="' + escHtml(coverSrc) + '" alt="Cover Art" class="cover" width="100" '
+                + 'onerror="this.src=\'/static/images/default_cover.jpg\'"></td>'
+            + '<td>'
+                + '<p class="book-title">' + escHtml(book.title) + '</p>'
+                + '<div class="property-results-container">'
+                    + '<span class="book-language">Language: ' + escHtml(book.language) + '</span>'
+                    + '<span class="book-bitrate">Bitrate: '   + escHtml(book.bitrate)  + '</span>'
+                    + '<span class="book-format">Format: '     + escHtml(book.format)   + '</span>'
+                    + '<span class="book-file_size">File Size: '+ escHtml(book.file_size)+ '</span>'
+                    + '<span class="book-post_date">Posted: '  + escHtml(book.post_date)+ '</span>'
+                + '</div>'
+            + '</td>'
+            + '<td class="action-cell">'
+                + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
+                + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
+                + '<button class="fav-btn"      onclick="handleFavorite(this)">\u2B50 Save Series</button>'
+            + '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+function clearResults() {
+    var tbody = document.getElementById('results-table-body');
+    if (tbody) tbody.innerHTML = '';
+    var lmc = document.getElementById('load-more-container');
+    if (lmc) lmc.style.display = 'none';
+    var status = document.getElementById('load-more-status');
+    if (status) { status.style.display = 'none'; status.textContent = ''; }
+}
+
+function clearSearch() {
+    // Cancel any in-flight search
+    if (_searchController) { _searchController.abort(); _searchController = null; }
+    setSearchingState(false);
+
+    // Clear results, state, and sessionStorage
+    clearResults();
+    sessionStorage.removeItem(SAVED_HTML_KEY);
+    sessionStorage.removeItem(SAVED_QUERY_KEY);
+    sessionStorage.removeItem('abb_next_page');
+
+    document.getElementById('search-input').value = '';
+    showClearBtn(false);
+    showFilterBar(false);
+    hideError();
+
+    // Show favorites panel
+    var panel = document.getElementById('favorites-panel');
+    if (panel) panel.style.display = 'block';
+    loadFavorites();
+}
+
+function saveSearchState(query) {
+    var tbody = document.getElementById('results-table-body');
+    if (tbody && tbody.innerHTML.trim()) {
+        sessionStorage.setItem(SAVED_HTML_KEY, tbody.innerHTML);
+        sessionStorage.setItem(SAVED_QUERY_KEY, query || '');
+    }
+}
+
+function restoreSearchState() {
+    var savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
+    var savedQuery = sessionStorage.getItem(SAVED_QUERY_KEY);
+    if (savedHTML) {
+        document.getElementById('results-table-body').innerHTML = savedHTML;
+        document.getElementById('search-input').value = savedQuery || '';
+        showClearBtn(true);
+        showFilterBar(true);
+        try { initializeFilters(); } catch(e) {}
+
+        // Restore load more state
+        var savedNext = sessionStorage.getItem('abb_next_page');
+        if (savedNext && savedQuery !== null) {
+            initLoadMore(savedQuery, parseInt(savedNext));
+            var lmc = document.getElementById('load-more-container');
+            if (lmc) lmc.style.display = 'block';
+        }
+    }
+}
+
+function showError(msg) {
+    var el = document.getElementById('search-error');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+function hideError() {
+    var el = document.getElementById('search-error');
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+}
+
+function hideFavoritesPanel() {
+    var panel = document.getElementById('favorites-panel');
+    if (panel) panel.style.display = 'none';
+}
+
+function showClearBtn(show) {
+    var btn = document.getElementById('clear-search-btn');
+    if (btn) btn.style.display = show ? 'inline-flex' : 'none';
+}
+
+function showFilterBar(show) {
+    var filterBar    = document.getElementById('filter-container');
+    var noResultsBar = document.getElementById('no-results-bar');
+    if (filterBar)    filterBar.style.display    = show ? 'flex' : 'none';
+    if (noResultsBar) noResultsBar.style.display = show ? 'none' : 'block';
+}
+
+function initFavoritesVisibility() {
+    var tbody = document.getElementById('results-table-body');
+    var hasResults = tbody && tbody.innerHTML.trim().length > 0;
+    showFilterBar(hasResults);
+    if (!hasResults) {
+        document.getElementById('favorites-panel').style.display = 'block';
+        loadFavorites();
+    }
 }
 
 // ── Alerts state ──────────────────────────────────────────────────────────
@@ -229,7 +471,6 @@ function loadAlertsStatus() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             _alertsData = data;
-            // If sorting by bell, re-render now that alert data is available
             if (_sortCol === 'bell' && _favsCache.length > 0) {
                 renderFavorites(_favsCache);
             }
@@ -252,7 +493,6 @@ function refreshAlertBells() {
 }
 
 function updateBellState(bell, enabled, notifications, series) {
-    // Clone to wipe all old event listeners cleanly
     var newBell = bell.cloneNode(true);
     bell.parentNode.replaceChild(newBell, bell);
     bell = newBell;
@@ -307,7 +547,6 @@ function buildNotifPanel(bell, series, notifications) {
     panel.className = 'fav-notif-panel';
     panel.dataset.series = series;
 
-    // Keep panel open while mouse is inside it
     panel.addEventListener('mouseenter', function() { clearTimeout(_panelLeaveTimer); });
     panel.addEventListener('mouseleave', function() {
         _panelLeaveTimer = setTimeout(closeNotifPanel, 200);
@@ -332,7 +571,7 @@ function buildNotifPanel(bell, series, notifications) {
 
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
-        dismiss.textContent = '🚫';
+        dismiss.textContent = '\uD83D\uDEAB';
         dismiss.title = "Add to blocklist \u2014 won't show again for this specific upload";
         dismiss.onclick = function(e) {
             e.stopPropagation();
@@ -378,8 +617,24 @@ function dismissNotification(series, url, title, matched_as, totalCount) {
     })
     .then(function(r) { return r.json(); })
     .then(function() {
-        if (totalCount <= 1) closeNotifPanel();
-        loadAlertsStatus();
+        if (totalCount <= 1) {
+            closeNotifPanel();
+            loadAlertsStatus();
+        } else {
+            fetch('/alerts/status')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    _alertsData = data;
+                    var remaining = (data[series] || {}).notifications || [];
+                    if (remaining.length === 0) {
+                        closeNotifPanel();
+                    } else {
+                        var bell = document.querySelector('.fav-entry[data-series="' + CSS.escape(series) + '"] .fav-bell-btn');
+                        if (bell) { closeNotifPanel(); buildNotifPanel(bell, series, remaining); }
+                    }
+                    refreshAlertBells();
+                });
+        }
     });
 }
 
@@ -403,9 +658,9 @@ function toggleFavorites() {
 }
 
 // ── Sort state (persisted to localStorage) ────────────────────────────────
-var SORT_KEY  = 'abb_fav_sort';
-var _sortCol  = 'title';
-var _sortDir  = 'asc';
+var SORT_KEY   = 'abb_fav_sort';
+var _sortCol   = 'title';
+var _sortDir   = 'asc';
 var _favsCache = [];
 
 (function() {
@@ -479,27 +734,31 @@ function renderFavorites(favs) {
     var empty = document.getElementById('favorites-empty');
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
     list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
-    list.querySelectorAll('.fav-sort-row').forEach(function(el) { el.remove(); });
 
-    // Sort row — bell button aligns above bell icons, title button above series names
-    var sortRow = document.createElement('div');
-    sortRow.className = 'fav-sort-row';
+    // Inject sort buttons into header if not already there
+    var header = document.getElementById('favorites-header');
+    if (header && !document.getElementById('fav-sort-bell')) {
+        var bellSortBtn = document.createElement('button');
+        bellSortBtn.id = 'fav-sort-bell';
+        bellSortBtn.className = 'fav-sort-btn';
+        bellSortBtn.title = 'Sort by alert state';
+        bellSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
 
-    var bellSortBtn = document.createElement('button');
-    bellSortBtn.id = 'fav-sort-bell';
-    bellSortBtn.className = 'fav-sort-btn';
-    bellSortBtn.title = 'Sort by alert state';
-    bellSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('bell'); };
-    sortRow.appendChild(bellSortBtn);
+        var titleSortBtn = document.createElement('button');
+        titleSortBtn.id = 'fav-sort-title';
+        titleSortBtn.className = 'fav-sort-btn';
+        titleSortBtn.title = 'Sort by title';
+        titleSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
 
-    var titleSortBtn = document.createElement('button');
-    titleSortBtn.id = 'fav-sort-title';
-    titleSortBtn.className = 'fav-sort-btn';
-    titleSortBtn.title = 'Sort by title';
-    titleSortBtn.onclick = function(e) { e.stopPropagation(); cycleSortCol('title'); };
-    sortRow.appendChild(titleSortBtn);
-
-    list.appendChild(sortRow);
+        var closeBtn = document.getElementById('favorites-close-btn');
+        if (closeBtn) {
+            header.insertBefore(titleSortBtn, closeBtn);
+            header.insertBefore(bellSortBtn, titleSortBtn);
+        } else {
+            header.appendChild(bellSortBtn);
+            header.appendChild(titleSortBtn);
+        }
+    }
 
     var sorted = applySortedFavs(favs);
 
@@ -635,12 +894,10 @@ function confirmDelete(name) {
 }
 
 function searchFavorite(name) {
-    var input = document.getElementById('search-input');
-    if (input) {
-        input.value = name;
-        showLoadingSpinner();
-        input.closest('form').submit();
-    }
+    // Close favorites panel and run AJAX search
+    var panel = document.getElementById('favorites-panel');
+    if (panel) panel.style.display = 'none';
+    performSearch(name);
 }
 
 function saveFavorite(title, btn) {
@@ -655,95 +912,12 @@ function saveFavorite(title, btn) {
             btn.textContent = '\u2713 Saved';
             btn.disabled = true;
             var panel = document.getElementById('favorites-panel');
-            if (panel.style.display !== 'none') loadFavorites();
+            if (panel && panel.style.display !== 'none') loadFavorites();
         } else {
             btn.textContent = data.message || 'Already saved';
             setTimeout(function() { btn.textContent = '\u2B50 Save Series'; btn.disabled = false; }, 2000);
         }
     });
-}
-
-// ── Session persistence ───────────────────────────────────────────────────
-var PAGE_HAS_RESULTS = document.getElementById('page-data').dataset.hasResults === 'true';
-var SAVED_QUERY_KEY  = 'abb_search_query';
-var SAVED_HTML_KEY   = 'abb_search_html';
-var SKIP_SERIES_KEY  = 'abb_skip_series';
-
-function saveSearchState() {
-    var tbody = document.getElementById('results-table-body');
-    var query = document.getElementById('search-input').value;
-    if (tbody && tbody.innerHTML.trim()) {
-        sessionStorage.setItem(SAVED_HTML_KEY, tbody.innerHTML);
-        sessionStorage.setItem(SAVED_QUERY_KEY, query);
-    }
-}
-
-function resetLoadMoreState() {
-    sessionStorage.removeItem('abb_next_page');
-    var container = document.getElementById('load-more-container');
-    if (container) container.style.display = 'none';
-}
-
-function restoreSearchState() {
-    if (PAGE_HAS_RESULTS) {
-        saveSearchState();
-        resetLoadMoreState();
-        showClearBtn(true);
-        showFilterBar(true);
-        var lmc = document.getElementById('load-more-container');
-        if (lmc) lmc.style.display = 'block';
-        return;
-    }
-    var savedHTML  = sessionStorage.getItem(SAVED_HTML_KEY);
-    var savedQuery = sessionStorage.getItem(SAVED_QUERY_KEY);
-    if (savedHTML) {
-        document.getElementById('results-table-body').innerHTML = savedHTML;
-        document.getElementById('search-input').value = savedQuery || '';
-        showClearBtn(true);
-        showFilterBar(true);
-        if (typeof initializeFilters === 'function') {
-            try { initializeFilters(); } catch(e) {}
-            var filterBtn = document.getElementById('filter-button');
-            var clearBtn  = document.getElementById('clear-button');
-            if (filterBtn) filterBtn.addEventListener('click', applyFilters);
-            if (clearBtn)  clearBtn.addEventListener('click', clearFilters);
-        }
-    }
-}
-
-function clearSearch() {
-    sessionStorage.removeItem(SAVED_HTML_KEY);
-    sessionStorage.removeItem(SAVED_QUERY_KEY);
-    sessionStorage.removeItem('abb_next_page');
-    document.getElementById('results-table-body').innerHTML = '';
-    document.getElementById('search-input').value = '';
-    showClearBtn(false);
-    showFilterBar(false);
-    var panel = document.getElementById('favorites-panel');
-    panel.style.display = 'block';
-    loadFavorites();
-}
-
-function showClearBtn(show) {
-    var btn = document.getElementById('clear-search-btn');
-    if (btn) btn.style.display = show ? 'inline-flex' : 'none';
-}
-
-function showFilterBar(show) {
-    var filterBar    = document.getElementById('filter-container');
-    var noResultsBar = document.getElementById('no-results-bar');
-    if (filterBar)    filterBar.style.display    = show ? 'flex' : 'none';
-    if (noResultsBar) noResultsBar.style.display = show ? 'none' : 'block';
-}
-
-function initFavoritesVisibility() {
-    var tbody = document.getElementById('results-table-body');
-    var hasResults = tbody && tbody.innerHTML.trim().length > 0;
-    showFilterBar(hasResults);
-    if (!hasResults) {
-        document.getElementById('favorites-panel').style.display = 'block';
-        loadFavorites();
-    }
 }
 
 // ── Download modal ────────────────────────────────────────────────────────
@@ -819,11 +993,9 @@ function updateModalPath() {
         hint.textContent = '';
     }
 
-    if (skip) {
-        preview.textContent = basePath + '/' + safeTitle;
-    } else {
-        preview.textContent = basePath + '/' + (safeSeries || '\u2026') + '/' + safeTitle;
-    }
+    preview.textContent = skip
+        ? basePath + '/' + safeTitle
+        : basePath + '/' + (safeSeries || '\u2026') + '/' + safeTitle;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -928,7 +1100,7 @@ function initLoadMore(query, nextPage) {
 }
 
 function loadMore() {
-    if (_loadingMore || !_currentQuery) return;
+    if (_loadingMore) return;
     _loadingMore = true;
 
     var btn    = document.getElementById('load-more-btn');
@@ -959,43 +1131,10 @@ function loadMore() {
             return;
         }
 
-        var tbody = document.getElementById('results-table-body');
-        data.books.forEach(function(book) {
-            var tr = document.createElement('tr');
-            tr.className = 'result-row';
-            tr.dataset.language = book.language;
-            tr.dataset.bitrate  = book.bitrate;
-            tr.dataset.format   = book.format;
-            tr.dataset.fileSize = book.file_size;
-            tr.dataset.postDate = book.post_date;
-            tr.dataset.link     = book.link;
-            tr.dataset.title    = book.title;
+        appendBooks(data.books);
+        var query = document.getElementById('search-input').value.trim();
+        saveSearchState(query);
 
-            var defaultCover = '/static/images/default_cover.jpg';
-            var coverSrc = book.cover || defaultCover;
-            tr.innerHTML =
-                '<td><img src="' + escHtml(coverSrc) + '" '
-                    + 'alt="Cover Art" class="cover" width="100" '
-                    + 'onerror="this.src=&quot;/static/images/default_cover.jpg&quot;"></td>'
-                + '<td>'
-                    + '<p class="book-title">' + escHtml(book.title) + '</p>'
-                    + '<div class="property-results-container">'
-                        + '<span class="book-language">Language: ' + escHtml(book.language) + '</span>'
-                        + '<span class="book-bitrate">Bitrate: '   + escHtml(book.bitrate)  + '</span>'
-                        + '<span class="book-format">Format: '     + escHtml(book.format)   + '</span>'
-                        + '<span class="book-file_size">File Size: '+ escHtml(book.file_size)+ '</span>'
-                        + '<span class="book-post_date">Posted: '  + escHtml(book.post_date)+ '</span>'
-                    + '</div>'
-                + '</td>'
-                + '<td class="action-cell">'
-                    + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
-                    + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
-                    + '<button class="fav-btn"      onclick="handleFavorite(this)">\u2B50 Save Series</button>'
-                + '</td>';
-            tbody.appendChild(tr);
-        });
-
-        saveSearchState();
         _nextStartPage += 1;
         sessionStorage.setItem('abb_next_page', _nextStartPage);
         stopLoadingDots(btn, 'Load More Results');
@@ -1006,6 +1145,8 @@ function loadMore() {
             status.textContent   = 'All results loaded.';
             status.style.display = 'block';
         }
+
+        try { initializeFilters(); } catch(e) {}
     })
     .catch(function() {
         _loadingMore = false;
@@ -1042,25 +1183,3 @@ function stopLoadingDots(btn, label) {
     if (_dotsInterval) { clearInterval(_dotsInterval); _dotsInterval = null; }
     btn.textContent = label;
 }
-
-// ── Row helpers ───────────────────────────────────────────────────────────
-function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
-function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
-function handleFavorite(btn) { saveFavorite(btn.closest('tr').dataset.title, btn); }
-
-// ── Init ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-    restoreSearchState();
-    initFavoritesVisibility();
-    var query = document.getElementById('search-input').value.trim();
-    var tbody = document.getElementById('results-table-body');
-    var hasResults = tbody && tbody.innerHTML.trim().length > 0;
-    if (hasResults && query) {
-        var pageLimit = parseInt(document.getElementById('page-data').dataset.pageLimit || '5');
-        var savedNext = sessionStorage.getItem('abb_next_page');
-        var nextPage  = savedNext ? parseInt(savedNext) : (pageLimit + 1);
-        initLoadMore(query, nextPage);
-        var lmc = document.getElementById('load-more-container');
-        if (lmc) lmc.style.display = 'block';
-    }
-});
