@@ -910,9 +910,11 @@ function confirmDelete(name) {
 }
 
 function searchFavorite(name) {
-    // Close favorites panel and run AJAX search
-    var panel = document.getElementById('favorites-panel');
-    if (panel) panel.style.display = 'none';
+    // Collapse favorites body (panel stays visible) and run AJAX search
+    var body  = document.getElementById('favorites-body');
+    var arrow = document.getElementById('favorites-header-arrow');
+    if (body)  body.style.display = 'none';
+    if (arrow) arrow.style.transform = '';
     performSearch(name);
 }
 
