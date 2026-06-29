@@ -930,11 +930,11 @@ td.action-cell {
     text-align: left;
 }
 
-/* Title sort — pushed right to align with series names, not the bells */
+/* Title sort — centered to align with the Favorites button above */
 #fav-sort-title {
     flex-grow: 1;
-    text-align: left;
-    padding-left: 4px;
+    text-align: center;
+    padding-left: 0;
 }
 
 .fav-sort-btn:hover {
