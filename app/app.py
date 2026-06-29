@@ -1,9 +1,9 @@
 import os
-import time
 import pwd
 import grp
 import json
 import re
+import time
 import requests
 from flask import Flask, request, render_template, jsonify
 from bs4 import BeautifulSoup
@@ -20,38 +20,31 @@ app = Flask(__name__)
 load_dotenv()
 
 ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu")
-
-PAGE_LIMIT = int(os.getenv("PAGE_LIMIT", 5))
+PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 5))
 
 DOWNLOAD_CLIENT = os.getenv("DOWNLOAD_CLIENT")
 DL_URL = os.getenv("DL_URL")
 if DL_URL:
     parsed_url = urlparse(DL_URL)
-    DL_SCHEME = parsed_url.scheme
-    DL_HOST = parsed_url.hostname
-    DL_PORT = parsed_url.port
+    DL_SCHEME  = parsed_url.scheme
+    DL_HOST    = parsed_url.hostname
+    DL_PORT    = parsed_url.port
 else:
     DL_SCHEME = os.getenv("DL_SCHEME", "http")
-    DL_HOST = os.getenv("DL_HOST")
-    DL_PORT = os.getenv("DL_PORT")
-
-    # Make a DL_URL for Deluge if one was not specified
+    DL_HOST   = os.getenv("DL_HOST")
+    DL_PORT   = os.getenv("DL_PORT")
     if DL_HOST and DL_PORT:
         DL_URL = f"{DL_SCHEME}://{DL_HOST}:{DL_PORT}"
 
-DL_USERNAME = os.getenv("DL_USERNAME")
-DL_PASSWORD = os.getenv("DL_PASSWORD")
-DL_CATEGORY = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
+DL_USERNAME    = os.getenv("DL_USERNAME")
+DL_PASSWORD    = os.getenv("DL_PASSWORD")
+DL_CATEGORY    = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
 SAVE_PATH_BASE = os.getenv("SAVE_PATH_BASE")
 
-# Custom Nav Link Variables
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
-NAV_LINK_URL = os.getenv("NAV_LINK_URL")
+NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
+FLASK_PORT    = int(os.getenv("PORT", 5078))
 
-# Define the port to be used
-FLASK_PORT = int(os.getenv("PORT", 5078))
-
-# Print configuration
 print(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
 print(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
 print(f"DL_HOST: {DL_HOST}")
@@ -66,11 +59,10 @@ print(f"PAGE_LIMIT: {PAGE_LIMIT}")
 print(f"PORT: {FLASK_PORT}")
 
 # ── Config / persistent data ───────────────────────────────────────────────
-CONFIG_DIR = "/config"
-FAVORITES_PATH = os.path.join(CONFIG_DIR, "favorites.json")
+CONFIG_DIR      = "/config"
+FAVORITES_PATH  = os.path.join(CONFIG_DIR, "favorites.json")
 SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
 
-# Auto-create config files on first run
 os.makedirs(CONFIG_DIR, exist_ok=True)
 if not os.path.exists(FAVORITES_PATH):
     with open(FAVORITES_PATH, "w") as f:
@@ -79,11 +71,10 @@ if not os.path.exists(SERIES_MAP_PATH):
     with open(SERIES_MAP_PATH, "w") as f:
         json.dump({}, f)
 
-# Set nobody:users ownership on config files so they can be manually edited
 try:
-    nobody = pwd.getpwnam("nobody")
+    nobody    = pwd.getpwnam("nobody")
     users_gid = grp.getgrnam("users").gr_gid
-    os.chown(FAVORITES_PATH, nobody.pw_uid, users_gid)
+    os.chown(FAVORITES_PATH,  nobody.pw_uid, users_gid)
     os.chown(SERIES_MAP_PATH, nobody.pw_uid, users_gid)
 except Exception as e:
     print(f"[WARN] Could not set config file ownership: {e}")
@@ -93,14 +84,38 @@ except Exception as e:
 def inject_nav_link():
     return {
         "nav_link_name": os.getenv("NAV_LINK_NAME"),
-        "nav_link_url": os.getenv("NAV_LINK_URL"),
+        "nav_link_url":  os.getenv("NAV_LINK_URL"),
     }
 
 
-# Helper function to search AudiobookBay
+# ── Scraper helpers ────────────────────────────────────────────────────────
+# Structural markers we expect on a real ABB page
+_ABB_REQUIRED_MARKERS = [".post", ".postTitle", "#sidebar"]
+
+def _page_looks_valid(soup):
+    """Return True if the page has the structure we expect from ABB."""
+    for marker in _ABB_REQUIRED_MARKERS:
+        if soup.select(marker):
+            return True
+    return False
+
+def _page_is_rate_limited(soup, response):
+    """Detect common signs of rate limiting or IP bans."""
+    if response.status_code in (429, 403):
+        return True
+    text = response.text.lower()
+    return any(phrase in text for phrase in [
+        "just a moment", "checking your browser", "captcha",
+        "access denied", "banned", "too many requests",
+    ])
+
+
+# ── Search ─────────────────────────────────────────────────────────────────
 def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/115.0.0.0 Safari/537.36"
     }
     results = []
 
@@ -111,7 +126,8 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
 
     for page in range(start_page, start_page + max_pages):
         if query:
-            url = f"https://{ABB_HOSTNAME}/page/{page}/?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}"
+            url = (f"https://{ABB_HOSTNAME}/page/{page}/"
+                   f"?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}")
         else:
             url = f"https://{ABB_HOSTNAME}/page/{page}/"
 
@@ -121,14 +137,29 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
 
         try:
             response = requests.get(url, headers=headers, timeout=15)
-            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             print(f"[ERROR] Failed to fetch page {page}. Reason: {e}")
             break
 
         soup = BeautifulSoup(response.text, "html.parser")
-        posts = soup.select(".post")
 
+        # Check for rate limiting / ban first
+        if _page_is_rate_limited(soup, response):
+            print(f"[WARNING] Rate limited or banned on page {page}. "
+                  f"Status: {response.status_code}.")
+            raise RuntimeError("rate_limited")
+
+        if response.status_code != 200:
+            print(f"[ERROR] Page {page} returned HTTP {response.status_code}. Stopping.")
+            break
+
+        # Verify page structure looks like ABB
+        if not _page_looks_valid(soup):
+            print(f"[WARNING] Page {page} doesn't look like a valid ABB page — "
+                  f"structure may have changed.")
+            break
+
+        posts = soup.select(".post")
         if not posts:
             print(f"No more results found on page {page}.")
             break
@@ -142,17 +173,16 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
                     continue
 
                 title = title_element.text.strip()
-                link = f"https://{ABB_HOSTNAME}{title_element['href']}"
+                link  = f"https://{ABB_HOSTNAME}{title_element['href']}"
 
+                # Use cover URL directly — browser handles broken images via onerror
                 cover_url = (
                     post.select_one("img")["src"] if post.select_one("img") else None
                 )
                 cover = cover_url if cover_url else "/static/images/default_cover.jpg"
 
-                post_info = post.select_one(".postInfo")
-                post_info_text = (
-                    post_info.get_text(separator=" ", strip=True) if post_info else ""
-                )
+                post_info      = post.select_one(".postInfo")
+                post_info_text = post_info.get_text(separator=" ", strip=True) if post_info else ""
 
                 language_match = re.search(
                     r"Language:\s*(.*?)(?:\s*Keywords:|$)", post_info_text, re.DOTALL
@@ -162,84 +192,68 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
                 details_paragraph = post.select_one(
                     ".postContent p[style*='text-align:center']"
                 )
-
-                post_date, book_format, bitrate, file_size = "N/A", "N/A", "N/A", "N/A"
+                post_date = book_format = bitrate = file_size = "N/A"
 
                 if details_paragraph:
                     details_html = str(details_paragraph)
 
-                    post_date_match = re.search(r"Posted:\s*([^<]+)", details_html)
-                    post_date = (
-                        post_date_match.group(1).strip() if post_date_match else "N/A"
-                    )
+                    m = re.search(r"Posted:\s*([^<]+)", details_html)
+                    post_date = m.group(1).strip() if m else "N/A"
 
-                    format_match = re.search(
-                        r"Format:\s*<span[^>]*>([^<]+)</span>", details_html
-                    )
-                    book_format = (
-                        format_match.group(1).strip() if format_match else "N/A"
-                    )
+                    m = re.search(r"Format:\s*<span[^>]*>([^<]+)</span>", details_html)
+                    book_format = m.group(1).strip() if m else "N/A"
 
-                    bitrate_match = re.search(
-                        r"Bitrate:\s*<span[^>]*>([^<]+)</span>", details_html
-                    )
-                    bitrate = bitrate_match.group(1).strip() if bitrate_match else "N/A"
+                    m = re.search(r"Bitrate:\s*<span[^>]*>([^<]+)</span>", details_html)
+                    bitrate = m.group(1).strip() if m else "N/A"
 
-                    file_size_match = re.search(
-                        r"File Size:\s*<span[^>]*>([^<]+)</span>\s*([^<]+)",
-                        details_html,
+                    m = re.search(
+                        r"File Size:\s*<span[^>]*>([^<]+)</span>\s*([^<]+)", details_html
                     )
-                    if file_size_match:
-                        file_size = f"{file_size_match.group(1).strip()} {file_size_match.group(2).strip()}"
+                    if m:
+                        file_size = f"{m.group(1).strip()} {m.group(2).strip()}"
 
-                results.append(
-                    {
-                        "title": title,
-                        "link": link,
-                        "cover": cover,
-                        "language": language,
-                        "post_date": post_date,
-                        "format": book_format,
-                        "bitrate": bitrate,
-                        "file_size": file_size,
-                    }
-                )
+                results.append({
+                    "title":     title,
+                    "link":      link,
+                    "cover":     cover,
+                    "language":  language,
+                    "post_date": post_date,
+                    "format":    book_format,
+                    "bitrate":   bitrate,
+                    "file_size": file_size,
+                })
             except Exception as e:
                 print(f"[ERROR] Could not process a post. Details: {e}")
                 continue
+
     return results
 
 
-# Helper function to extract magnet link from details page
+# ── Magnet link extraction ─────────────────────────────────────────────────
 def extract_magnet_link(details_url):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/115.0.0.0 Safari/537.36"
     }
     try:
         response = requests.get(details_url, headers=headers)
         if response.status_code != 200:
-            print(
-                f"[ERROR] Failed to fetch details page. Status Code: {response.status_code}"
-            )
+            print(f"[ERROR] Failed to fetch details page. Status Code: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Extract Info Hash
         info_hash_row = soup.find("td", string=re.compile(r"Info Hash", re.IGNORECASE))
         if not info_hash_row:
             print("[ERROR] Info Hash not found on the page.")
             return None
         info_hash = info_hash_row.find_next_sibling("td").text.strip()
 
-        # Extract Trackers
-        tracker_rows = soup.find_all(
-            "td", string=re.compile(r"udp://|http://", re.IGNORECASE)
-        )
+        tracker_rows = soup.find_all("td", string=re.compile(r"udp://|http://", re.IGNORECASE))
         trackers = [row.text.strip() for row in tracker_rows]
 
         if not trackers:
-            print("[WARNING] No trackers found on the page. Using default trackers.")
             trackers = [
                 "udp://tracker.openbittorrent.com:80",
                 "udp://opentor.org:2710",
@@ -250,10 +264,9 @@ def extract_magnet_link(details_url):
             ]
 
         trackers_query = "&".join(
-            f"tr={requests.utils.quote(tracker)}" for tracker in trackers
+            f"tr={requests.utils.quote(t)}" for t in trackers
         )
         magnet_link = f"magnet:?xt=urn:btih:{info_hash}&{trackers_query}"
-
         print(f"[DEBUG] Generated Magnet Link: {magnet_link}")
         return magnet_link
 
@@ -262,54 +275,49 @@ def extract_magnet_link(details_url):
         return None
 
 
-# Helper function to sanitize titles
+# ── Title / series helpers ─────────────────────────────────────────────────
 def sanitize_title(title):
     return re.sub(r'[<>:"/\\|?*]', "", title).strip()
 
 
-# Helper function — raw regex extraction only (no mapping lookup)
 def _extract_series_raw(title):
+    """Extract series name before any mapping is applied."""
     if " - " in title:
         authorless = title.rsplit(" - ", 1)[0].strip()
     else:
         authorless = title.strip()
-    series = re.split(r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+\d+", authorless, flags=re.IGNORECASE)[0]
-    series = re.sub(r"\s+\d+$", "", series)
+    series = re.split(
+        r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+[0-9]+",
+        authorless, flags=re.IGNORECASE
+    )[0]
+    series = re.sub(r"\s+[0-9]+$", "", series)
     series = series.strip().rstrip(",").strip()
     return series if series else authorless
 
 
-# Helper function to extract series name from title (with mapping)
 def get_series_name(title):
-    if " - " in title:
-        authorless = title.rsplit(" - ", 1)[0].strip()
-    else:
-        authorless = title.strip()
-    # Strip keyword-based volume markers (Vol. N, Book N, Year N, etc.)
-    series = re.split(r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+\d+", authorless, flags=re.IGNORECASE)[0]
-    # Strip bare trailing number
-    series = re.sub(r"\s+\d+$", "", series)
-    series = series.strip().rstrip(",").strip()
+    """Extract series name and apply any custom mapping."""
+    series = _extract_series_raw(title)
     if not series:
-        series = authorless
+        series = title
 
     # Check custom series map
-    mapping_path = SERIES_MAP_PATH
-    if os.path.exists(mapping_path):
+    if os.path.exists(SERIES_MAP_PATH):
         try:
-            with open(mapping_path) as f:
+            with open(SERIES_MAP_PATH) as f:
                 content = f.read().strip()
                 if content:
                     mapping = json.loads(content)
-                    if series in mapping:
-                        return mapping[series]
+                    sanitized = sanitize_title(series)
+                    if sanitized in mapping:
+                        return mapping[sanitized]
         except json.JSONDecodeError:
             pass
 
     return series
 
 
-# Endpoint for search page
+# ── Routes ─────────────────────────────────────────────────────────────────
 @app.route("/", methods=["GET", "POST"])
 def search():
     books = []
@@ -318,37 +326,50 @@ def search():
         if request.method == "POST":
             query = request.form.get("query", "").strip()
             books = search_audiobookbay(query)
-        return render_template("search.html", books=books, query=query,
-                               save_path_base=SAVE_PATH_BASE or "",
-                               page_limit=PAGE_LIMIT)
+        return render_template(
+            "search.html", books=books, query=query,
+            save_path_base=SAVE_PATH_BASE or "",
+            page_limit=PAGE_LIMIT
+        )
+    except RuntimeError as e:
+        if str(e) == "rate_limited":
+            error_msg = ("AudioBookBay has rate limited this IP. "
+                         "Try again later or route traffic through a VPN.")
+        else:
+            error_msg = str(e)
+        return render_template(
+            "search.html", books=books, error=error_msg, query=query,
+            save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
+        )
     except Exception as e:
         print(f"[ERROR] Failed to search: {e}")
         return render_template(
-            "search.html", books=books, error=f"Failed to search. {str(e)}", query=query,
-            save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
+            "search.html", books=books, error=f"Failed to search. {str(e)}",
+            query=query, save_path_base=SAVE_PATH_BASE or "", page_limit=PAGE_LIMIT
         )
 
 
-# Endpoint for loading more results (AJAX)
 @app.route("/search_more", methods=["POST"])
 def search_more():
-    data        = request.json
-    query       = data.get("query", "").strip()
-    start_page  = int(data.get("start_page", 1))
-    # Empty query is allowed — fetches ABB homepage (new releases)
+    data       = request.json
+    query      = data.get("query", "").strip()
+    start_page = int(data.get("start_page", 1))
     try:
         books = search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=start_page)
         return jsonify({"books": books, "has_more": len(books) > 0})
+    except RuntimeError as e:
+        if str(e) == "rate_limited":
+            return jsonify({"error": "Rate limited by AudioBookBay. Try again later or use a VPN."}), 429
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# Endpoint to send magnet link to torrent client
 @app.route("/send", methods=["POST"])
 def send():
-    data = request.json
+    data        = request.json
     details_url = data.get("link")
-    title = data.get("title")
+    title       = data.get("title")
     if not details_url or not title:
         return jsonify({"message": "Invalid request"}), 400
 
@@ -357,29 +378,24 @@ def send():
         if not magnet_link:
             return jsonify({"message": "Failed to extract magnet link"}), 500
 
-        # FORK EDIT: build series/title two-level path
-        skip_series   = data.get("skip_series", False)
+        skip_series     = data.get("skip_series", False)
         series_override = data.get("series_override", "").strip()
-        safe_title = sanitize_title(title)
+        safe_title      = sanitize_title(title)
+
         if skip_series:
             save_path = f"{SAVE_PATH_BASE}/{safe_title}"
         else:
-            series = sanitize_title(series_override) if series_override else sanitize_title(get_series_name(title))
+            series    = sanitize_title(series_override) if series_override else sanitize_title(get_series_name(title))
             save_path = f"{SAVE_PATH_BASE}/{series}/{safe_title}" if series != safe_title else f"{SAVE_PATH_BASE}/{safe_title}"
 
         if DOWNLOAD_CLIENT == "qbittorrent":
-            qb = Client(
-                host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD
-            )
+            qb = Client(host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD)
             qb.auth_log_in()
             qb.torrents_add(urls=magnet_link, save_path=save_path, category=DL_CATEGORY)
         elif DOWNLOAD_CLIENT == "transmission":
             transmission = transmissionrpc(
-                host=DL_HOST,
-                port=DL_PORT,
-                protocol=DL_SCHEME,
-                username=DL_USERNAME,
-                password=DL_PASSWORD,
+                host=DL_HOST, port=DL_PORT, protocol=DL_SCHEME,
+                username=DL_USERNAME, password=DL_PASSWORD,
             )
             transmission.add_torrent(magnet_link, download_dir=save_path)
         elif DOWNLOAD_CLIENT == "delugeweb":
@@ -392,11 +408,8 @@ def send():
         else:
             return jsonify({"message": "Unsupported download client"}), 400
 
-        return jsonify(
-            {
-                "message": "Download added successfully! This may take some time, the download will show in Audiobookshelf when completed."
-            }
-        )
+        return jsonify({"message": "Download added successfully! This may take some time, "
+                                   "the download will show in Audiobookshelf when completed."})
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
@@ -408,45 +421,43 @@ def status():
             transmission = transmissionrpc(
                 host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD
             )
-            torrents = transmission.get_torrents()
+            torrents     = transmission.get_torrents()
             torrent_list = [
                 {
-                    "name": torrent.name,
+                    "name":     torrent.name,
                     "progress": round(torrent.progress, 2),
-                    "state": torrent.status,
-                    "size": f"{torrent.total_size / (1024 * 1024):.2f} MB",
+                    "state":    torrent.status,
+                    "size":     f"{torrent.total_size / (1024 * 1024):.2f} MB",
                 }
                 for torrent in torrents
             ]
             return render_template("status.html", torrents=torrent_list)
         elif DOWNLOAD_CLIENT == "qbittorrent":
-            qb = Client(
-                host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD
-            )
+            qb = Client(host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD)
             qb.auth_log_in()
-            torrents = qb.torrents_info(category=DL_CATEGORY)
+            torrents     = qb.torrents_info(category=DL_CATEGORY)
             torrent_list = [
                 {
-                    "name": torrent.name,
+                    "name":     torrent.name,
                     "progress": round(torrent.progress * 100, 2),
-                    "state": torrent.state,
-                    "size": f"{torrent.total_size / (1024 * 1024):.2f} MB",
+                    "state":    torrent.state,
+                    "size":     f"{torrent.total_size / (1024 * 1024):.2f} MB",
                 }
                 for torrent in torrents
             ]
         elif DOWNLOAD_CLIENT == "delugeweb":
             delugeweb = delugewebclient(url=DL_URL, password=DL_PASSWORD)
             delugeweb.login()
-            torrents = delugeweb.get_torrents_status(
+            torrents     = delugeweb.get_torrents_status(
                 filter_dict={"label": DL_CATEGORY},
                 keys=["name", "state", "progress", "total_size"],
             )
             torrent_list = [
                 {
-                    "name": torrent["name"],
+                    "name":     torrent["name"],
                     "progress": round(torrent["progress"], 2),
-                    "state": torrent["state"],
-                    "size": f"{torrent['total_size'] / (1024 * 1024):.2f} MB",
+                    "state":    torrent["state"],
+                    "size":     f"{torrent['total_size'] / (1024 * 1024):.2f} MB",
                 }
                 for k, torrent in torrents.result.items()
             ]
@@ -457,7 +468,7 @@ def status():
         return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
 
 
-# ── Favorites helpers ─────────────────────────────────────────────────────
+# ── Favorites helpers ──────────────────────────────────────────────────────
 def load_favorites():
     if os.path.exists(FAVORITES_PATH):
         with open(FAVORITES_PATH) as f:
@@ -487,15 +498,15 @@ def save_series_map(mapping):
         json.dump(mapping, f, indent=2)
 
 
-# ── Favorites routes ──────────────────────────────────────────────────────
+# ── Favorites routes ───────────────────────────────────────────────────────
 @app.route("/favorites")
 def get_favorites():
     return jsonify({"favorites": load_favorites()})
 
 
 @app.route("/favorites/add", methods=["POST"])
-def add_favourite():
-    data = request.json
+def add_favorite():
+    data  = request.json
     title = data.get("title", "").strip()
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
@@ -515,7 +526,7 @@ def add_favourite():
 
 
 @app.route("/favorites/add_manual", methods=["POST"])
-def add_favourite_manual():
+def add_favorite_manual():
     data = request.json
     name = sanitize_title(data.get("name", "").strip())
     if not name:
@@ -529,7 +540,7 @@ def add_favourite_manual():
 
 
 @app.route("/favorites/remove", methods=["POST"])
-def remove_favourite():
+def remove_favorite():
     data = request.json
     name = data.get("name", "").strip()
     favs = load_favorites()
@@ -539,15 +550,15 @@ def remove_favourite():
 
 
 @app.route("/favorites/rename", methods=["POST"])
-def rename_favourite():
-    data = request.json
+def rename_favorite():
+    data     = request.json
     old_name = data.get("old_name", "").strip()
     new_name = sanitize_title(data.get("new_name", "").strip())
     if not old_name or not new_name:
         return jsonify({"success": False}), 400
     favs = load_favorites()
     if old_name in favs:
-        idx = favs.index(old_name)
+        idx       = favs.index(old_name)
         favs[idx] = new_name
         favs.sort()
         save_favorites(favs)
@@ -567,13 +578,11 @@ def list_mappings():
 
 @app.route("/mappings/preview", methods=["POST"])
 def preview_mapping():
-    """Return what the regex/mapping would produce for a given ABB title,
-    plus whether an existing mapping is already applied."""
-    data = request.json
+    data  = request.json
     title = data.get("title", "").strip()
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
-    raw = sanitize_title(_extract_series_raw(title))
+    raw       = sanitize_title(_extract_series_raw(title))
     extracted = sanitize_title(get_series_name(title))
     is_mapped = (raw in load_series_map())
     return jsonify({"success": True, "extracted": extracted, "is_mapped": is_mapped})
@@ -581,21 +590,21 @@ def preview_mapping():
 
 @app.route("/mappings/add", methods=["POST"])
 def add_mapping():
-    data = request.json
+    data      = request.json
     extracted = data.get("extracted", "").strip()
-    mapped = data.get("mapped", "").strip()
+    mapped    = data.get("mapped", "").strip()
     if not extracted or not mapped:
         return jsonify({"success": False, "message": "Both fields required"}), 400
-    mapping = load_series_map()
-    mapping[extracted] = mapped
+    mapping             = load_series_map()
+    mapping[extracted]  = mapped
     save_series_map(mapping)
     return jsonify({"success": True})
 
 
 @app.route("/mappings/remove", methods=["POST"])
 def remove_mapping():
-    data = request.json
-    key = data.get("key", "").strip()
+    data    = request.json
+    key     = data.get("key", "").strip()
     mapping = load_series_map()
     mapping.pop(key, None)
     save_series_map(mapping)
@@ -604,10 +613,10 @@ def remove_mapping():
 
 @app.route("/mappings/rename", methods=["POST"])
 def rename_mapping():
-    data = request.json
-    key = data.get("key", "").strip()
+    data          = request.json
+    key           = data.get("key", "").strip()
     new_extracted = data.get("new_extracted", "").strip()
-    new_mapped = data.get("new_mapped", "").strip()
+    new_mapped    = data.get("new_mapped", "").strip()
     if not key or not new_extracted or not new_mapped:
         return jsonify({"success": False}), 400
     mapping = load_series_map()
@@ -629,7 +638,6 @@ def check_exists():
     if not SAVE_PATH_BASE or not title:
         return jsonify({"exists": False})
 
-    # Extract volume number — keyword match first, bare number as fallback
     def extract_vol_num(t):
         matches = list(re.finditer(
             r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
@@ -645,9 +653,8 @@ def check_exists():
     if not vol_num:
         return jsonify({"exists": False})
 
-    # Build variants to handle zero-padding (01, 1, 001 all match)
     try:
-        num_int = int(float(vol_num))
+        num_int  = int(float(vol_num))
         variants = list(set([
             str(num_int),
             vol_num,
@@ -657,14 +664,12 @@ def check_exists():
     except ValueError:
         variants = [vol_num]
 
-    # Determine scan path
     safe_series = sanitize_title(series) if series else ""
-    scan_path = os.path.join(SAVE_PATH_BASE, safe_series) if safe_series else SAVE_PATH_BASE
+    scan_path   = os.path.join(SAVE_PATH_BASE, safe_series) if safe_series else SAVE_PATH_BASE
 
     if not os.path.isdir(scan_path):
         return jsonify({"exists": False})
 
-    # Scan subfolders for any that contain the same volume number
     try:
         for entry in os.scandir(scan_path):
             if not entry.is_dir():
@@ -677,6 +682,7 @@ def check_exists():
         pass
 
     return jsonify({"exists": False})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=FLASK_PORT)
