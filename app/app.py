@@ -17,7 +17,12 @@ from urllib.parse import urlparse
 app = Flask(__name__)
 
 # Load environment variables
-load_dotenv()
+# Load from /config/.env first (user-editable), then fall back to container env vars
+_config_env = os.path.join("/config", ".env")
+if os.path.exists(_config_env):
+    load_dotenv(_config_env, override=True)
+else:
+    load_dotenv()
 
 ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu")
 PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 5))
@@ -64,6 +69,47 @@ FAVORITES_PATH  = os.path.join(CONFIG_DIR, "favorites.json")
 SERIES_MAP_PATH = os.path.join(CONFIG_DIR, "series_map.json")
 
 os.makedirs(CONFIG_DIR, exist_ok=True)
+
+# Create a documented .env template if one doesn't exist yet
+_env_template = os.path.join(CONFIG_DIR, ".env")
+if not os.path.exists(_env_template):
+    with open(_env_template, "w") as f:
+        f.write("""# ABB Automated Configuration
+# Edit this file and restart the container to apply changes.
+# Lines starting with # are comments and are ignored.
+
+# AudioBookBay hostname (change if the domain moves)
+# ABB_HOSTNAME=audiobookbay.lu
+
+# Number of pages to load per search / Load More batch
+# PAGE_LIMIT=5
+
+# Download client: qbittorrent, transmission, or delugeweb
+# DOWNLOAD_CLIENT=qbittorrent
+
+# Download client connection (use DL_URL or individual settings)
+# DL_URL=http://192.168.1.100:8080
+# DL_HOST=192.168.1.100
+# DL_PORT=8080
+# DL_SCHEME=http
+# DL_USERNAME=admin
+# DL_PASSWORD=password
+
+# Category/label assigned to downloads in the torrent client
+# DL_CATEGORY=Audiobookbay-Audiobooks
+
+# Base path where audiobooks are saved (as seen by the torrent client container)
+# SAVE_PATH_BASE=/data/media/books/audiobooks
+
+# Optional: custom nav link shown in the navbar
+# NAV_LINK_NAME=Audiobookshelf
+# NAV_LINK_URL=http://192.168.1.100:13378
+
+# Port the web UI runs on
+# PORT=5078
+""")
+    print(f"[INFO] Created config template at {_env_template}")
+
 if not os.path.exists(FAVORITES_PATH):
     with open(FAVORITES_PATH, "w") as f:
         json.dump([], f)
@@ -76,6 +122,8 @@ try:
     users_gid = grp.getgrnam("users").gr_gid
     os.chown(FAVORITES_PATH,  nobody.pw_uid, users_gid)
     os.chown(SERIES_MAP_PATH, nobody.pw_uid, users_gid)
+    if os.path.exists(_env_template):
+        os.chown(_env_template, nobody.pw_uid, users_gid)
 except Exception as e:
     print(f"[WARN] Could not set config file ownership: {e}")
 
