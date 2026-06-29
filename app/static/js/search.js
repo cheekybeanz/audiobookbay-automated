@@ -359,9 +359,9 @@ function appendBooks(books) {
                 + '</div>'
             + '</td>'
             + '<td class="action-cell">'
-                + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
                 + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
-                + '<button class="fav-btn"      onclick="handleFavorite(this)">\u2B50 Save Series</button>'
+                + '<button class="fav-btn"      onclick="handleSaveSeries(this)">\u2B50 Save Series</button>'
+                + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
             + '</td>';
         tbody.appendChild(tr);
     });
@@ -661,6 +661,138 @@ function dismissAllNotifications(series) {
     .then(function() { loadAlertsStatus(); });
 }
 
+// ── Save Series modal ────────────────────────────────────────────────────
+// The series name saved here is purely for ABB searching / alerts.
+// It never creates a mapping — folder naming is handled separately by downloads.
+var _saveSeriesTotalTitle = '';
+
+function openSaveSeriesModal(title, btn) {
+    _saveSeriesTotalTitle = title;
+    document.getElementById('save-series-title-display').textContent = title;
+    document.getElementById('save-series-alerts').checked = false;
+    document.getElementById('save-series-hint').textContent = '';
+    document.getElementById('save-series-already-saved').style.display = 'none';
+    document.getElementById('save-series-disk-found').style.display = 'none';
+    document.getElementById('save-series-mapping-info').style.display = 'none';
+    document.getElementById('save-series-modal-form').style.display = 'block';
+    document.getElementById('save-series-modal-result').style.display = 'none';
+    document.getElementById('save-series-modal').style.display = 'flex';
+
+    fetch('/favorites/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) return;
+
+        // Pre-fill with extracted series name (not mapped — user sets favorites name independently)
+        document.getElementById('save-series-input').value = data.extracted;
+
+        // Show already-saved notice
+        if (data.already_saved) {
+            document.getElementById('save-series-already-saved').style.display = 'flex';
+        }
+
+        // Show disk path if found
+        if (data.disk_path) {
+            document.getElementById('save-series-disk-path').textContent = data.disk_path;
+            document.getElementById('save-series-disk-found').style.display = 'flex';
+        }
+
+        // Show mapping info as read-only note (folder mapping is separate from favorites)
+        if (data.is_mapped && data.mapped_to) {
+            var mapEl = document.getElementById('save-series-mapping-info');
+            var mapText = document.getElementById('save-series-mapping-text');
+            if (mapEl && mapText) {
+                mapText.textContent = data.extracted + ' → ' + data.mapped_to;
+                mapEl.style.display = 'flex';
+            }
+        }
+
+        document.getElementById('save-series-input').focus();
+        document.getElementById('save-series-input').select();
+    });
+}
+
+function closeSaveSeriesModal() {
+    document.getElementById('save-series-modal').style.display = 'none';
+    document.getElementById('save-series-modal-form').style.display = 'block';
+    document.getElementById('save-series-modal-result').style.display = 'none';
+    document.getElementById('save-series-input').value = '';
+    document.getElementById('save-series-hint').textContent = '';
+    document.getElementById('save-series-alerts').checked = false;
+    _saveSeriesTotalTitle = '';
+}
+
+function confirmSaveSeries() {
+    var seriesName   = document.getElementById('save-series-input').value.trim();
+    var enableAlerts = document.getElementById('save-series-alerts').checked;
+    var btn          = document.getElementById('save-series-confirm-btn');
+    var cancelBtn    = document.querySelector('#save-series-modal-form .modal-btn-cancel');
+
+    if (!seriesName) return;
+
+    btn.textContent    = 'Saving…';
+    btn.disabled       = true;
+    cancelBtn.disabled = true;
+
+    fetch('/favorites/add_with_options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            series_name:   seriesName,
+            enable_alerts: enableAlerts
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('save-series-modal-form').style.display = 'none';
+        var result = document.getElementById('save-series-modal-result');
+        if (data.success) {
+            result.innerHTML = '<div class="modal-result modal-result-success">'
+                + '<div class="modal-result-icon">✓</div>'
+                + '<p class="modal-result-title">Series saved</p>'
+                + '<p class="modal-result-sub">' + escHtml(data.series || seriesName) + '</p>'
+                + '</div>';
+            result.style.display = 'block';
+            var body = document.getElementById('favorites-body');
+            if (body && body.style.display !== 'none') loadFavorites();
+            setTimeout(function() { closeSaveSeriesModal(); }, 1800);
+        } else {
+            result.innerHTML = '<div class="modal-result modal-result-error">'
+                + '<div class="modal-result-icon">✕</div>'
+                + '<p class="modal-result-title">Could not save</p>'
+                + '<p class="modal-result-sub">' + escHtml(data.message || 'Unknown error') + '</p>'
+                + '<button class="modal-btn-cancel" onclick="closeSaveSeriesModal()" style="margin-top:14px;">Close</button>'
+                + '</div>';
+            result.style.display = 'block';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('save-series-modal-form').style.display = 'none';
+        var result = document.getElementById('save-series-modal-result');
+        result.innerHTML = '<div class="modal-result modal-result-error">'
+            + '<div class="modal-result-icon">✕</div>'
+            + '<p class="modal-result-title">Failed to save</p>'
+            + '<p class="modal-result-sub">' + err + '</p>'
+            + '<button class="modal-btn-cancel" onclick="closeSaveSeriesModal()" style="margin-top:14px;">Close</button>'
+            + '</div>';
+        result.style.display = 'block';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('save-series-input');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') confirmSaveSeries();
+            if (e.key === 'Escape') closeSaveSeriesModal();
+        });
+    }
+});
+
 // ── Favorites panel ───────────────────────────────────────────────────────
 function toggleFavorites() {
     var body  = document.getElementById('favorites-body');
@@ -918,25 +1050,6 @@ function searchFavorite(name) {
     performSearch(name);
 }
 
-function saveFavorite(title, btn) {
-    fetch('/favorites/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.success) {
-            btn.textContent = '\u2713 Saved';
-            btn.disabled = true;
-            var body = document.getElementById('favorites-body');
-            if (body && body.style.display !== 'none') loadFavorites();
-        } else {
-            btn.textContent = data.message || 'Already saved';
-            setTimeout(function() { btn.textContent = '\u2B50 Save Series'; btn.disabled = false; }, 2000);
-        }
-    });
-}
 
 // ── Download modal ────────────────────────────────────────────────────────
 var _modalLink = '';
