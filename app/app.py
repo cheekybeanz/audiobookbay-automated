@@ -1,4 +1,4 @@
-=import os
+import os
 import pwd
 import grp
 import json
