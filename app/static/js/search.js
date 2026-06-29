@@ -229,6 +229,10 @@ function loadAlertsStatus() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             _alertsData = data;
+            // If sorting by bell, re-render now that alert data is available
+            if (_sortCol === 'bell' && _favsCache.length > 0) {
+                renderFavorites(_favsCache);
+            }
             refreshAlertBells();
         })
         .catch(function(e) { console.warn('[Alerts] Failed to load status:', e); });
