@@ -1,4 +1,4 @@
-import os
+=import os
 import pwd
 import grp
 import json
@@ -156,10 +156,12 @@ if not os.path.exists(SERIES_MAP_PATH):
 try:
     nobody    = pwd.getpwnam("nobody")
     users_gid = grp.getgrnam("users").gr_gid
-    os.chown(FAVORITES_PATH,  nobody.pw_uid, users_gid)
-    os.chown(SERIES_MAP_PATH, nobody.pw_uid, users_gid)
+    for _path in [FAVORITES_PATH, SERIES_MAP_PATH]:
+        os.chown(_path, nobody.pw_uid, users_gid)
+        os.chmod(_path, 0o664)  # rw-rw-r-- owner and group can read/write
     if os.path.exists(_env_template):
         os.chown(_env_template, nobody.pw_uid, users_gid)
+        os.chmod(_env_template, 0o664)
 except Exception as e:
     print(f"[WARN] Could not set config file ownership: {e}")
 
