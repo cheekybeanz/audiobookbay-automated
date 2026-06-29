@@ -902,3 +902,140 @@ td.action-cell {
     opacity: 0.5;
     cursor: default;
 }
+
+/* ── Alert bell button ───────────────────────────────────────────── */
+.fav-bell-btn {
+    background: none !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 6px 0 0;
+    margin-bottom: 0;
+    width: auto;
+    flex-shrink: 0;
+    transition: filter 0.2s, opacity 0.2s;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Dim — alerts disabled (default) */
+.fav-bell-btn.bell-dim {
+    opacity: 0.2;
+    filter: grayscale(1) brightness(0.6);
+}
+.fav-bell-btn.bell-dim:hover {
+    opacity: 0.55;
+    filter: grayscale(0);
+}
+
+/* Active — monitoring, nothing found */
+.fav-bell-btn.bell-active {
+    opacity: 0.7;
+    filter: grayscale(0);
+}
+.fav-bell-btn.bell-active:hover {
+    opacity: 1;
+}
+
+/* Glow — new volume found */
+.fav-bell-btn.bell-glow {
+    opacity: 1;
+    filter: drop-shadow(0 0 5px #f59e0b) drop-shadow(0 0 2px #fbbf24);
+    animation: bell-pulse 2s ease-in-out infinite;
+    cursor: pointer;
+}
+
+@keyframes bell-pulse {
+    0%, 100% { filter: drop-shadow(0 0 4px #f59e0b) drop-shadow(0 0 2px #fbbf24); }
+    50%       { filter: drop-shadow(0 0 10px #f59e0b) drop-shadow(0 0 6px #fbbf24); }
+}
+
+/* ── Notification popup panel ────────────────────────────────────── */
+.fav-notif-panel {
+    position: fixed;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 12px 14px;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    min-width: 300px;
+    max-width: 420px;
+}
+
+.fav-notif-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f59e0b;
+    margin-bottom: 10px;
+    letter-spacing: 0.03em;
+}
+
+.fav-notif-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+}
+.fav-notif-row:last-of-type {
+    border-bottom: none;
+}
+
+.fav-notif-link {
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    text-decoration: none;
+    word-break: break-word;
+    transition: color 0.15s;
+}
+.fav-notif-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.fav-notif-dismiss {
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0 2px;
+    width: auto;
+    margin: 0;
+    flex-shrink: 0;
+    transition: color 0.15s;
+    line-height: 1;
+}
+.fav-notif-dismiss:hover {
+    background: none !important;
+    color: #ef5350;
+}
+
+.fav-notif-clear-btn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 6px 0;
+    background: transparent !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 5px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+    text-align: center;
+}
+.fav-notif-clear-btn:hover {
+    background-color: rgba(255,255,255,0.06) !important;
+    color: var(--text-primary);
+}
+
+/* fav-entry needs relative positioning for bell click anchor reference */
+.fav-entry {
+    position: relative;
+}
