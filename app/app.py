@@ -85,6 +85,11 @@ NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
 FLASK_PORT    = int(os.getenv("PORT", 5078))
 
+# Dev panel — testing tools tucked into Search/Status/Mappings (fake search
+# results, fake alerts, fake torrent rows, etc). Off by default since it's
+# only useful while actively developing, not for normal use.
+DEV_PANEL = os.getenv("DEV_PANEL", "false").strip().lower() == "true"
+
 # Alert scheduler config
 ALERT_CHECK_INTERVAL = int(os.getenv("ALERT_CHECK_INTERVAL", 5))   # minutes between each series check within a cycle
 ALERT_CHECK_TIME     = os.getenv("ALERT_CHECK_TIME", "02:00")       # time of day to run daily cycle (HH:MM, 24hr)
@@ -103,6 +108,7 @@ log.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
 log.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
 log.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
 log.info(f"PORT: {FLASK_PORT}")
+log.info(f"DEV_PANEL: {DEV_PANEL}")
 log.info(f"ALERT_CHECK_INTERVAL: {ALERT_CHECK_INTERVAL}m")
 log.info(f"ALERT_CHECK_TIME: {ALERT_CHECK_TIME}")
 
@@ -207,6 +213,11 @@ if not os.path.exists(_env_template):
 # NAV_LINK_NAME=Audiobookshelf
 # NAV_LINK_URL=http://192.168.1.100:13378
 
+# Shows a hidden developer panel on Search/Status/Mappings with tools for
+# faking search results, alerts, torrent rows, and error states — useful
+# while testing UI changes, not needed for normal use.  [default: false]
+# DEV_PANEL=true
+
 # ── New volume alerts ─────────────────────────────────────────────────────
 
 # Time of day to run the daily alert check cycle      [default: 02:00]
@@ -255,6 +266,7 @@ def inject_nav_link():
     return {
         "nav_link_name": os.getenv("NAV_LINK_NAME"),
         "nav_link_url":  os.getenv("NAV_LINK_URL"),
+        "dev_panel":     DEV_PANEL,
     }
 
 
@@ -950,10 +962,13 @@ def status():
                 for k, torrent in torrents.result.items()
             ]
         else:
-            return jsonify({"message": "Unsupported download client"}), 400
+            return render_template("status.html", torrents=[],
+                                    error=f"Unsupported download client: {DOWNLOAD_CLIENT}")
         return render_template("status.html", torrents=torrent_list)
     except Exception as e:
-        return jsonify({"message": f"Failed to fetch torrent status: {e}"}), 500
+        log.error(f"Failed to fetch torrent status: {e}")
+        return render_template("status.html", torrents=[],
+                                error=f"Failed to fetch torrent status: {e}")
 
 
 # ── Favorites helpers ──────────────────────────────────────────────────────
@@ -1404,6 +1419,27 @@ def alerts_test(series):
     save_alerts(alerts)
     log.info(f"[Alerts] Injected {added} test notification(s) for '{series}'.")
     return jsonify({"success": True, "message": f"Injected {added} test notification(s) for '{series}'"})
+
+
+@app.route("/alerts/test_clear_all")
+def alerts_test_clear_all():
+    """Clear all test notifications across every series, without touching real ones."""
+    alerts  = load_alerts()
+    cleared = 0
+    for series, data in alerts.items():
+        before = len(data.get("notifications", []))
+        data["notifications"] = [
+            n for n in data.get("notifications", [])
+            if "test-notification" not in n.get("url", "")
+        ]
+        cleared += before - len(data["notifications"])
+    save_alerts(alerts)
+    log.info(f"[Alerts] Cleared {cleared} test notification(s) across all series.")
+    return jsonify({
+        "success": True,
+        "cleared": cleared,
+        "message": f"Cleared {cleared} test notification(s) across all series."
+    })
 
 
 @app.route("/alerts/test_clear/<path:series>")
