@@ -64,7 +64,51 @@
     <div id="blocklist-list"></div>
 </div>
 
+<!-- Developer panel — preview the blocklist styling without needing a
+     real dismissed notification first. Only rendered when DEV_PANEL=true. -->
+{% if dev_panel %}
+<button id="dev-panel-toggle" onclick="toggleDevPanel()" title="Developer panel">&#9881;</button>
+
+<div id="dev-panel" style="display:none;">
+    <div class="dev-panel-header">
+        <span>Dev Panel</span>
+        <button class="dev-panel-close" onclick="toggleDevPanel()">&#10005;</button>
+    </div>
+    <div class="dev-panel-body">
+        <span class="dev-panel-section-label">Alert Blocklist</span>
+        <div class="dev-panel-btns">
+            <button onclick="devShowFakeBlocklistEntry()">Show Fake Blocklist Entry</button>
+            <button onclick="location.reload()">Reset to Real Data</button>
+        </div>
+
+        <p id="dev-panel-status"></p>
+    </div>
+</div>
+{% endif %}
+
 <script>
+{% if dev_panel %}
+function toggleDevPanel() {
+    var panel = document.getElementById('dev-panel');
+    if (!panel) return;
+    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+}
+
+function devStatus(msg) {
+    var el = document.getElementById('dev-panel-status');
+    if (el) el.textContent = msg;
+}
+
+function devShowFakeBlocklistEntry() {
+    renderBlocklist([{
+        title:      'Series Title 5 Vol. 99 \u2014 TEST ENTRY',
+        matched_as: 'Vol. 99',
+        url:        '#'
+    }]);
+    devStatus('Showing a fake blocklist entry. Reload to restore real data.');
+}
+{% endif %}
+
 // ── Generic confirm / alert modal ───────────────────────────────────────
 // Replaces native browser confirm()/alert() popups with an in-app modal
 // matching the rest of the UI. Builds its own markup on demand, so no
