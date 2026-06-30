@@ -89,65 +89,6 @@ function clearFilters() {
     document.querySelectorAll(".result-row").forEach(row => row.style.display = "");
 }
 
-// ── Scrolling messages ────────────────────────────────────────────────────
-const messages = [
-    "Searching... This better be worth it!",
-    "Hold on, this takes a while...",
-    "Still searching... Maybe grab a snack?",
-    "Patience, young grasshopper...",
-    "Wow, this is taking a minute!",
-    "Don't worry, I got this!",
-    "Maybe go for a walk?",
-    "Still thinking... Almost there!",
-    "Finding the best results for you!",
-    "Hang tight! Searching magic happening!",
-    "One moment... while I consult the ancients.",
-    "Beep boop... processing... please wait...",
-    "My hamsters are running on a wheel, almost there!",
-    "Just gathering some pixie dust, be right back!",
-    "Is it lunchtime yet? Oh, searching... right.",
-    "Please remain calm, the search is in progress.",
-    "Warning: Search may cause extreme awesomeness.",
-    "Calculating the optimal route to your results...",
-    "Almost there... just defragmenting my brain.",
-    "Searching... because the internet is a big place!",
-    "Polishing the search results for your viewing pleasure.",
-    "The search is strong with this one.",
-    "Please wait while I summon the search demons.",
-    "Searching in hyperspace... almost there!",
-    "My coffee is kicking in... search commencing!",
-    "Just a few more gigabytes to process...",
-    "Rome wasn't built in a day.",
-    "Don't blame me, the internet is slow today.",
-    "Almost there... just need to find the right key...",
-];
-
-var _msgIndex     = 0;
-var _msgInterval  = null;
-var _msgStartTimer = null;  // tracks the 5s delay before messages begin
-
-function startScrollingMessages() {
-    var scroller = document.getElementById("message-scroller");
-    var msg      = document.getElementById("scrolling-message");
-    if (!msg) return;
-    var shuffled = messages.slice().sort(() => Math.random() - 0.5);
-    scroller.style.display = "block";
-    msg.textContent = shuffled[_msgIndex];
-    _msgInterval = setInterval(function() {
-        _msgIndex = (_msgIndex + 1) % shuffled.length;
-        msg.textContent = shuffled[_msgIndex];
-    }, 5000);
-}
-
-function stopScrollingMessages() {
-    if (_msgStartTimer) { clearTimeout(_msgStartTimer); _msgStartTimer = null; }
-    if (_msgInterval)   { clearInterval(_msgInterval);  _msgInterval = null; }
-    var scroller = document.getElementById("message-scroller");
-    if (scroller) scroller.style.display = "none";
-    _msgIndex = 0;
-}
-
-// ── AJAX Search ───────────────────────────────────────────────────────────
 var _searchController = null; // AbortController for in-flight search
 var SAVED_QUERY_KEY   = 'abb_search_query';
 var SAVED_HTML_KEY    = 'abb_search_html';
@@ -229,7 +170,6 @@ function cancelSearch() {
         _searchController = null;
     }
     setSearchingState(false);
-    stopScrollingMessages();
     // Leave page as-is (results or blank)
 }
 
@@ -246,13 +186,11 @@ function setSearchingState(searching) {
         if (spinner)    spinner.style.display = 'inline-block';
         if (cancelBtn)  cancelBtn.style.display = 'inline-flex';
         if (clearBtn)   clearBtn.style.display = 'none';
-        _msgStartTimer = setTimeout(startScrollingMessages, 5000);
     } else {
         if (searchBtn)  searchBtn.disabled = false;
         if (btnText)    btnText.style.display = '';
         if (spinner)    spinner.style.display = 'none';
         if (cancelBtn)  cancelBtn.style.display = 'none';
-        stopScrollingMessages();
         // Show clear only if results exist
         var tbody = document.getElementById('results-table-body');
         var hasResults = tbody && tbody.innerHTML.trim().length > 0;
@@ -513,7 +451,7 @@ function buildNotifPanel(bell, series, notifications) {
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
         dismiss.textContent = '\uD83D\uDEAB';
-        dismiss.title = "Add to blocklist \u2014 won't show again for this specific upload";
+        dismiss.title = "Add to blocklist";
         dismiss.onclick = function(e) {
             e.stopPropagation();
             dismissNotification(series, n.url, n.title, n.matched_as, notifications.length);
