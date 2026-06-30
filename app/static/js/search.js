@@ -7,7 +7,30 @@ document.addEventListener("DOMContentLoaded", function () {
     var clearBtn  = document.getElementById('clear-button');
     if (filterBtn) filterBtn.addEventListener('click', applyFilters);
     if (clearBtn)  clearBtn.addEventListener('click', clearFilters);
+
+    // Background poll so bell glow appears even if changes happened in another
+    // tab (test routes, scheduled cycle, etc) without needing a manual refresh
+    setInterval(backgroundAlertsPoll, 45000);
+
+    // Also refresh immediately when this tab regains focus/visibility,
+    // so switching back from Status or Series Mappings shows fresh state
+    // without waiting for the next 45s poll
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            backgroundAlertsPoll();
+        }
+    });
 });
+
+function backgroundAlertsPoll() {
+    // Skip if the user is mid-edit on a favorite name or the manual-add input,
+    // since loadAlertsStatus() can trigger a re-render that would interrupt typing
+    var activeEl = document.activeElement;
+    if (activeEl && (activeEl.classList.contains('fav-manual-input') || activeEl.classList.contains('mapping-edit-input'))) {
+        return;
+    }
+    loadAlertsStatus();
+}
 
 function initializeFilters() {
     populateSelectFilters();
@@ -712,6 +735,10 @@ function runAlertsNow() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (btn) { btn.disabled = false; btn.textContent = 'Check Now'; }
+            // The first series is processed synchronously inside run_now, so its
+            // result is already on disk by the time this response arrives — reload
+            // bell states immediately rather than waiting on cycle_status polling.
+            loadAlertsStatus();
             refreshCycleStatus();
         })
         .catch(function() {
