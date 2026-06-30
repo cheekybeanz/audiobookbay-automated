@@ -10,6 +10,9 @@
 <div class="title-container">
     <h1>Torrent Status</h1>
 </div>
+
+<p class="error-message" id="status-error" {% if not error %}style="display:none;"{% endif %}>{{ error or '' }}</p>
+
 <div class="status-table-wrapper">
     <table class="status-table">
         <thead>
@@ -20,16 +23,123 @@
                 <th>Size</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="status-table-body">
             {% for torrent in torrents %}
-            <tr>
+            <tr data-state="{{ torrent.state }}">
                 <td>{{ torrent.name }}</td>
                 <td>{{ torrent.progress }}%</td>
                 <td>{{ torrent.state }}</td>
                 <td>{{ torrent.size }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="4" class="status-empty">No active downloads.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- Developer panel — preview empty/error states and fake torrent rows
+     without needing a real client connection or active downloads.
+     Only rendered when DEV_PANEL=true in the .env. -->
+{% if dev_panel %}
+<button id="dev-panel-toggle" onclick="toggleDevPanel()" title="Developer panel">&#9881;</button>
+
+<div id="dev-panel" style="display:none;">
+    <div class="dev-panel-header">
+        <span>Dev Panel</span>
+        <button class="dev-panel-close" onclick="toggleDevPanel()">&#10005;</button>
+    </div>
+    <div class="dev-panel-body">
+        <span class="dev-panel-section-label">Fake Torrents</span>
+        <div class="dev-panel-btns">
+            <button onclick="devInjectFakeTorrents()">Inject Sample Torrents</button>
+            <button onclick="devShowEmptyState()">Show Empty State</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <span class="dev-panel-section-label">Error States</span>
+        <div class="dev-panel-btns">
+            <button onclick="devShowStatusError()">Show Fetch-Failed Error</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <button class="dev-panel-full-btn" onclick="location.reload()">Reset to Real Data</button>
+
+        <p id="dev-panel-status"></p>
+    </div>
+</div>
+
+<script>
+function toggleDevPanel() {
+    var panel = document.getElementById('dev-panel');
+    if (!panel) return;
+    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+}
+
+function devStatus(msg) {
+    var el = document.getElementById('dev-panel-status');
+    if (el) el.textContent = msg;
+}
+
+function devInjectFakeTorrents() {
+    var tbody = document.getElementById('status-table-body');
+    if (!tbody) return;
+
+    document.getElementById('status-error').style.display = 'none';
+
+    var sample = [
+        { name: 'The Wonderful Wizard of Oz - L. Frank Baum',           progress: 42,  state: 'Downloading', size: '210.45 MB' },
+        { name: 'Dracula - Bram Stoker',                                progress: 100, state: 'Seeding',     size: '98.10 MB'  },
+        { name: 'Frankenstein - Mary Shelley',                          progress: 0,   state: 'Paused',      size: '180.75 MB' },
+        { name: 'A Christmas Carol - Charles Dickens',                  progress: 0,   state: 'Queued',      size: '64.30 MB'  },
+        { name: 'The Adventures of Sherlock Holmes - Arthur Conan Doyle', progress: 17, state: 'Error',      size: '301.90 MB' },
+        { name: 'A Very Long Audiobook Title Used Just To Check How The Title Column Wraps Across Multiple Lines - Some Author', progress: 67, state: 'Downloading', size: '1.20 GB' }
+    ];
+
+    tbody.innerHTML = '';
+    sample.forEach(function(t) {
+        var tr = document.createElement('tr');
+        tr.dataset.state = t.state;
+
+        var nameTd = document.createElement('td');
+        nameTd.textContent = t.name;
+        var progressTd = document.createElement('td');
+        progressTd.textContent = t.progress + '%';
+        var stateTd = document.createElement('td');
+        stateTd.textContent = t.state;
+        var sizeTd = document.createElement('td');
+        sizeTd.textContent = t.size;
+
+        tr.appendChild(nameTd);
+        tr.appendChild(progressTd);
+        tr.appendChild(stateTd);
+        tr.appendChild(sizeTd);
+        tbody.appendChild(tr);
+    });
+
+    devStatus('Injected ' + sample.length + ' sample torrent(s).');
+}
+
+function devShowEmptyState() {
+    var tbody = document.getElementById('status-table-body');
+    if (!tbody) return;
+    document.getElementById('status-error').style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="4" class="status-empty">No active downloads.</td></tr>';
+    devStatus('Showing empty state.');
+}
+
+function devShowStatusError() {
+    var tbody = document.getElementById('status-table-body');
+    if (tbody) tbody.innerHTML = '';
+    var errEl = document.getElementById('status-error');
+    if (errEl) {
+        errEl.textContent = 'Failed to fetch torrent status: connection refused (fake test error)';
+        errEl.style.display = 'block';
+    }
+    devStatus('Showing fake error banner.');
+}
+</script>
+{% endif %}
 {% endblock %}
