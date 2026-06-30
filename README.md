@@ -99,7 +99,7 @@ services:
 
 On first launch, the app generates a fully documented `.env` file at `/config/.env` with every available setting explained inline and commented out at its default value. This is the easiest place to configure the app after the first boot.
 
-Once `/config/.env` exists, values in it take priority over environment variables set in your Docker Compose file or Unraid template. A common workflow is to set just enough in Compose to get the container running (download client, save path), then fine-tune everything else by editing `/config/.env` directly and restarting the container.
+Once `/config/.env` exists, values in it take priority over environment variables set in your Docker Compose file or Unraid template.
 
 ## Environment Variables
 
