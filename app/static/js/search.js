@@ -84,6 +84,204 @@ function showAppAlert(message, onClose) {
     showAppConfirm(message, onClose, { showCancel: false });
 }
 
+// ── Developer panel ──────────────────────────────────────────────────
+// Wraps the existing /alerts/test, /alerts/test_clear, /alerts/force_check,
+// and /alerts/run_now routes so testing doesn't require typing URLs by hand.
+function toggleDevPanel() {
+    var panel = document.getElementById('dev-panel');
+    if (!panel) return;
+    panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+}
+
+function devStatus(msg) {
+    var el = document.getElementById('dev-panel-status');
+    if (el) el.textContent = msg;
+}
+
+function devGetSeries() {
+    var input = document.getElementById('dev-series-input');
+    return input ? input.value.trim() : '';
+}
+
+function devInjectTest() {
+    var series = devGetSeries();
+    if (!series) { devStatus('Enter a series name first.'); return; }
+    var count = document.getElementById('dev-count-input').value || 1;
+    fetch('/alerts/test/' + encodeURIComponent(series) + '?count=' + encodeURIComponent(count))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            devStatus(data.message || 'Done.');
+            loadAlertsStatus();
+        })
+        .catch(function() { devStatus('Request failed.'); });
+}
+
+function devClearTest() {
+    var series = devGetSeries();
+    if (!series) { devStatus('Enter a series name first.'); return; }
+    fetch('/alerts/test_clear/' + encodeURIComponent(series))
+        .then(function(r) { return r.json(); })
+        .then(function() {
+            devStatus('Cleared test notifications for "' + series + '".');
+            loadAlertsStatus();
+        })
+        .catch(function() { devStatus('Request failed.'); });
+}
+
+function devForceCheck() {
+    var series = devGetSeries();
+    if (!series) { devStatus('Enter a series name first.'); return; }
+    devStatus('Checking\u2026');
+
+    // force_check runs outside the normal staggered cycle, so it wouldn't
+    // otherwise trigger the favorites-header spinner. Show it manually for
+    // the duration of this real check, then re-sync with the server's
+    // actual cycle state afterward in case a real cycle is also running.
+    var spinner = document.getElementById('favorites-header-spinner');
+    if (spinner) {
+        spinner.style.display = 'inline-block';
+        spinner.title = 'Test check in progress\u2026';
+    }
+
+    fetch('/alerts/force_check/' + encodeURIComponent(series))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            devStatus(data.message || (data.success ? 'Done.' : 'Failed.'));
+            loadAlertsStatus();
+        })
+        .catch(function() { devStatus('Request failed.'); })
+        .finally(function() { refreshCycleStatus(); });
+}
+
+function devClearAllTest() {
+    devStatus('Clearing\u2026');
+    fetch('/alerts/test_clear_all')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            devStatus(data.message || 'Cleared all test notifications.');
+            loadAlertsStatus();
+        })
+        .catch(function() { devStatus('Request failed.'); });
+}
+
+function devRunCycleNow() {
+    devStatus('Starting cycle\u2026');
+    fetch('/alerts/run_now', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            devStatus(data.message || (data.success ? ('Cycle started \u2014 ' + data.total + ' series queued.') : 'Failed.'));
+            loadAlertsStatus();
+            refreshCycleStatus();
+        })
+        .catch(function() { devStatus('Request failed.'); });
+}
+
+// ── Dev panel: fake search results ──────────────────────────────────
+// Reuses the real appendBooks()/initLoadMore() flow. Load More afterward
+// fetches real page-2 "new releases" results (empty query), so it's a
+// genuine end-to-end test of the button, loading dots, and pagination.
+function devInjectFakeResults() {
+    var fakeBooks = [
+        { title: 'The Wonderful Wizard of Oz - L. Frank Baum', link: '#', cover: '/static/images/default_cover.jpg', language: 'English', post_date: '01 Jan 2024', format: 'MP3', bitrate: '64kbps', file_size: '210.45 MBs' },
+        { title: 'A Really Long Audiobook Title That Wraps Across Multiple Lines To Check The Layout - Some Author Name', link: '#', cover: '/static/images/default_cover.jpg', language: 'German', post_date: '15 Mar 2023', format: 'M4B', bitrate: '128kbps', file_size: '1.2 GBs' },
+        { title: 'Dracula - Bram Stoker', link: '#', cover: '/static/images/default_cover.jpg', language: 'English', post_date: '22 Oct 2022', format: 'MP3', bitrate: '32kbps', file_size: '98.10 MBs' },
+        { title: "Alice's Adventures in Wonderland - Lewis Carroll", link: '#', cover: '/static/images/default_cover.jpg', language: 'French', post_date: '03 Jul 2021', format: 'FLAC', bitrate: '320kbps', file_size: '540.00 MBs' },
+        { title: 'Frankenstein - Mary Shelley', link: '#', cover: '/static/images/default_cover.jpg', language: 'English', post_date: '11 Nov 2020', format: 'MP3', bitrate: '64kbps', file_size: '180.75 MBs' }
+    ];
+
+    clearResults();
+    appendBooks(fakeBooks);
+    showClearBtn(true);
+    showFilterBar(true);
+    hideFavoritesPanel();
+    initLoadMore('', 2);
+    try { initializeFilters(); } catch (e) {}
+
+    devStatus('Injected ' + fakeBooks.length + ' fake result(s). Load More will fetch real page-2 results.');
+}
+
+// ── Dev panel: error states ──────────────────────────────────────────
+function devShowRateLimitError() {
+    clearResults();
+    showError('AudioBookBay has rate limited this IP. Try again later or route traffic through a VPN.');
+    devStatus('Showing rate-limit error.');
+}
+
+// ── Dev panel: Download modal previews ───────────────────────────────
+function devShowDownloadExists() {
+    openDownloadModal('#', 'Series Title 5 - Fake Author');
+    setTimeout(function() {
+        var warning = document.getElementById('modal-exists-warning');
+        var pathEl  = document.getElementById('modal-exists-path');
+        if (warning && pathEl) {
+            pathEl.textContent = '/data/media/books/audiobooks/Series Title/Series Title 4';
+            warning.style.display = 'flex';
+        }
+    }, 400); // let the modal's real fetches settle first, then force it visible
+    devStatus('Opened Download modal with a fake exists warning.');
+}
+
+function devShowDownloadResult(success) {
+    openDownloadModal('#', 'Series Title 5 - Fake Author');
+    setTimeout(function() {
+        document.getElementById('download-modal-form').style.display = 'none';
+        var result = document.getElementById('download-modal-result');
+        if (success) {
+            result.innerHTML = '<div class="modal-result modal-result-success">'
+                + '<div class="modal-result-icon">\u2713</div>'
+                + '<p class="modal-result-title">Added to queue</p>'
+                + '<p class="modal-result-sub">Series Title 5 - Fake Author</p>'
+                + '</div>';
+        } else {
+            result.innerHTML = '<div class="modal-result modal-result-error">'
+                + '<div class="modal-result-icon">\u2715</div>'
+                + '<p class="modal-result-title">Failed to add</p>'
+                + '<p class="modal-result-sub">Connection refused (fake test error)</p>'
+                + '<button class="modal-btn-cancel" onclick="closeDownloadModal()" style="margin-top:14px;">Close</button>'
+                + '</div>';
+        }
+        result.style.display = 'block';
+    }, 400);
+    devStatus('Opened Download modal with a fake ' + (success ? 'success' : 'failure') + ' result.');
+}
+
+// ── Dev panel: Save Series modal previews ────────────────────────────
+function devShowSaveSeriesBanners() {
+    openSaveSeriesModal('Series Title 5 - Fake Author', null);
+    setTimeout(function() {
+        document.getElementById('save-series-already-saved').style.display = 'flex';
+        document.getElementById('save-series-disk-path').textContent = '/data/media/books/audiobooks/Series Title';
+        document.getElementById('save-series-disk-found').style.display = 'flex';
+        document.getElementById('save-series-mapping-text').textContent = 'Series Title 5 \u2192 Series Title';
+        document.getElementById('save-series-mapping-info').style.display = 'flex';
+    }, 400);
+    devStatus('Opened Save Series modal with all three banners shown.');
+}
+
+function devShowSaveSeriesResult(success) {
+    openSaveSeriesModal('Series Title 5 - Fake Author', null);
+    setTimeout(function() {
+        document.getElementById('save-series-modal-form').style.display = 'none';
+        var result = document.getElementById('save-series-modal-result');
+        if (success) {
+            result.innerHTML = '<div class="modal-result modal-result-success">'
+                + '<div class="modal-result-icon">\u2713</div>'
+                + '<p class="modal-result-title">Series saved</p>'
+                + '<p class="modal-result-sub">Series Title 5</p>'
+                + '</div>';
+        } else {
+            result.innerHTML = '<div class="modal-result modal-result-error">'
+                + '<div class="modal-result-icon">\u2715</div>'
+                + '<p class="modal-result-title">Could not save</p>'
+                + '<p class="modal-result-sub">Fake test error</p>'
+                + '<button class="modal-btn-cancel" onclick="closeSaveSeriesModal()" style="margin-top:14px;">Close</button>'
+                + '</div>';
+        }
+        result.style.display = 'block';
+    }, 400);
+    devStatus('Opened Save Series modal with a fake ' + (success ? 'success' : 'failure') + ' result.');
+}
+
 function populateSelectFilters() {
     const languages = new Set();
     const bitrates  = new Set();
