@@ -852,7 +852,7 @@ function renderFavorites(favs) {
     var empty = document.getElementById('favorites-empty');
     if (!list) return;
     list.querySelectorAll('.fav-entry').forEach(function(el) { el.remove(); });
-    list.querySelectorAll('.fav-add-row').forEach(function(el) { el.remove(); });
+    list.querySelectorAll('.fav-footer-line').forEach(function(el) { el.remove(); });
 
     // Sort row — injected into list, below header, above entries
     list.querySelectorAll('.fav-sort-row').forEach(function(el) { el.remove(); });
