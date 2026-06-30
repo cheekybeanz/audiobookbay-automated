@@ -92,3 +92,40 @@
     padding: 40px 20px;
     font-size: 0.9rem;
 }
+
+/* Error message — same treatment as the Search page's error banner */
+.error-message {
+    color: #ef5350;
+    font-size: 0.9rem;
+    padding: 10px 0;
+    text-align: center;
+    width: 100%;
+}
+
+/* ── State-based coloring ────────────────────────────────────────────
+   Matched against the row's data-state attribute. Substring + case
+   insensitive matching since qBittorrent, Transmission, and Deluge each
+   report slightly different state strings rather than a shared vocabulary. */
+tr[data-state*="error" i] td:nth-child(3) {
+    color: #ef5350;
+    font-weight: 600;
+}
+
+tr[data-state*="seed" i] td:nth-child(3),
+tr[data-state*="complet" i] td:nth-child(3),
+tr[data-state*="upload" i] td:nth-child(3) {
+    color: #69f0ae;
+    font-weight: 600;
+}
+
+tr[data-state*="download" i] td:nth-child(3) {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+tr[data-state*="pause" i] td:nth-child(3),
+tr[data-state*="queue" i] td:nth-child(3),
+tr[data-state*="stall" i] td:nth-child(3),
+tr[data-state*="check" i] td:nth-child(3) {
+    color: var(--text-dim);
+}
