@@ -82,7 +82,7 @@ services:
       - "5078:5078"
     volumes:
       - /path/to/appdata/abb-automated:/config
-      - /path/to/your/audiobooks:/audiobooks:ro
+      - /path/to/your/audiobooks:/audiobooks
     environment:
       - DOWNLOAD_CLIENT=qbittorrent
       - DL_HOST=qbittorrent
