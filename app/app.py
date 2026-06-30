@@ -581,7 +581,9 @@ _alert_cycle_total  = 0   # total series in the current/last cycle, for progress
 def _alert_cycle_start():
     """
     Called once per day at ALERT_CHECK_TIME (or manually via /alerts/run_now).
-    Builds the queue of enabled series — the stagger job processes one per tick.
+    Builds the queue of enabled series and immediately processes the first one
+    so a manual trigger doesn't sit idle waiting for the next interval tick.
+    The rest of the queue is drained by _alert_tick on its normal stagger.
     """
     global _alert_series_queue, _alert_cycle_total
 
@@ -594,6 +596,11 @@ def _alert_cycle_start():
     _alert_series_queue = list(enabled)
     _alert_cycle_total  = len(_alert_series_queue)
     log.info(f"[Alerts] Cycle started — {_alert_cycle_total} series queued.")
+
+    # Process the first series right away rather than waiting for the next tick
+    first_series = _alert_series_queue.pop(0)
+    _check_series_for_new_volume(first_series, alerts)
+
     return True
 
 
@@ -1153,11 +1160,12 @@ def alerts_cycle_status():
     checked   = (total - remaining) if running else 0
 
     return jsonify({
-        "running":      running,
-        "total":        total,
-        "checked":      checked,
-        "remaining":    remaining,
-        "next_run_at":  _get_next_daily_run(),
+        "running":            running,
+        "total":              total,
+        "checked":            checked,
+        "remaining":          remaining,
+        "next_run_at":        _get_next_daily_run(),
+        "check_interval_min": ALERT_CHECK_INTERVAL,
     })
 
 
