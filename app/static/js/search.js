@@ -701,6 +701,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── Manual alert check / cycle status ────────────────
 var _cycleStatusInterval = null;
+var _cyclePollStartedAt  = null;
+var POLL_BUFFER_MS       = 10 * 60 * 1000; // extra buffer on top of expected cycle duration
 
 function runAlertsNow() {
     var btn = document.getElementById('fav-check-now-btn');
@@ -751,10 +753,23 @@ function updateCycleStatusUI(data) {
 
     // Poll frequently while running, stop polling once idle
     if (data.running && !_cycleStatusInterval) {
+        _cyclePollStartedAt = Date.now();
         _cycleStatusInterval = setInterval(refreshCycleStatus, 5000);
+    } else if (data.running && _cycleStatusInterval) {
+        // Safety cap scales with queue size — assume ~5 min per series (server's
+        // ALERT_CHECK_INTERVAL) plus a buffer, so legitimate long cycles aren't cut off
+        var intervalMin = data.check_interval_min || 5;
+        var expectedMs = (data.total || 1) * intervalMin * 60 * 1000 + POLL_BUFFER_MS;
+        if (_cyclePollStartedAt && (Date.now() - _cyclePollStartedAt) > expectedMs) {
+            clearInterval(_cycleStatusInterval);
+            _cycleStatusInterval = null;
+            _cyclePollStartedAt = null;
+            console.warn('[Alerts] Stopped polling — exceeded expected cycle duration.');
+        }
     } else if (!data.running && _cycleStatusInterval) {
         clearInterval(_cycleStatusInterval);
         _cycleStatusInterval = null;
+        _cyclePollStartedAt = null;
         // Reload favorites once a cycle finishes so new notifications show up
         loadAlertsStatus();
     }
