@@ -832,10 +832,16 @@ function openSaveSeriesModal(title, btn) {
 function closeSaveSeriesModal() {
     document.getElementById('save-series-modal').style.display = 'none';
     document.getElementById('save-series-modal-form').style.display = 'block';
-    document.getElementById('save-series-modal-result').style.display = 'none';
+    var result = document.getElementById('save-series-modal-result');
+    result.style.display = 'none';
+    result.innerHTML = '';
     document.getElementById('save-series-input').value = '';
     document.getElementById('save-series-hint').textContent = '';
     document.getElementById('save-series-alerts').checked = false;
+    var confirmBtn = document.getElementById('save-series-confirm-btn');
+    var cancelBtn  = document.querySelector('#save-series-modal-form .modal-btn-cancel');
+    if (confirmBtn) { confirmBtn.textContent = '\u2B50 Save Series'; confirmBtn.disabled = false; }
+    if (cancelBtn)  { cancelBtn.disabled = false; }
     _saveSeriesTotalTitle = '';
 }
 
