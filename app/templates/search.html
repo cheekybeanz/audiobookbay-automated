@@ -3,11 +3,11 @@
 {% block title %}ABB Automated{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<link rel="stylesheet" href="{{ static_versioned('css/search.css') }}">
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/search.js') }}" defer></script>
+<script src="{{ static_versioned('js/search.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}
