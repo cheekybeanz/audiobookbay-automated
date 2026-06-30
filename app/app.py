@@ -232,6 +232,24 @@ def inject_nav_link():
     }
 
 
+def _static_versioned(filename):
+    """
+    Build a static file URL with a cache-busting query param based on the
+    file's last-modified time. Ensures browsers fetch fresh CSS/JS after a
+    container rebuild instead of serving a stale cached copy.
+    """
+    static_path = os.path.join(app.static_folder, filename)
+    try:
+        mtime = int(os.path.getmtime(static_path))
+    except OSError:
+        mtime = 0
+    from flask import url_for
+    return f"{url_for('static', filename=filename)}?v={mtime}"
+
+
+app.jinja_env.globals["static_versioned"] = _static_versioned
+
+
 # ── Scraper helpers ────────────────────────────────────────────────────────
 _ABB_REQUIRED_MARKERS = [".post", ".postTitle", "#sidebar"]
 
