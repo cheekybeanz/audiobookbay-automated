@@ -576,22 +576,25 @@ def _is_blocked(url):
 
 # ── Alert scheduler ────────────────────────────────────────────────────────
 _alert_series_queue = []
+_alert_cycle_total  = 0   # total series in the current/last cycle, for progress display
 
 def _alert_cycle_start():
     """
-    Called once per day at ALERT_CHECK_TIME.
+    Called once per day at ALERT_CHECK_TIME (or manually via /alerts/run_now).
     Builds the queue of enabled series — the stagger job processes one per tick.
     """
-    global _alert_series_queue
+    global _alert_series_queue, _alert_cycle_total
 
     alerts  = load_alerts()
     enabled = [s for s, v in alerts.items() if v.get("enabled")]
     if not enabled:
-        log.info("[Alerts] Daily cycle triggered but no series have alerts enabled.")
-        return
+        log.info("[Alerts] Cycle triggered but no series have alerts enabled.")
+        return False
 
     _alert_series_queue = list(enabled)
-    log.info(f"[Alerts] Daily cycle started at {ALERT_CHECK_TIME} — {len(_alert_series_queue)} series queued.")
+    _alert_cycle_total  = len(_alert_series_queue)
+    log.info(f"[Alerts] Cycle started — {_alert_cycle_total} series queued.")
+    return True
 
 
 def _alert_tick():
@@ -710,6 +713,14 @@ _scheduler.add_job(
 
 _scheduler.start()
 log.info(f"[Alerts] Scheduler started — daily cycle at {ALERT_CHECK_TIME}, one series checked every {ALERT_CHECK_INTERVAL}m.")
+
+
+def _get_next_daily_run():
+    """Return the next scheduled daily cycle time as an ISO string, or None."""
+    job = _scheduler.get_job("alert_daily_cycle")
+    if job and job.next_run_time:
+        return job.next_run_time.strftime("%I:%M %p").lstrip("0")
+    return None
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
@@ -1111,6 +1122,43 @@ def alerts_status():
             "last_checked":  data.get("last_checked"),
         }
     return jsonify(result)
+
+
+@app.route("/alerts/run_now", methods=["POST"])
+def alerts_run_now():
+    """Manually trigger a check cycle immediately, bypassing the daily schedule."""
+    if _alert_series_queue:
+        return jsonify({
+            "success": False,
+            "message": "A check is already running."
+        }), 409
+
+    started = _alert_cycle_start()
+    if not started:
+        return jsonify({
+            "success": False,
+            "message": "No series have alerts enabled."
+        })
+
+    log.info("[Alerts] Manual check triggered by user.")
+    return jsonify({"success": True, "total": _alert_cycle_total})
+
+
+@app.route("/alerts/cycle_status")
+def alerts_cycle_status():
+    """Return whether a check cycle is currently running and its progress."""
+    running   = len(_alert_series_queue) > 0
+    remaining = len(_alert_series_queue)
+    total     = _alert_cycle_total if running else 0
+    checked   = (total - remaining) if running else 0
+
+    return jsonify({
+        "running":      running,
+        "total":        total,
+        "checked":      checked,
+        "remaining":    remaining,
+        "next_run_at":  _get_next_daily_run(),
+    })
 
 
 @app.route("/alerts/toggle", methods=["POST"])
