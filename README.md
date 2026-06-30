@@ -175,16 +175,16 @@ Code for new features and the alerting system was written with the help of Claud
 ## Screenshots
  
 ### Search
-![Search results](screenshots/Search.png)
-![Download modal](screenshots/Download.png)
+[![Search results](screenshots/Search.png)](screenshots/Search.png?raw=true)
+[![Download modal](screenshots/Download.png)](screenshots/Download.png?raw=true)
  
 ### Favorites and Alerts
-![Favorites panel](screenshots/Alerts.png)
+[![Favorites panel](screenshots/Alerts.png)](screenshots/Alerts.png?raw=true)
  
 ### Download Status
-![Download status](screenshots/Status.png)
+[![Download status](screenshots/Status.png)](screenshots/Status.png?raw=true)
  
 ### Series Mappings
-![Series mappings](screenshots/SeriesMappings.png)
+[![Series mappings](screenshots/SeriesMappings.png)](screenshots/SeriesMappings.png?raw=true)
 
 ---
