@@ -171,3 +171,20 @@ This app does not download, host, or store any audiobook content itself. It sear
 This project began as a fork of [jamesry96/audiobookbay-automated](https://github.com/jamesry96/audiobookbay-automated).
 
 Code for new features and the alerting system was written with the help of Claude (Anthropic), with everything designed, tested, and refined through hands-on use.
+
+## Screenshots
+ 
+### Search
+![Search results](screenshots/Search.png)
+![Download modal](screenshots/Download.png)
+ 
+### Favorites and Alerts
+![Favorites panel](screenshots/Alerts.png)
+ 
+### Download Status
+![Download status](screenshots/Status.png)
+ 
+### Series Mappings
+![Series mappings](screenshots/SeriesMappings.png)
+
+---
