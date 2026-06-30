@@ -163,8 +163,7 @@ if not os.path.exists(_env_template):
 
 # ── qBittorrent ──
 # DOWNLOAD_CLIENT=qbittorrent
-# DL_HOST=qbittorrent        # use container name and internal port
-# DL_HOST=192.168.1.100      # or use IP address and host-mapped port
+# DL_HOST=qbittorrent       # container name and internal port, or IP and host-mapped port
 # DL_PORT=8080
 # DL_USERNAME=admin
 # DL_PASSWORD=password
@@ -315,7 +314,14 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
             url = (f"https://{ABB_HOSTNAME}/page/{page}/"
                    f"?s={requests.utils.quote(query.lower().replace(' ', '+'), safe='+')}")
         else:
-            url = f"https://{ABB_HOSTNAME}/page/{page}/"
+            # WordPress 301-redirects /page/1/ back to the bare root, since page 1
+            # of pagination is canonically the same as the homepage itself. Hitting
+            # /page/1/ directly here would return a 301 instead of the actual
+            # listing, so page 1 of "new releases" goes straight to the root.
+            if page == 1:
+                url = f"https://{ABB_HOSTNAME}/"
+            else:
+                url = f"https://{ABB_HOSTNAME}/page/{page}/"
 
         if page > start_page:
             time.sleep(REQUEST_DELAY)
