@@ -64,8 +64,8 @@ NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
 FLASK_PORT    = int(os.getenv("PORT", 5078))
 
 # Alert scheduler config
-ALERT_CHECK_INTERVAL  = int(os.getenv("ALERT_CHECK_INTERVAL", 5))    # minutes between series checks
-ALERT_CYCLE_COOLDOWN  = int(os.getenv("ALERT_CYCLE_COOLDOWN", 1440)) # minutes between full cycles
+ALERT_CHECK_INTERVAL = int(os.getenv("ALERT_CHECK_INTERVAL", 5))   # minutes between each series check within a cycle
+ALERT_CHECK_TIME     = os.getenv("ALERT_CHECK_TIME", "02:00")       # time of day to run daily cycle (HH:MM, 24hr)
 
 log.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
 log.info(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
@@ -82,7 +82,7 @@ log.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
 log.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
 log.info(f"PORT: {FLASK_PORT}")
 log.info(f"ALERT_CHECK_INTERVAL: {ALERT_CHECK_INTERVAL}m")
-log.info(f"ALERT_CYCLE_COOLDOWN: {ALERT_CYCLE_COOLDOWN}m")
+log.info(f"ALERT_CHECK_TIME: {ALERT_CHECK_TIME}")
 
 # ── Startup config validation ──────────────────────────────────────────────
 _valid_clients = ("qbittorrent", "transmission", "delugeweb")
@@ -188,11 +188,13 @@ if not os.path.exists(_env_template):
 
 # ── New volume alerts ─────────────────────────────────────────────────────
 
-# Minutes between checking each series on ABB         [default: 5]
-# ALERT_CHECK_INTERVAL=5
+# Time of day to run the daily alert check cycle      [default: 02:00]
+# Uses 24-hour format. Restarting the container does NOT trigger a check.
+# ALERT_CHECK_TIME=02:00
 
-# Minutes to wait after completing a full cycle       [default: 1440 = 24 hours]
-# ALERT_CYCLE_COOLDOWN=1440
+# Minutes between checking each series within a cycle [default: 5]
+# With 6 favorites this spreads checks over 30 minutes to avoid rate limits.
+# ALERT_CHECK_INTERVAL=5
 """)
     log.info(f"Created config template at {_env_template}")
 
@@ -574,35 +576,35 @@ def _is_blocked(url):
 
 # ── Alert scheduler ────────────────────────────────────────────────────────
 _alert_series_queue = []
-_alert_cycle_start  = None
+
+def _alert_cycle_start():
+    """
+    Called once per day at ALERT_CHECK_TIME.
+    Builds the queue of enabled series — the stagger job processes one per tick.
+    """
+    global _alert_series_queue
+
+    alerts  = load_alerts()
+    enabled = [s for s, v in alerts.items() if v.get("enabled")]
+    if not enabled:
+        log.info("[Alerts] Daily cycle triggered but no series have alerts enabled.")
+        return
+
+    _alert_series_queue = list(enabled)
+    log.info(f"[Alerts] Daily cycle started at {ALERT_CHECK_TIME} — {len(_alert_series_queue)} series queued.")
+
 
 def _alert_tick():
     """
     Called every ALERT_CHECK_INTERVAL minutes.
-    Works through the queue one series at a time to avoid bursting ABB.
+    Processes one series from the queue so ABB is never hit in a burst.
     """
-    global _alert_series_queue, _alert_cycle_start
+    global _alert_series_queue
 
-    alerts = load_alerts()
-
-    # Build queue of series that have alerts enabled
-    enabled = [s for s, v in alerts.items() if v.get("enabled")]
-    if not enabled:
+    if not _alert_series_queue:
         return
 
-    # If queue is empty, check cooldown before starting a new cycle
-    if not _alert_series_queue:
-        now = datetime.utcnow()
-        if _alert_cycle_start is not None:
-            elapsed = (now - _alert_cycle_start).total_seconds() / 60
-            if elapsed < ALERT_CYCLE_COOLDOWN:
-                log.info(f"[Alerts] Cooldown active — {ALERT_CYCLE_COOLDOWN - elapsed:.0f}m remaining before next cycle.")
-                return
-        _alert_series_queue = list(enabled)
-        _alert_cycle_start  = now
-        log.info(f"[Alerts] Starting new check cycle for {len(_alert_series_queue)} series.")
-
-    # Pop one series and check it
+    alerts = load_alerts()
     series = _alert_series_queue.pop(0)
     _check_series_for_new_volume(series, alerts)
 
@@ -684,10 +686,30 @@ def _check_series_for_new_volume(series, alerts):
 
 
 # ── Start scheduler ────────────────────────────────────────────────────────
+try:
+    _alert_hour, _alert_minute = [int(x) for x in ALERT_CHECK_TIME.split(":")]
+except ValueError:
+    log.warning(f"[Alerts] Invalid ALERT_CHECK_TIME '{ALERT_CHECK_TIME}', defaulting to 02:00.")
+    _alert_hour, _alert_minute = 2, 0
+
 _scheduler = BackgroundScheduler(daemon=True)
-_scheduler.add_job(_alert_tick, "interval", minutes=ALERT_CHECK_INTERVAL)
+
+# Daily cycle trigger — fires once per day at the configured time
+_scheduler.add_job(
+    _alert_cycle_start, "cron",
+    hour=_alert_hour, minute=_alert_minute,
+    id="alert_daily_cycle"
+)
+
+# Per-series stagger — fires every ALERT_CHECK_INTERVAL minutes to drain the queue
+_scheduler.add_job(
+    _alert_tick, "interval",
+    minutes=ALERT_CHECK_INTERVAL,
+    id="alert_series_tick"
+)
+
 _scheduler.start()
-log.info(f"[Alerts] Scheduler started — checking one series every {ALERT_CHECK_INTERVAL}m.")
+log.info(f"[Alerts] Scheduler started — daily cycle at {ALERT_CHECK_TIME}, one series checked every {ALERT_CHECK_INTERVAL}m.")
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
