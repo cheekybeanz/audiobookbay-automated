@@ -386,7 +386,7 @@ td.action-cell {
 /* Spinner — left-aligned to match the bell column in entries below */
 #favorites-header-spinner {
     position: absolute;
-    left: 18px;
+    left: 26px;
     top: 50%;
     transform: translateY(-50%);
     width: 13px;
