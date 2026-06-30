@@ -174,10 +174,77 @@
     </div>
 </div>
 
+<!-- Developer panel — manual alert testing without typing test URLs.
+     Only rendered when DEV_PANEL=true in the .env. -->
+{% if dev_panel %}
+<button id="dev-panel-toggle" onclick="toggleDevPanel()" title="Developer panel">&#9881;</button>
+
+<div id="dev-panel" style="display:none;">
+    <div class="dev-panel-header">
+        <span>Dev Panel</span>
+        <button class="dev-panel-close" onclick="toggleDevPanel()">&#10005;</button>
+    </div>
+    <div class="dev-panel-body">
+        <span class="dev-panel-section-label">Alerts Testing</span>
+        <label class="dev-panel-label">Series name</label>
+        <input type="text" id="dev-series-input" placeholder="e.g. Series Title 1">
+
+        <label class="dev-panel-label">Fake volumes to inject</label>
+        <input type="number" id="dev-count-input" value="1" min="1" max="10">
+
+        <div class="dev-panel-btns">
+            <button onclick="devInjectTest()">Inject Test Notification(s)</button>
+            <button onclick="devClearTest()">Clear Test Notifications</button>
+            <button onclick="devForceCheck()">Force Real ABB Check</button>
+        </div>
+
+        <div class="dev-panel-btns">
+            <button onclick="devRunCycleNow()">Run Full Alert Cycle Now</button>
+            <button onclick="devClearAllTest()">Clear All Test Notifications</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <span class="dev-panel-section-label">Search Results</span>
+        <div class="dev-panel-btns">
+            <button onclick="devInjectFakeResults()">Inject Fake Results</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <span class="dev-panel-section-label">Error States</span>
+        <div class="dev-panel-btns">
+            <button onclick="devShowRateLimitError()">Show Rate-Limited Error</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <span class="dev-panel-section-label">Download Modal</span>
+        <div class="dev-panel-btns">
+            <button onclick="devShowDownloadExists()">Show Exists Warning</button>
+            <button onclick="devShowDownloadResult(true)">Show Success Result</button>
+            <button onclick="devShowDownloadResult(false)">Show Failure Result</button>
+        </div>
+
+        <hr class="dev-panel-divider">
+
+        <span class="dev-panel-section-label">Save Series Modal</span>
+        <div class="dev-panel-btns">
+            <button onclick="devShowSaveSeriesBanners()">Show All Banners</button>
+            <button onclick="devShowSaveSeriesResult(true)">Show Success Result</button>
+            <button onclick="devShowSaveSeriesResult(false)">Show Failure Result</button>
+        </div>
+
+        <p id="dev-panel-status"></p>
+    </div>
+</div>
+{% endif %}
+
 <script>
 function handleDetails(btn)  { window.open(btn.closest('tr').dataset.link, '_blank'); }
 function handleDownload(btn) { var r = btn.closest('tr'); openDownloadModal(r.dataset.link, r.dataset.title); }
 function handleSaveSeries(btn) { openSaveSeriesModal(btn.closest('tr').dataset.title, btn); }
+
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search-input').addEventListener('keydown', function(e) {
