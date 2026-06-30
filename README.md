@@ -1,158 +1,173 @@
+# AudioBookBay Automated
 
-# AudiobookBay Automated
+A self-hosted web app that searches AudioBookBay, sends results straight to your torrent client, and keeps your audiobook library organized by series automatically. Built for use alongside Audiobookshelf.
 
-AudiobookBay Automated is a lightweight web application designed to simplify audiobook management. It allows users to search [**AudioBook Bay**](https://audiobookbay.lu/) for audiobooks and send magnet links directly to a designated **Deludge, qBittorrent or Transmission** client.
+## Table of Contents
 
-## How It Works
-- **Search Results**: Users search for audiobooks. The app grabs results from AudioBook Bay and displays results with the **title** and **cover image**, along with two action links:
-  1. **More Details**: Opens the audiobook's page on AudioBook Bay for additional information.
-  2. **Download to Server**: Sends the audiobook to your configured torrent client for downloading.
+- [Overview](#overview)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Setup](#setup)
+  - [Volume Mapping](#volume-mapping)
+  - [Docker Compose](#docker-compose)
+  - [First Run](#first-run)
+- [Environment Variables](#environment-variables)
+- [Usage](#usage)
+- [Notes](#notes)
+- [Acknowledgments](#acknowledgments)
 
-- **Magnet Link Generation**: When a user selects "Download to Server," the app generates a magnet link from the infohash displayed on AudioBook Bay and sends it to the torrent client. Along with the magnet link, the app assigns:
-  - A **category label** for organizational purposes.
-  - A **save location** for downloaded files.
+## Overview
 
+AudioBookBay Automated lets you search AudioBookBay from a clean web interface, preview results with cover art and details, and send a download directly to qBittorrent, Transmission, or Deluge. Completed downloads land in a series-organized folder structure that Audiobookshelf (or any similar library manager) can pick up automatically.
 
-> **Note**: This app does not download or move any material itself (including torrent files). It only searches AudioBook Bay and facilitates magnet link generation for torrent.
+Beyond search and download, the app tracks your favorite series, watches for new volumes as they're posted to AudioBookBay, and notifies you in the UI when one shows up that you don't already have on disk.
 
+This project began as a fork of the original audiobookbay-automated and has since diverged significantly with its own feature set, UI, and alerting system.
 
 ## Features
-- **Search Audiobook Bay**: Easily search for audiobooks by title or keywords.
-- **View Details**: Displays book titles and covers with quickly links to the full details on AudioBook Bay.
-- **Basic Download Status Page**: Monitor the download status of items in your torrent client that share the specified category assigned.
-- **No AudioBook Bay Account Needed**: The app automatically generates magnet links from the displayed infohashes and push them to your torrent client for downloading.
-- **Automatic Folder Organization**: Once the download is complete, torrent will automatically move the downloaded audiobook files to your save location. Audiobooks are organized into subfolders named after the AudioBook Bay title, making it easy for [**Audiobookshelf**](https://www.audiobookshelf.org/) to automatically add completed downloads to its library.
-## New Features
-- **Series Folder Grouping**: Audiobooks are now organised into a two-level directory structure so all volumes of a series automatically land in the same parent folder.
-- **Custom Series Name Mapping**: A series_map.json file allows manual overrides for series names that don't parse correctly from ABB's title format.
-- **Favorites Panel**: A collapsible favorites panel on the search page lets you save series names and search them again with a single click.  
 
+**Search and download**
+- Search AudioBookBay with cover art, language, format, bitrate, and file size shown per result
+- AJAX-based search with a cancel option and a Load More button for additional pages
+- One-click download to your configured torrent client
+- Basic download status page showing progress for items tagged with your configured category
 
+**Library organization**
+- Two-level folder structure (Series Name / Book Title) so every volume of a series lands in the same parent folder
+- Optional "skip series folder" mode for standalone titles
+- Series name extraction handles common AudioBookBay title formats (Vol. N, Book N, bracketed numbers, bare numbers)
+- Custom series name mappings for titles that don't parse cleanly, managed from a dedicated Mappings page
+- Fuzzy folder matching finds the right series folder on disk even if punctuation or casing differs slightly from AudioBookBay's listing
 
-## Why Use This?
-AudiobookBay Downloader provides a simple and user-friendly interface for users to download audiobooks without on their own and import them into your libary. 
+**Favorites and new volume alerts**
+- Favorites panel for series you want to track, with sorting and quick re-search
+- Per-series alert bell showing monitoring status and lighting up when a new volume is found
+- Daily background check cycle (scheduled, staggered per series to avoid hitting AudioBookBay all at once)
+- Manual "Check Now" option to trigger a check outside the daily schedule
+- New volumes are compared against what's already on disk, so you're only notified about volumes you don't have
+- Dismiss individual notifications or block specific listings permanently so they don't resurface
 
----
+**Multi-client support**
+- Works with qBittorrent, Transmission, or Deluge (Web UI)
 
-## Installation
+**Reliability**
+- Persistent rotating log file for troubleshooting across restarts
+- Startup validation warns about missing or misconfigured required settings
 
-### Prerequisites
-- **Deluge, qBittorrent or Transmission** (with the WebUI enabled)
-- **Docker** (optional, for containerized deployments)
+## Requirements
 
-### Environment Variables
-The app uses environment variables to configure its behavior. Below are the required variables:
+- Docker
+- qBittorrent, Transmission, or Deluge with its Web UI enabled and reachable from the container
+- A library manager such as Audiobookshelf (optional, but this app is designed to feed into one)
 
-# For some unknown reason some users have issues if the hostname is quoted, if it doesn't work try removing the quotes. I have no idea why this happens and can only assume it depends on the host system and how it handles envs/DNS lookup.
+## Setup
 
-```env
-DL_SCHEME=http
-DL_HOST=192.168.xxx.xxx        # IP or hostname of your qBittorrent or Transmission instance
-DL_PORT=8080                   # torrent WebUI port
-DL_USERNAME=YOUR_USER          # torrent username
-DL_PASSWORD=YOUR_PASSWORD      # torrent password
-DL_CATEGORY=abb-downloader     # torrent category for downloads
-SAVE_PATH_BASE=/audiobooks     # Root path for audiobook downloads (relative to torrent)
-ABB_HOSTNAME='audiobookbay.is' # Default
-PAGE_LIMIT=5                   # Defaults to 5 if not set, more than this may probably rate limit.
-FLASK_PORT=5078                # Port used by docker container
+### Volume Mapping
+
+| Container Path | Purpose | Required | Notes |
+|---|---|---|---|
+| `/config` | Stores favorites, series mappings, alerts, blocklist, the app's `.env`, and the log file | Yes | Must be read/write. Map this to a persistent location on your host. |
+| Your audiobook library (any path, set via `SCAN_PATH_BASE`) | Lets the app check which volumes you already have, for fuzzy folder matching, "already exists" warnings, and new volume alerts | Recommended | Should be mounted **read-only**. The app never writes to this path. |
+
+`SAVE_PATH_BASE` is not a path the app itself needs mounted. It's the path your torrent client uses to save files, from the torrent client's own perspective. Make sure it matches a path your torrent client can actually write to, and that the torrent client's save location lines up with where your library manager scans from.
+
+### Docker Compose
+
+```yaml
+services:
+  abb-automated:
+    image: ghcr.io/cheekybeanz/audiobookbay-automated:latest
+    container_name: abb-automated
+    ports:
+      - "5078:5078"
+    volumes:
+      - /path/to/appdata/abb-automated:/config
+      - /path/to/your/audiobooks:/audiobooks:ro
+    environment:
+      - DOWNLOAD_CLIENT=qbittorrent
+      - DL_HOST=qbittorrent
+      - DL_PORT=8080
+      - DL_USERNAME=admin
+      - DL_PASSWORD=changeme
+      - DL_CATEGORY=Audiobookbay-Audiobooks
+      - SAVE_PATH_BASE=/data/media/books/audiobooks
+      - SCAN_PATH_BASE=/audiobooks
+    restart: unless-stopped
 ```
-The following optional variables add an additional entry to the navigation bar. This is useful for linking to your audiobook player or another related service:
 
-```
-NAV_LINK_NAME=Open Audiobook Player
-NAV_LINK_URL=https://audiobooks.yourdomain.com/
-```
+### First Run
 
-### Using Docker
+On first launch, the app generates a fully documented `.env` file at `/config/.env` with every available setting explained inline and commented out at its default value. This is the easiest place to configure the app after the first boot.
 
-1. Use `docker-compose` for quick deployment. Example `docker-compose.yml`:
+Once `/config/.env` exists, values in it take priority over environment variables set in your Docker Compose file or Unraid template. A common workflow is to set just enough in Compose to get the container running (download client, save path), then fine-tune everything else by editing `/config/.env` directly and restarting the container.
 
-   ```yaml
-   version: '3.8'
+## Environment Variables
 
-   services:
-     audiobookbay-downloader:
-       image: ghcr.io/jamesry96/audiobookbay-automated:latest
-       ports:
-         - "5078:5078"
-       container_name: audiobookbay-downloader
-       environment:
-         - DOWNLOAD_CLIENT=qbittorrent
-         - DL_SCHEME=http
-         - DL_HOST=192.168.1.123
-         - DL_PORT=8080
-         - DL_USERNAME=admin
-         - DL_PASSWORD=pass
-         - DL_CATEGORY=abb-downloader
-         - SAVE_PATH_BASE=/audiobooks
-         - ABB_HOSTNAME='audiobookbay.is' #Default
-         - PAGE_LIMIT=5 #Default
-         - FLASK_PORT=5078 #Default
-         - NAV_LINK_NAME=Open Audiobook Player #Optional
-         - NAV_LINK_URL=https://audiobooks.yourdomain.com/ #Optional
-   ```
+### AudioBookBay
 
-2. **Start the Application**:
-   ```bash
-   docker-compose up -d
-   ```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ABB_HOSTNAME` | No | `audiobookbay.lu` | AudioBookBay domain to search. Update if the site moves to a new domain. |
+| `PAGE_LIMIT` | No | `5` | Number of result pages fetched per search or Load More click. |
+| `REQUEST_DELAY` | No | `0.75` | Seconds to wait between page fetches. Increase if you're getting rate limited. |
 
-### Running Locally
-1. **Install Dependencies**:
-   Ensure you have Python installed, then install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   
-2. Create a .env file in the project directory to configure your application. Below is an  example of the required variables:
-    ```
-    # Torrent Client Configuration
-    DOWNLOAD_CLIENT=transmission # Change to delugeweb, transmission or qbittorrent
-    DL_SCHEME=http
-    DL_HOST=192.168.1.123
-    DL_PORT=8080
-    DL_USERNAME=admin
-    DL_PASSWORD=pass
-    DL_CATEGORY=abb-downloader
-    SAVE_PATH_BASE=/audiobooks
-    
-    # AudiobookBar Hostname
-    ABB_HOSTNAME='audiobookbay.is' #Default
-    # ABB_HOSTNAME='audiobookbay.lu' #Alternative
+### Download Client
 
-    PAGE_LIMIT=5 #Default
-    FLASK_PORT=5078 #Default
+Set `DOWNLOAD_CLIENT` to one of `qbittorrent`, `transmission`, or `delugeweb`, then fill in the matching variables below.
 
-    # Optional Navigation Bar Entry
-    NAV_LINK_NAME=Open Audiobook Player
-    NAV_LINK_URL=https://audiobooks.yourdomain.com/
-    ```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DOWNLOAD_CLIENT` | Yes | None | One of `qbittorrent`, `transmission`, `delugeweb`. |
+| `DL_HOST` | Yes (qBittorrent, Transmission) | None | Hostname or IP of your torrent client. Container name works if on the same Docker network. |
+| `DL_PORT` | Yes (qBittorrent, Transmission) | None | Web UI port of your torrent client. |
+| `DL_SCHEME` | No | `http` | Used when connecting to Transmission. |
+| `DL_USERNAME` | Yes (qBittorrent, Transmission) | None | Web UI username. |
+| `DL_PASSWORD` | Yes | None | Web UI password. |
+| `DL_URL` | Yes (Deluge instead of `DL_HOST`/`DL_PORT`) | None | Full Deluge Web URL, e.g. `http://deluge:8112`. |
+| `DL_CATEGORY` | No | `Audiobookbay-Audiobooks` | Category or label applied to downloads, and used to filter the status page. |
 
-3. Start the app:
-   ```bash
-   python app.py
-   ```
+### Paths
 
----
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SAVE_PATH_BASE` | Yes | None | Path used when telling your torrent client where to save files, as seen by the torrent client itself. |
+| `SCAN_PATH_BASE` | No | Falls back to `SAVE_PATH_BASE` | Read-only path the app scans to check for existing volumes, used for fuzzy folder matching and new volume alerts. |
+
+### Web UI
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `PORT` | No | `5078` | Port the web UI listens on inside the container. |
+| `NAV_LINK_NAME` | No | None | Optional label for an extra navbar link, e.g. to your library manager. |
+| `NAV_LINK_URL` | No | None | URL for the optional navbar link. Required if `NAV_LINK_NAME` is set. |
+
+### New Volume Alerts
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ALERT_CHECK_TIME` | No | `02:00` | Time of day (24 hour) the daily alert cycle runs. Container restarts do not trigger a check. |
+| `ALERT_CHECK_INTERVAL` | No | `5` | Minutes between checking each favorited series during a cycle, to avoid hitting AudioBookBay in a burst. |
+
+## Usage
+
+**Searching and downloading**
+Search from the home page, review results, and use Download to send a title straight to your torrent client. You can edit the destination series folder name and skip series folder grouping per download if needed.
+
+**Saving a series**
+Use the Save Series option on a result to add it to your Favorites panel. This is independent from folder naming, so you can track a series for alerts without it affecting where downloads are saved.
+
+**Series mappings**
+If a series name doesn't extract cleanly from AudioBookBay's title format, add a custom mapping from the Mappings page so downloads land in the correct folder going forward.
+
+**Alerts**
+Toggle the bell next to any favorited series to start monitoring it. The app checks AudioBookBay's first results page for that series during its daily cycle and flags anything with a higher volume number than what's already on disk. Dismiss a single result to block it from resurfacing, or clear all notifications for a series without blocking anything.
 
 ## Notes
-- **This app does NOT download any material**: It simply generates magnet links and sends them to your qBittorrent client for handling.
 
-- **Folder Mapping**: __The `SAVE_PATH_BASE` is based on the perspective of your torrent client__, not this app. This app does not move any files; all file handling and organization are managed by the torrent client. Ensure that the `SAVE_PATH_BASE` in your torrent client aligns with your audiobook library (e.g., for Audiobookshelf). Using a path relative to where this app is running, instead of the torrent client, will cause issues.
+This app does not download, host, or store any audiobook content itself. It searches AudioBookBay and sends magnet links to a torrent client you already run and control. All actual downloading and file handling is performed by that torrent client.
 
+## Acknowledgments
 
----
+This project began as a fork of [jamesry96/audiobookbay-automated](https://github.com/jamesry96/audiobookbay-automated).
 
-## Feedback and Contributions
-This project is a work in progress, and your feedback is welcome! Feel free to open issues or contribute by submitting pull requests.
-
----
-
-## Screenshots
-### Search Results
-![screenshot-2025-01-13-19-59-03](https://github.com/user-attachments/assets/8a30fd4e-a289-49d0-83ab-67a3bcfc9745)
-
-### Download Status
-![screenshot-2025-01-13-19-59-25](https://github.com/user-attachments/assets/19cc74de-51fc-422f-9cab-fe69e30c74b9)
-
----
+Code for new features and the alerting system was written with the help of Claude (Anthropic), with everything designed, tested, and refined through hands-on use.
