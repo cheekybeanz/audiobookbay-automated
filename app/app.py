@@ -58,7 +58,7 @@ else:
     load_dotenv()
 
 ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu")
-PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 5))
+PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 2))
 
 DOWNLOAD_CLIENT = os.getenv("DOWNLOAD_CLIENT")
 DL_URL = os.getenv("DL_URL")
@@ -79,7 +79,7 @@ DL_PASSWORD    = os.getenv("DL_PASSWORD")
 DL_CATEGORY    = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
 SAVE_PATH_BASE  = os.getenv("SAVE_PATH_BASE")
 SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)
-REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.75"))
+REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.5"))
 
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
@@ -157,12 +157,12 @@ if not os.path.exists(_env_template):
 # AudioBookBay hostname — update if the domain moves  [default: audiobookbay.lu]
 # ABB_HOSTNAME=audiobookbay.lu
 
-# Pages to load per search and per Load More click    [default: 5]
-# PAGE_LIMIT=5
+# Pages to load per search and per Load More click    [default: 2]
+# PAGE_LIMIT=2
 
-# Delay in seconds between page fetches               [default: 0.75]
+# Delay in seconds between page fetches               [default: 0.5]
 # Increase if you get rate limited, decrease if behind a VPN
-# REQUEST_DELAY=0.75
+# REQUEST_DELAY=0.5
 
 # ── Download client ───────────────────────────────────────────────────────
 # Uncomment ONE block below depending on your torrent client.  [required]
