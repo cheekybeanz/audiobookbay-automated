@@ -36,6 +36,54 @@ function initializeFilters() {
     populateSelectFilters();
 }
 
+// ── Generic confirm / alert modal ───────────────────────────────────────
+// Replaces native browser confirm()/alert() popups with an in-app modal
+// matching the rest of the UI. Builds its own markup on demand, so no
+// static HTML is needed in the page template. Styling lives in style.css
+// (.app-modal-*) since it's shared across every page.
+function showAppConfirm(message, onConfirm, options) {
+    options = options || {};
+    var okLabel    = options.okLabel || 'OK';
+    var showCancel = options.showCancel !== false; // default true
+    var danger     = options.danger || false;
+
+    var overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML =
+        '<div class="app-modal-backdrop"></div>' +
+        '<div class="app-modal-box">' +
+            '<p class="app-modal-message"></p>' +
+            '<div class="app-modal-actions">' +
+                (showCancel ? '<button class="app-modal-btn-cancel">Cancel</button>' : '') +
+                '<button class="app-modal-btn-confirm' + (danger ? ' app-modal-btn-danger' : '') + '">' + okLabel + '</button>' +
+            '</div>' +
+        '</div>';
+    overlay.querySelector('.app-modal-message').textContent = message;
+
+    function close() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKeydown);
+    }
+    function onKeydown(e) {
+        if (e.key === 'Escape') close();
+    }
+
+    overlay.querySelector('.app-modal-backdrop').onclick = close;
+    var cancelBtn = overlay.querySelector('.app-modal-btn-cancel');
+    if (cancelBtn) cancelBtn.onclick = close;
+    overlay.querySelector('.app-modal-btn-confirm').onclick = function() {
+        close();
+        if (onConfirm) onConfirm();
+    };
+
+    document.addEventListener('keydown', onKeydown);
+    document.body.appendChild(overlay);
+}
+
+function showAppAlert(message, onClose) {
+    showAppConfirm(message, onClose, { showCancel: false });
+}
+
 function populateSelectFilters() {
     const languages = new Set();
     const bitrates  = new Set();
@@ -1007,13 +1055,13 @@ function commitEdit(oldName, newName) {
 }
 
 function confirmDelete(name) {
-    if (confirm('Remove "' + name + '" from favorites?')) {
+    showAppConfirm('Remove "' + name + '" from favorites?', function() {
         fetch('/favorites/remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name })
         }).then(function(r) { return r.json(); }).then(function() { loadFavorites(); });
-    }
+    }, { okLabel: 'Remove', danger: true });
 }
 
 function searchFavorite(name) {
