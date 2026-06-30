@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
     restoreSearchState();
     initFavoritesVisibility();
+    refreshCycleStatus();
 
     var filterBtn = document.getElementById('filter-button');
     var clearBtn  = document.getElementById('clear-button');
@@ -698,6 +699,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// ── Manual alert check / cycle status ────────────────
+var _cycleStatusInterval = null;
+
+function runAlertsNow() {
+    var btn = document.getElementById('fav-check-now-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Starting\u2026'; }
+
+    fetch('/alerts/run_now', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) { btn.disabled = false; btn.textContent = 'Check Now'; }
+            refreshCycleStatus();
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = 'Check Now'; }
+        });
+}
+
+function refreshCycleStatus() {
+    fetch('/alerts/cycle_status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            updateCycleStatusUI(data);
+        })
+        .catch(function() {});
+}
+
+function updateCycleStatusUI(data) {
+    var spinner = document.getElementById('favorites-header-spinner');
+    var checkBtn = document.getElementById('fav-check-now-btn');
+    var nextText = document.getElementById('fav-next-check-text');
+
+    if (spinner) {
+        spinner.style.display = data.running ? 'inline-block' : 'none';
+        if (data.running) {
+            spinner.title = 'Checking favorites for new volumes (' + data.checked + ' of ' + data.total + ')';
+        }
+    }
+
+    if (checkBtn) {
+        checkBtn.disabled = data.running;
+        checkBtn.textContent = data.running
+            ? 'Checking\u2026 (' + data.checked + '/' + data.total + ')'
+            : 'Check Now';
+    }
+
+    if (nextText) {
+        nextText.textContent = data.next_run_at ? ('Next check: ' + data.next_run_at) : '';
+    }
+
+    // Poll frequently while running, stop polling once idle
+    if (data.running && !_cycleStatusInterval) {
+        _cycleStatusInterval = setInterval(refreshCycleStatus, 5000);
+    } else if (!data.running && _cycleStatusInterval) {
+        clearInterval(_cycleStatusInterval);
+        _cycleStatusInterval = null;
+        // Reload favorites once a cycle finishes so new notifications show up
+        loadAlertsStatus();
+    }
+}
+
 // ── Favorites panel ───────────────────────────────────────────────────────
 function toggleFavorites() {
     var body  = document.getElementById('favorites-body');
@@ -870,6 +932,7 @@ function renderAddRow(list) {
     var addBtn = document.createElement('button');
     addBtn.className = 'fav-add-btn';
     addBtn.textContent = '+';
+    addBtn.title = 'Add a series manually';
     addBtn.onclick = function() {
         if (input.style.display === 'none') {
             input.style.display = 'block';
@@ -886,9 +949,36 @@ function renderAddRow(list) {
         if (e.key === 'Escape') { input.style.display = 'none'; addBtn.textContent = '+'; }
     });
 
+    var footerLine = document.createElement('div');
+    footerLine.className = 'fav-footer-line';
+
     row.appendChild(input);
     row.appendChild(addBtn);
-    list.appendChild(row);
+    footerLine.appendChild(row);
+
+    var checkRow = document.createElement('div');
+    checkRow.className = 'fav-check-row';
+    checkRow.id = 'fav-check-row';
+
+    var nextCheckText = document.createElement('span');
+    nextCheckText.className = 'fav-next-check';
+    nextCheckText.id = 'fav-next-check-text';
+    nextCheckText.textContent = '';
+
+    var checkBtn = document.createElement('button');
+    checkBtn.className = 'fav-check-now-btn';
+    checkBtn.id = 'fav-check-now-btn';
+    checkBtn.textContent = 'Check Now';
+    checkBtn.title = 'Immediately check all enabled series for new volumes on ABB';
+    checkBtn.onclick = function() { runAlertsNow(); };
+
+    checkRow.appendChild(nextCheckText);
+    checkRow.appendChild(checkBtn);
+    footerLine.appendChild(checkRow);
+
+    list.appendChild(footerLine);
+
+    refreshCycleStatus();
 }
 
 function saveManualFavorite(name) {
@@ -1206,13 +1296,13 @@ function escHtml(str) {
 var _dotsInterval = null;
 
 function startLoadingDots(btn) {
-    var dots = ['Loading .  ', 'Loading .. ', 'Loading ...'];
+    var dots = ['Loading', 'Loading.', 'Loading..', 'Loading...'];
     var i = 0;
     btn.textContent = dots[0];
     _dotsInterval = setInterval(function() {
         i = (i + 1) % dots.length;
         btn.textContent = dots[i];
-    }, 400);
+    }, 300);
 }
 
 function stopLoadingDots(btn, label) {
