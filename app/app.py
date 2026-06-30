@@ -18,12 +18,34 @@ from urllib.parse import urlparse
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # ── Logging setup ──────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+import logging.handlers
+
+_LOG_DIR  = "/config"
+_LOG_FILE = os.path.join(_LOG_DIR, "app.log")
+os.makedirs(_LOG_DIR, exist_ok=True)
+
+_log_formatter = logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(_log_formatter)
+
+# Rotating file handler — caps at 5MB per file, keeps 3 backups (app.log, app.log.1, app.log.2)
+# so it persists across restarts via /config but never grows unbounded.
+_file_handler = logging.handlers.RotatingFileHandler(
+    _LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=3
+)
+_file_handler.setFormatter(_log_formatter)
+
+logging.basicConfig(level=logging.INFO, handlers=[_console_handler, _file_handler])
 log = logging.getLogger(__name__)
+
+# APScheduler logs every single job execution at INFO level (including no-op ticks),
+# which floods the log with routine heartbeat noise. Quiet it to WARNING so only
+# real problems (missed jobs, errors) show up — our own [Alerts] log lines are unaffected.
+logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 app = Flask(__name__)
 
@@ -195,6 +217,11 @@ if not os.path.exists(_env_template):
 # Minutes between checking each series within a cycle [default: 5]
 # With 6 favorites this spreads checks over 30 minutes to avoid rate limits.
 # ALERT_CHECK_INTERVAL=5
+
+# ── Logging ───────────────────────────────────────────────────────────────
+# In addition to container logs, a rotating log file is written to
+# /config/app.log (capped at 5MB, keeps 3 backups) for persistent debugging
+# across container restarts. No configuration needed — this is automatic.
 """)
     log.info(f"Created config template at {_env_template}")
 
@@ -602,6 +629,9 @@ def _alert_cycle_start():
     Builds the queue of enabled series and immediately processes the first one
     so a manual trigger doesn't sit idle waiting for the next interval tick.
     The rest of the queue is drained by _alert_tick on its normal stagger.
+    The interval job itself is only registered while a cycle is actually running,
+    so the scheduler logs stay quiet between cycles instead of ticking every
+    ALERT_CHECK_INTERVAL minutes forever with nothing to do.
     """
     global _alert_series_queue, _alert_cycle_total
 
@@ -619,22 +649,46 @@ def _alert_cycle_start():
     first_series = _alert_series_queue.pop(0)
     _check_series_for_new_volume(first_series, alerts)
 
+    # If more remain, start the stagger tick job; otherwise the cycle is already done
+    if _alert_series_queue:
+        _ensure_tick_job_running()
+    else:
+        log.info("[Alerts] Cycle complete — only one series was queued.")
+
     return True
+
+
+def _ensure_tick_job_running():
+    """Register the per-series stagger job if it isn't already active."""
+    if _scheduler.get_job("alert_series_tick") is None:
+        _scheduler.add_job(
+            _alert_tick, "interval",
+            minutes=ALERT_CHECK_INTERVAL,
+            id="alert_series_tick"
+        )
+        log.info(f"[Alerts] Stagger tick started — checking one series every {ALERT_CHECK_INTERVAL}m.")
 
 
 def _alert_tick():
     """
-    Called every ALERT_CHECK_INTERVAL minutes.
+    Called every ALERT_CHECK_INTERVAL minutes while a cycle is in progress.
     Processes one series from the queue so ABB is never hit in a burst.
+    Removes itself once the queue is fully drained so it doesn't keep
+    ticking (and logging) with nothing to do.
     """
     global _alert_series_queue
 
     if not _alert_series_queue:
+        _scheduler.remove_job("alert_series_tick")
         return
 
     alerts = load_alerts()
     series = _alert_series_queue.pop(0)
     _check_series_for_new_volume(series, alerts)
+
+    if not _alert_series_queue:
+        log.info("[Alerts] Cycle complete — all series checked.")
+        _scheduler.remove_job("alert_series_tick")
 
 
 def _check_series_for_new_volume(series, alerts):
@@ -722,18 +776,14 @@ except ValueError:
 
 _scheduler = BackgroundScheduler(daemon=True)
 
-# Daily cycle trigger — fires once per day at the configured time
+# Daily cycle trigger — fires once per day at the configured time.
+# The per-series stagger job (alert_series_tick) is registered dynamically by
+# _ensure_tick_job_running() only while a cycle has series left to check, and
+# removes itself once drained — see _alert_tick.
 _scheduler.add_job(
     _alert_cycle_start, "cron",
     hour=_alert_hour, minute=_alert_minute,
     id="alert_daily_cycle"
-)
-
-# Per-series stagger — fires every ALERT_CHECK_INTERVAL minutes to drain the queue
-_scheduler.add_job(
-    _alert_tick, "interval",
-    minutes=ALERT_CHECK_INTERVAL,
-    id="alert_series_tick"
 )
 
 _scheduler.start()
