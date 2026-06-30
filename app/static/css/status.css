@@ -103,29 +103,55 @@
 }
 
 /* ── State-based coloring ────────────────────────────────────────────
-   Matched against the row's data-state attribute. Substring + case
-   insensitive matching since qBittorrent, Transmission, and Deluge each
-   report slightly different state strings rather than a shared vocabulary. */
-tr[data-state*="error" i] td:nth-child(3) {
-    color: #ef5350;
-    font-weight: 600;
+   Matched against the row's data-state attribute.
+
+   qBittorrent's states consistently end in DL (still downloading) or UP
+   (already complete, now in the seeding phase) regardless of whether
+   they're actively transferring, stalled, paused, or queued — e.g.
+   "stalledUP" means finished and seeding, just with no active peers
+   right now. That suffix is checked first since it's a more reliable
+   signal than guessing at keywords. Transmission and Deluge don't use
+   that convention, so they fall back to plain keyword matching.
+
+   Rules are ordered so later, more specific signals (paused, error)
+   override earlier broader ones on the same row. */
+
+/* Broad fallback bucket — queued/checking/allocating/etc with no
+   stronger signal yet. Gets overridden below if DL/UP/pause/error apply. */
+tr[data-state*="queue" i] td:nth-child(3),
+tr[data-state*="check" i] td:nth-child(3),
+tr[data-state*="alloc" i] td:nth-child(3),
+tr[data-state*="moving" i] td:nth-child(3),
+tr[data-state*="unknown" i] td:nth-child(3),
+tr[data-state*="meta" i] td:nth-child(3) {
+    color: var(--text-dim);
 }
 
-tr[data-state*="seed" i] td:nth-child(3),
-tr[data-state*="complet" i] td:nth-child(3),
-tr[data-state*="upload" i] td:nth-child(3) {
-    color: #69f0ae;
-    font-weight: 600;
-}
-
+/* Still downloading — qBittorrent's *DL states, or "downloading" itself */
+tr[data-state$="dl" i] td:nth-child(3),
 tr[data-state*="download" i] td:nth-child(3) {
     color: var(--accent);
     font-weight: 600;
 }
 
+/* Complete / seeding — qBittorrent's *UP states, or seed/complete/upload keywords */
+tr[data-state$="up" i] td:nth-child(3),
+tr[data-state*="upload" i] td:nth-child(3),
+tr[data-state*="seed" i] td:nth-child(3),
+tr[data-state*="complet" i] td:nth-child(3) {
+    color: #69f0ae;
+    font-weight: 600;
+}
+
+/* Paused always reads as paused, regardless of whether it's pausedDL or pausedUP */
 tr[data-state*="pause" i] td:nth-child(3),
-tr[data-state*="queue" i] td:nth-child(3),
-tr[data-state*="stall" i] td:nth-child(3),
-tr[data-state*="check" i] td:nth-child(3) {
+tr[data-state*="stall" i]:not([data-state$="up" i]):not([data-state$="dl" i]) td:nth-child(3) {
     color: var(--text-dim);
+}
+
+/* Errors always win */
+tr[data-state*="error" i] td:nth-child(3),
+tr[data-state*="missing" i] td:nth-child(3) {
+    color: #ef5350;
+    font-weight: 600;
 }
