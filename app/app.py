@@ -181,13 +181,15 @@ if not os.path.exists(_env_template):
 
 # ── qBittorrent ──
 # DOWNLOAD_CLIENT=qbittorrent
-# DL_HOST=qbittorrent         # container name and internal port, or IP and host-mapped port
+# DL_HOST=qbittorrent       # container name and internal port, or IP and host-mapped port
 # DL_PORT=8080
 # DL_USERNAME=admin
 # DL_PASSWORD=password
-# Optional per-torrent seeding limits, since qBittorrent has no per-category default the way Deluge does.
-# QB_RATIO_LIMIT=1.5           # leave unset to use qBittorrent's global seeding limit
-# QB_SEED_TIME_LIMIT_MIN=4320  # leave unset to use qBittorrent's global seeding limit
+# Optional per-torrent seeding limits (qBittorrent has no per-category
+# default the way Deluge does). Leave both unset to use qBittorrent's own
+# global seeding limit setting instead.                     [optional]
+# QB_RATIO_LIMIT=1.5
+# QB_SEED_TIME_LIMIT_MIN=4320
 
 # ── Transmission ──
 # DOWNLOAD_CLIENT=transmission
@@ -492,7 +494,14 @@ def extract_magnet_link(details_url):
 
 # ── Title / series helpers ─────────────────────────────────────────────────
 def sanitize_title(title):
-    return re.sub(r'[<>:"/\\|?*]', "", title).strip()
+    # Colons are replaced (not deleted) since they're a meaningful subtitle
+    # boundary ("Series V: Subtitle") that volume extraction relies on —
+    # deleting them outright would silently break re-parsing a folder name
+    # later, once it's the only thing left representing that title on disk.
+    title = title.replace(":", " -")
+    title = re.sub(r'[<>"/\\|?*]', "", title)
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
 
 
 # ── Roman numeral support ────────────────────────────────────────────────
@@ -564,13 +573,16 @@ def _match_roman_token(text, at_start):
 #      "Series 16: Subtitle" / "Series: Subtitle"
 #   5. Dash fallback (only if nothing above matched anywhere):
 #      "Series 16 - Subtitle" / "Series XVI - Subtitle"
-#   6. Bare digit/Roman at the true start of the title — absolute last
-#      resort: "16 Series" / "XVI Series". Checked dead last, after every
-#      other tier, because a series's own real name commonly starts with a
-#      number ("12 Miles Below", "1632"), which looks identical to a
-#      leading-volume-number convention from the string shape alone.
-#      Putting this last means it only ever fires when nothing else in the
-#      whole title gave any other signal.
+#
+# Deliberately no "bare digit/Roman at the START of the title" tier. A
+# series's own real name commonly starts with a number ("12 Miles Below",
+# "1632"), indistinguishable from a genuine leading-volume-number
+# convention ("16 Series Title") by string shape alone — and unlike the
+# other tiers, this one can misfire even for an UNNUMBERED entry in such a
+# series (nothing else to match, so it'd guess the series' own leading
+# number is that book's volume). Titles relying on a leading-volume
+# convention just return no volume detected, same as any other unmatched
+# format.
 #
 # Parenthetical asides — "(Unabridged)", "(A Progression Fantasy Epic)",
 # "(Series, Book 5)" — are stripped before any tier is tried. On ABB these
@@ -679,25 +691,18 @@ def _parse_series_and_volume(title):
         if val and series:
             return (series, str(val))
 
-    # ── Tier 6: bare digit or Roman numeral at the true start — absolute
-    # last resort only. A series's own real name commonly starts with a
-    # number ("12 Miles Below", "1632", "7 Kingdoms"), which is
-    # indistinguishable from a genuine "16 Series Title" leading-volume
-    # convention by string shape alone. Checking this dead last means it
-    # only ever fires when literally nothing else in the whole title gave
-    # any other signal, minimizing how often a real series name gets
-    # mistaken for a volume-first format.
-    m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", working)
-    if m:
-        return (working[m.end(1):].strip() or authorless, m.group(1))
-
-    roman = _match_roman_token(working, at_start=True)
-    if roman:
-        m, val = roman
-        series = working[m.end():].strip()
-        if series:
-            return (series, str(val))
-
+    # No "bare digit/Roman at the start of the title" tier: a series's own
+    # real name commonly starts with a number ("12 Miles Below", "1632"),
+    # which is indistinguishable from a genuine leading-volume-number
+    # convention ("16 Series Title") by string shape alone. This tier used
+    # to exist as an absolute last resort, but even placed last it still
+    # misread the series' own leading number as a phantom volume for any
+    # UNNUMBERED entry in such a series (nothing else to match, so it fell
+    # through to this guess) — e.g. book 1 of "12 Miles Below" registering
+    # as volume 12. Titles relying on a genuine leading-volume convention
+    # now return no volume at all instead, the same graceful fallback as
+    # any other unmatched format — a manual series mapping covers it if
+    # actually needed, same as any other extraction gap.
     return (working, None)
 
 
@@ -771,6 +776,48 @@ def extract_vol_num(t):
     return vol
 
 
+def extract_vol_num_known_series(text, known_series):
+    """
+    Extract a volume number from `text` when the real series name is
+    ALREADY KNOWN (e.g. checking a favorited series against disk or a live
+    ABB result) rather than being guessed from scratch. This is used
+    instead of extract_vol_num() specifically because knowing the real
+    series name in advance resolves an ambiguity the generic parser can't:
+    a bare leading number/Roman numeral is indistinguishable from part of
+    the series' own name ("12 Miles Below") when nothing else is known —
+    but once the known series name is stripped off the front, whatever's
+    left over is unambiguously NOT the title, so a leading number there is
+    safe to treat as a volume marker.
+
+    This also works retroactively on folder names already on disk whose
+    subtitle-boundary punctuation was lost before this app started
+    preserving it (e.g. "12 Miles Below II A House Reborn...", saved back
+    when colons were deleted rather than replaced) — no renaming needed,
+    since we're no longer relying on that punctuation being present at all.
+
+    Falls back to extract_vol_num() if the known series name doesn't
+    actually lead `text`, or if nothing follows it.
+    """
+    known_series = (known_series or "").strip()
+    if not known_series or not text.lower().startswith(known_series.lower()):
+        return extract_vol_num(text)
+
+    remainder = text[len(known_series):].strip().lstrip(" -:,")
+    if not remainder:
+        return extract_vol_num(text)
+
+    m = re.match(r"^([0-9]+(?:[.][0-9]+)?)(?:\s|$)", remainder)
+    if m:
+        return m.group(1)
+
+    roman = _match_roman_token(remainder, at_start=True) or _match_roman_token(remainder, at_start=False)
+    if roman:
+        _, val = roman
+        return str(val)
+
+    return extract_vol_num(text)
+
+
 def _get_highest_vol_on_disk(series_name):
     """Return the highest volume number found on disk for a series, or -1 if none found."""
     if not SCAN_PATH_BASE:
@@ -790,7 +837,7 @@ def _get_highest_vol_on_disk(series_name):
         for entry in os.scandir(scan_path):
             if not entry.is_dir():
                 continue
-            vol = extract_vol_num(entry.name)
+            vol = extract_vol_num_known_series(entry.name, series_name)
             if vol:
                 try:
                     highest = max(highest, int(float(vol)))
@@ -960,7 +1007,7 @@ def _check_series_for_new_volume(series, alerts):
             if link in blocked_urls or link in existing_notifications:
                 continue
 
-            vol = extract_vol_num(title)
+            vol = extract_vol_num_known_series(title, series)
             if vol is None:
                 continue
 
@@ -1890,7 +1937,7 @@ def check_exists():
     if not SCAN_PATH_BASE or not title:
         return jsonify({"exists": False})
 
-    vol_num = extract_vol_num(title)
+    vol_num = extract_vol_num_known_series(title, series) if series else extract_vol_num(title)
     if not vol_num:
         return jsonify({"exists": False})
 
