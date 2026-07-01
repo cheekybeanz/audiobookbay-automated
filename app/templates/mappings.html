@@ -212,7 +212,7 @@ function renderMappings(mappings) {
     var list = document.getElementById('mappings-list');
     var empty = document.getElementById('mappings-empty');
     list.querySelectorAll('.mapping-entry').forEach(function(el) { el.remove(); });
-    var keys = Object.keys(mappings).sort();
+    var keys = Object.keys(mappings).sort(function(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); });
     if (keys.length === 0) { empty.style.display = 'block'; return; }
     empty.style.display = 'none';
     keys.forEach(function(key) {
