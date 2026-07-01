@@ -826,7 +826,22 @@ function openSaveSeriesModal(title, btn) {
 
         document.getElementById('save-series-input').focus();
         document.getElementById('save-series-input').select();
+        _updateSaveSeriesAlreadySaved(); // sync banner with the pre-filled value too
     });
+}
+
+// Re-checks the "already in favorites" banner against the live cached
+// favorites list every time the user edits the series name field, so
+// editing down to something that matches an existing favorite (even if
+// the modal's initial extraction didn't) updates the banner immediately
+// instead of only reflecting whatever was true when the modal first opened.
+function _updateSaveSeriesAlreadySaved() {
+    var input = document.getElementById('save-series-input');
+    var banner = document.getElementById('save-series-already-saved');
+    if (!input || !banner) return;
+    var current = input.value.trim().toLowerCase();
+    var match = _favsCache.some(function(f) { return f.toLowerCase() === current; });
+    banner.style.display = (current && match) ? 'flex' : 'none';
 }
 
 function closeSaveSeriesModal() {
@@ -870,9 +885,10 @@ function confirmSaveSeries() {
         document.getElementById('save-series-modal-form').style.display = 'none';
         var result = document.getElementById('save-series-modal-result');
         if (data.success) {
+            var alreadyExisted = !!data.already_existed;
             result.innerHTML = '<div class="modal-result modal-result-success">'
                 + '<div class="modal-result-icon">✓</div>'
-                + '<p class="modal-result-title">Series saved</p>'
+                + '<p class="modal-result-title">' + (alreadyExisted ? 'Already in favorites' : 'Series saved') + '</p>'
                 + '<p class="modal-result-sub">' + escHtml(data.series || seriesName) + '</p>'
                 + '</div>';
             result.style.display = 'block';
@@ -909,6 +925,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') confirmSaveSeries();
             if (e.key === 'Escape') closeSaveSeriesModal();
         });
+        input.addEventListener('input', _updateSaveSeriesAlreadySaved);
     }
 });
 
