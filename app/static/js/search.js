@@ -22,6 +22,22 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
+// Some browsers restore a page from the back-forward cache (bfcache) when
+// navigating back to it via a normal link/back-button, rather than doing a
+// real reload — in that case DOMContentLoaded never fires again, so
+// _favsCache (and everything else set up above) would otherwise be frozen
+// at whatever it was the moment you navigated away, e.g. showing "already
+// in favorites" as stale/wrong in the Save Series modal after visiting
+// Status or Series Mappings and coming back. pageshow with
+// event.persisted fires reliably in exactly this case, so re-run the same
+// refresh a fresh load would have done.
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        loadFavorites();
+        refreshCycleStatus();
+    }
+});
+
 function backgroundAlertsPoll() {
     // Skip if the user is mid-edit on a favorite name or the manual-add input,
     // since loadAlertsStatus() can trigger a re-render that would interrupt typing
@@ -819,11 +835,6 @@ function openSaveSeriesModal(title, btn) {
         // Pre-fill with extracted series name (not mapped — user sets favorites name independently)
         document.getElementById('save-series-input').value = data.extracted;
 
-        // Show already-saved notice
-        if (data.already_saved) {
-            document.getElementById('save-series-already-saved').style.display = 'flex';
-        }
-
         // Show disk path if found
         if (data.disk_path) {
             document.getElementById('save-series-disk-path').textContent = data.disk_path;
@@ -842,33 +853,28 @@ function openSaveSeriesModal(title, btn) {
 
         document.getElementById('save-series-input').focus();
         document.getElementById('save-series-input').select();
-        _updateSaveSeriesAlreadySaved(); // sync banner with the pre-filled value too
+        // Use the fresh, authoritative already_saved value from THIS live
+        // fetch — more reliable than re-deriving it from the client-side
+        // favorites cache, which could theoretically still be mid-refresh
+        // at this exact moment (e.g. right after a bfcache restore).
+        _setSaveSeriesAlreadySavedState(!!data.already_saved);
     });
 }
 
-// Re-checks the "already in favorites" banner against the live cached
-// favorites list every time the user edits the series name field, so
-// editing down to something that matches an existing favorite (even if
-// the modal's initial extraction didn't) updates the banner immediately
-// instead of only reflecting whatever was true when the modal first opened.
-// When it matches, the alerts checkbox and Save button are disabled too,
-// since alert state for an existing favorite is only ever managed from
-// the bell icon in Favorites — editing it here would be a second,
-// conflicting control over the same state. Re-enables the moment the
-// name is edited away from a match.
-function _updateSaveSeriesAlreadySaved() {
-    var input      = document.getElementById('save-series-input');
+// Applies the visual "already in favorites" state — banner, disabled Save
+// button, disabled/unchecked alerts checkbox — given a plain true/false.
+// Shared by the live-typing check below (which derives the boolean from
+// the cached favorites list) and the modal's initial open (which uses the
+// fresh, authoritative value from that same fetch instead of re-deriving
+// it from the cache, since the cache could theoretically still be
+// mid-refresh at that exact moment, e.g. right after a bfcache restore).
+function _setSaveSeriesAlreadySavedState(showMatch) {
     var banner     = document.getElementById('save-series-already-saved');
     var alertsBox  = document.getElementById('save-series-alerts');
     var confirmBtn = document.getElementById('save-series-confirm-btn');
-    if (!input || !banner) return;
-
-    var current = input.value.trim().toLowerCase();
-    var match = _favsCache.some(function(f) { return f.toLowerCase() === current; });
-    var showMatch = !!(current && match);
+    if (!banner) return;
 
     banner.style.display = showMatch ? 'flex' : 'none';
-
     if (alertsBox) {
         alertsBox.disabled = showMatch;
         if (showMatch) alertsBox.checked = false;
@@ -876,6 +882,20 @@ function _updateSaveSeriesAlreadySaved() {
     if (confirmBtn) {
         confirmBtn.disabled = showMatch;
     }
+}
+
+// Re-checks the "already in favorites" state against the cached favorites
+// list every time the user edits the series name field, so editing down
+// to something that matches an existing favorite (even if the modal's
+// initial extraction didn't) updates it immediately instead of only
+// reflecting whatever was true when the modal first opened. Re-enables
+// the moment the name is edited away from a match.
+function _updateSaveSeriesAlreadySaved() {
+    var input = document.getElementById('save-series-input');
+    if (!input) return;
+    var current = input.value.trim().toLowerCase();
+    var match = _favsCache.some(function(f) { return f.toLowerCase() === current; });
+    _setSaveSeriesAlreadySavedState(!!(current && match));
 }
 
 function closeSaveSeriesModal() {
