@@ -476,18 +476,208 @@ def sanitize_title(title):
     return re.sub(r'[<>:"/\\|?*]', "", title).strip()
 
 
-def _extract_series_raw(title):
-    if " - " in title:
-        authorless = title.rsplit(" - ", 1)[0].strip()
+# ── Roman numeral support ────────────────────────────────────────────────
+# Strict standard-form pattern (no repeated subtractive pairs, no invalid
+# combos like IIII or VX). Requires at least one valid roman letter via the
+# lookahead so it can never match an empty string.
+_ROMAN_RE = r"(?=[MDCLXVI])M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})"
+
+_ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def _roman_to_int(s):
+    """Convert a validated Roman numeral string to an int, or None if empty/invalid."""
+    if not s:
+        return None
+    total = 0
+    prev = 0
+    for ch in reversed(s.upper()):
+        val = _ROMAN_VALUES.get(ch)
+        if val is None:
+            return None
+        if val < prev:
+            total -= val
+        else:
+            total += val
+            prev = val
+    return total if total > 0 else None
+
+
+def _match_roman_token(text, at_start):
+    """
+    Match a standalone, ALL-UPPERCASE Roman numeral token at the start or
+    end of `text`. Uppercase-only is a deliberate guard: Roman numerals only
+    use letters (M/D/C/L/X/V/I) that also spell a handful of real English
+    words ("MIX", "MI", etc). Requiring the token to appear fully uppercase
+    in the original title — the normal convention for volume markers like
+    "Book VII" — makes an accidental collision with an ordinary word rare
+    rather than a routine hazard.
+
+    Returns (matched_text, int_value) or None.
+    """
+    if at_start:
+        m = re.match(rf"^({_ROMAN_RE})(?=\s)", text)
     else:
-        authorless = title.strip()
-    series = re.split(
-        r"[:,]?\s*(?:Vol(?:ume)?\.?|Book|Part|Year)\s+[0-9]+",
-        authorless, flags=re.IGNORECASE
-    )[0]
-    series = re.sub(r"\s+[0-9]+$", "", series)
-    series = series.strip().rstrip(",").strip()
-    return series if series else authorless
+        m = re.search(rf"(?<!\S)({_ROMAN_RE})\s*$", text)
+    if not m:
+        return None
+    token = m.group(1)
+    if not token.isupper():
+        return None
+    val = _roman_to_int(token)
+    if val is None:
+        return None
+    return (m, val)
+
+
+# ── Unified series name / volume number parser ──────────────────────────
+# Single source of truth for splitting an ABB (or sanitized on-disk folder)
+# title into (series_name, volume_number). Both _extract_series_raw and
+# extract_vol_num are built on top of this so they can never disagree about
+# where the series name ends and the volume number begins.
+#
+# Tiers are tried in order, first match wins:
+#   1. Bracket number:        "Series [16]"
+#   2. Keyword + number:      "Series Vol. 16" / "Series, Book 16"
+#   3. Bare digit/Roman at the true end of the title:
+#      "Series 16" / "Series XVI"
+#   4. Colon fallback (only if nothing above matched anywhere):
+#      "Series 16: Subtitle" / "Series: Subtitle"
+#   5. Dash fallback (only if nothing above matched anywhere):
+#      "Series 16 - Subtitle" / "Series XVI - Subtitle"
+#   6. Bare digit/Roman at the true start of the title — absolute last
+#      resort: "16 Series" / "XVI Series". Checked dead last, after every
+#      other tier, because a series's own real name commonly starts with a
+#      number ("12 Miles Below", "1632"), which looks identical to a
+#      leading-volume-number convention from the string shape alone.
+#      Putting this last means it only ever fires when nothing else in the
+#      whole title gave any other signal.
+#
+# Parenthetical asides — "(Unabridged)", "(A Progression Fantasy Epic)",
+# "(Series, Book 5)" — are stripped before any tier is tried. On ABB these
+# are reliably supplementary disambiguation, never the primary series/volume
+# declaration, and leaving them in lets a keyword match buried inside one
+# (e.g. "book 5" inside a parenthetical) hijack the split before an
+# authoritative marker earlier in the title (e.g. a Roman numeral right
+# after the real series name) ever gets a chance.
+def _parse_series_and_volume(title):
+    authorless = title.rsplit(" - ", 1)[0].strip() if " - " in title else title.strip()
+
+    stripped = re.sub(r"\([^)]*\)", " ", authorless)
+    stripped = re.sub(r"\s+", " ", stripped).strip()
+    working = stripped if stripped else authorless
+
+    # ── Tier 1: bracket number ──
+    m = re.search(r"\s*\[([0-9]+(?:[.][0-9]+)?)\]\s*", working)
+    if m:
+        vol = m.group(1)
+        series = (working[:m.start()] + working[m.end():]).strip().rstrip("-,:").strip()
+        return (series or authorless, vol)
+
+    # ── Tier 2: keyword + number, including "Books N-M" ranges ──
+    # Range form checked first: an omnibus like "Books 1-12" uses the
+    # HIGHEST number in the range as the volume, since that's what actually
+    # determines whether a given release is already covered by what's on
+    # disk (owning "Books 1-12" means volume 12 and everything under it is
+    # covered). Keyword group accepts an optional trailing "s" throughout
+    # (Books/Vols/Volumes/Parts/Years) since ranges are almost always
+    # phrased in the plural, and this doesn't change matching for the
+    # ordinary singular case either.
+    range_matches = list(re.finditer(
+        r"[:,]?\s*(?:Vol(?:ume)?s?[.]?|Books?|Parts?|Years?)[ ]+([0-9]+)\s*-\s*([0-9]+)",
+        working, re.IGNORECASE
+    ))
+    if range_matches:
+        vol = range_matches[-1].group(2)  # highest number in the range
+        series = working[:range_matches[0].start()].strip().rstrip(",").strip()
+        return (series or authorless, vol)
+
+    matches = list(re.finditer(
+        r"[:,]?\s*(?:Vol(?:ume)?s?[.]?|Books?|Parts?|Years?)[ ]+([0-9]+(?:[.][0-9]+)?)",
+        working, re.IGNORECASE
+    ))
+    if matches:
+        vol = matches[-1].group(1)  # last match wins for the number itself
+        series = working[:matches[0].start()].strip().rstrip(",").strip()
+        return (series or authorless, vol)
+
+    # ── Tier 3: bare digit or Roman numeral at the true end only ──
+    # (?<!,) guards against thousands-grouped numbers in a real series name
+    # — e.g. "Warhammer 40,000" must never have "000" read as a volume
+    # number just because it's the trailing digits after a comma.
+    # Start-of-title bare numbers are intentionally NOT checked here — see
+    # tier 6 below for why.
+    m = re.search(r"(?<![0-9])(?<!,)([0-9]+(?:[.][0-9]+)?)\s*$", working)
+    if m:
+        series = working[:m.start()].strip()
+        if series:  # never let a bare number consume the entire title (e.g. a series literally titled "1632")
+            return (series, m.group(1))
+
+    roman = _match_roman_token(working, at_start=False)
+    if roman:
+        m, val = roman
+        series = working[:m.start()].strip()
+        if series:  # never let a numeral consume the entire title (e.g. a series literally titled "V")
+            return (series, str(val))
+
+    # ── Tier 4: colon fallback ──
+    if ":" in working:
+        before = working.split(":", 1)[0].strip()
+        vol = None
+        m = re.search(r"(?<![0-9])(?<!,)([0-9]+(?:[.][0-9]+)?)\s*$", before)
+        if m:
+            vol = m.group(1)
+            before = before[:m.start()].strip()
+        else:
+            roman = _match_roman_token(before, at_start=False)
+            if roman:
+                m, val = roman
+                candidate = before[:m.start()].strip()
+                if candidate:
+                    vol = str(val)
+                    before = candidate
+        if before:
+            return (before, vol)
+
+    # ── Tier 5: dash fallback ──
+    m = re.search(r"(?<![0-9])(?<!,)([0-9]+(?:[.][0-9]+)?)\s+-\s", working)
+    if m:
+        series = working[:m.start()].strip()
+        if series:
+            return (series, m.group(1))
+
+    m = re.search(rf"(?<!\S)({_ROMAN_RE})\s+-\s", working)
+    if m and m.group(1).isupper():
+        val = _roman_to_int(m.group(1))
+        series = working[:m.start()].strip()
+        if val and series:
+            return (series, str(val))
+
+    # ── Tier 6: bare digit or Roman numeral at the true start — absolute
+    # last resort only. A series's own real name commonly starts with a
+    # number ("12 Miles Below", "1632", "7 Kingdoms"), which is
+    # indistinguishable from a genuine "16 Series Title" leading-volume
+    # convention by string shape alone. Checking this dead last means it
+    # only ever fires when literally nothing else in the whole title gave
+    # any other signal, minimizing how often a real series name gets
+    # mistaken for a volume-first format.
+    m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", working)
+    if m:
+        return (working[m.end(1):].strip() or authorless, m.group(1))
+
+    roman = _match_roman_token(working, at_start=True)
+    if roman:
+        m, val = roman
+        series = working[m.end():].strip()
+        if series:
+            return (series, str(val))
+
+    return (working, None)
+
+
+def _extract_series_raw(title):
+    series, _ = _parse_series_and_volume(title)
+    return series
 
 
 def get_series_name(title):
@@ -545,33 +735,14 @@ def _find_series_folder(scan_base, series_name):
 
 # ── Volume number extraction (shared) ─────────────────────────────────────
 def extract_vol_num(t):
-    """Extract a volume number from a title string. Returns string or None."""
-    authorless = t.rsplit(" - ", 1)[0].strip() if " - " in t else t.strip()
-
-    # 1. Bracket format anywhere: [16], - [16]
-    m = re.search(r"(?:^|-\s*)\[([0-9]+(?:[.][0-9]+)?)\]", authorless)
-    if m:
-        return m.group(1)
-
-    # 2. Keyword-based: Vol./Volume/Book/Part/Year N — take last match
-    matches = list(re.finditer(
-        r"(?:Vol(?:ume)?[.]?|Book|Part|Year)[ ]*([0-9]+(?:[.][0-9]+)?)",
-        authorless, re.IGNORECASE
-    ))
-    if matches:
-        return matches[-1].group(1)
-
-    # 3. Bare number at start: "16 Series Title"
-    m = re.match(r"^([0-9]+(?:[.][0-9]+)?)\s+\S", authorless)
-    if m:
-        return m.group(1)
-
-    # 4. Bare number at end: "Series Title 16"
-    m = re.search(r"(?<![0-9])([0-9]+(?:[.][0-9]+)?)(?:[ ]*:|[ ]*$)", authorless)
-    if m:
-        return m.group(1)
-
-    return None
+    """
+    Extract a volume number from a title string. Returns a plain digit
+    string or None. Thin wrapper around _parse_series_and_volume so this
+    can never disagree with series-name extraction about where the volume
+    marker is — both are driven by the exact same tier logic.
+    """
+    _, vol = _parse_series_and_volume(t)
+    return vol
 
 
 def _get_highest_vol_on_disk(series_name):
