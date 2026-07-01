@@ -81,6 +81,16 @@ SAVE_PATH_BASE  = os.getenv("SAVE_PATH_BASE")
 SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)
 REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.5"))
 
+# qBittorrent-only per-torrent seeding limits, applied at add-time (mirrors
+# how Sonarr/Radarr work around qBittorrent having no per-category ratio
+# setting the way Deluge does). Left unset by default so qBittorrent's own
+# global seeding limit setting applies, exactly as if this app weren't
+# specifying anything at all.
+_qb_ratio_raw = os.getenv("QB_RATIO_LIMIT", "").strip()
+QB_RATIO_LIMIT = float(_qb_ratio_raw) if _qb_ratio_raw else None
+_qb_seed_time_raw = os.getenv("QB_SEED_TIME_LIMIT_MIN", "").strip()
+QB_SEED_TIME_LIMIT_MIN = int(_qb_seed_time_raw) if _qb_seed_time_raw else None
+
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
 FLASK_PORT    = int(os.getenv("PORT", 5078))
@@ -104,6 +114,8 @@ log.info(f"DL_CATEGORY: {DL_CATEGORY}")
 log.info(f"SAVE_PATH_BASE: {SAVE_PATH_BASE}")
 log.info(f"SCAN_PATH_BASE: {SCAN_PATH_BASE}")
 log.info(f"REQUEST_DELAY: {REQUEST_DELAY}")
+log.info(f"QB_RATIO_LIMIT: {QB_RATIO_LIMIT if QB_RATIO_LIMIT is not None else 'not set (qBittorrent default)'}")
+log.info(f"QB_SEED_TIME_LIMIT_MIN: {QB_SEED_TIME_LIMIT_MIN if QB_SEED_TIME_LIMIT_MIN is not None else 'not set (qBittorrent default)'}")
 log.info(f"NAV_LINK_NAME: {NAV_LINK_NAME}")
 log.info(f"NAV_LINK_URL: {NAV_LINK_URL}")
 log.info(f"PAGE_LIMIT: {PAGE_LIMIT}")
@@ -169,10 +181,13 @@ if not os.path.exists(_env_template):
 
 # ── qBittorrent ──
 # DOWNLOAD_CLIENT=qbittorrent
-# DL_HOST=qbittorrent       # container name and internal port, or IP and host-mapped port
+# DL_HOST=qbittorrent         # container name and internal port, or IP and host-mapped port
 # DL_PORT=8080
 # DL_USERNAME=admin
 # DL_PASSWORD=password
+# Optional per-torrent seeding limits, since qBittorrent has no per-category default the way Deluge does.
+# QB_RATIO_LIMIT=1.5           # leave unset to use qBittorrent's global seeding limit
+# QB_SEED_TIME_LIMIT_MIN=4320  # leave unset to use qBittorrent's global seeding limit
 
 # ── Transmission ──
 # DOWNLOAD_CLIENT=transmission
@@ -213,11 +228,6 @@ if not os.path.exists(_env_template):
 # NAV_LINK_NAME=Audiobookshelf
 # NAV_LINK_URL=http://192.168.1.100:13378
 
-# Shows a hidden developer panel on Search/Status/Mappings with tools for
-# faking search results, alerts, torrent rows, and error states — useful
-# while testing UI changes, not needed for normal use.  [default: false]
-# DEV_PANEL=true
-
 # ── New volume alerts ─────────────────────────────────────────────────────
 
 # Time of day to run the daily alert check cycle      [default: 02:00]
@@ -227,6 +237,12 @@ if not os.path.exists(_env_template):
 # Minutes between checking each series within a cycle [default: 5]
 # With 6 favorites this spreads checks over 30 minutes to avoid rate limits.
 # ALERT_CHECK_INTERVAL=5
+
+# ── Developer / Testing ───────────────────────────────────────────────────
+# Shows a hidden developer panel on Search/Status/Mappings with tools for
+# faking search results, alerts, torrent rows, and error states — useful
+# while testing UI changes, not needed for normal use.  [default: false]
+# DEV_PANEL=true
 
 # ── Logging ───────────────────────────────────────────────────────────────
 # In addition to container logs, a rotating log file is written to
@@ -267,6 +283,9 @@ def inject_nav_link():
         "nav_link_name": os.getenv("NAV_LINK_NAME"),
         "nav_link_url":  os.getenv("NAV_LINK_URL"),
         "dev_panel":     DEV_PANEL,
+        "download_client": DOWNLOAD_CLIENT,
+        "qb_ratio_limit": QB_RATIO_LIMIT,
+        "qb_seed_time_limit_min": QB_SEED_TIME_LIMIT_MIN,
     }
 
 
@@ -1073,7 +1092,10 @@ def send():
         if DOWNLOAD_CLIENT == "qbittorrent":
             qb = Client(host=DL_HOST, port=DL_PORT, username=DL_USERNAME, password=DL_PASSWORD)
             qb.auth_log_in()
-            qb.torrents_add(urls=magnet_link, save_path=save_path, category=DL_CATEGORY)
+            qb.torrents_add(
+                urls=magnet_link, save_path=save_path, category=DL_CATEGORY,
+                ratio_limit=QB_RATIO_LIMIT, seeding_time_limit=QB_SEED_TIME_LIMIT_MIN
+            )
         elif DOWNLOAD_CLIENT == "transmission":
             transmission = transmissionrpc(
                 host=DL_HOST, port=DL_PORT, protocol=DL_SCHEME,
@@ -1110,6 +1132,7 @@ def status():
                     "progress": round(torrent.progress, 2),
                     "state":    torrent.status,
                     "size":     f"{torrent.total_size / (1024 * 1024):.2f} MB",
+                    "ratio":    round(torrent.ratio, 2),
                 }
                 for torrent in torrents
             ]
@@ -1124,6 +1147,7 @@ def status():
                     "progress": round(torrent.progress * 100, 2),
                     "state":    torrent.state,
                     "size":     f"{torrent.total_size / (1024 * 1024):.2f} MB",
+                    "ratio":    round(torrent.ratio, 2),
                 }
                 for torrent in torrents
             ]
@@ -1133,7 +1157,7 @@ def status():
             delugeweb.login()
             torrents     = delugeweb.get_torrents_status(
                 filter_dict={"label": DL_CATEGORY},
-                keys=["name", "state", "progress", "total_size"],
+                keys=["name", "state", "progress", "total_size", "ratio"],
             )
             torrent_list = [
                 {
@@ -1141,6 +1165,7 @@ def status():
                     "progress": round(torrent["progress"], 2),
                     "state":    torrent["state"],
                     "size":     f"{torrent['total_size'] / (1024 * 1024):.2f} MB",
+                    "ratio":    round(torrent["ratio"], 2),
                 }
                 for k, torrent in torrents.result.items()
             ]
