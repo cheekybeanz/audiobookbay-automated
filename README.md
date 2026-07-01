@@ -49,10 +49,6 @@ This project began as a fork of the original audiobookbay-automated and has sinc
 **Multi-client support**
 - Works with qBittorrent, Transmission, or Deluge (Web UI)
 
-**Reliability**
-- Persistent rotating log file for troubleshooting across restarts
-- Startup validation warns about missing or misconfigured required settings
-
 ## Requirements
 
 - Docker
@@ -107,8 +103,8 @@ Once `/config/.env` exists, values in it take priority over environment variable
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `ABB_HOSTNAME` | No | `audiobookbay.lu` | AudioBookBay domain to search. Update if the site moves to a new domain. |
-| `PAGE_LIMIT` | No | `5` | Number of result pages fetched per search or Load More click. |
-| `REQUEST_DELAY` | No | `0.75` | Seconds to wait between page fetches. Increase if you're getting rate limited. |
+| `PAGE_LIMIT` | No | `2` | Number of result pages fetched per search or Load More click. |
+| `REQUEST_DELAY` | No | `0.5` | Seconds to wait between page fetches. Increase if you're getting rate limited. |
 
 ### Download Client
 
