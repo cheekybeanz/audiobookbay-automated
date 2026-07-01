@@ -782,7 +782,10 @@ var _saveSeriesTotalTitle = '';
 function openSaveSeriesModal(title, btn) {
     _saveSeriesTotalTitle = title;
     document.getElementById('save-series-title-display').textContent = title;
-    document.getElementById('save-series-alerts').checked = false;
+    var alertsBox = document.getElementById('save-series-alerts');
+    if (alertsBox) { alertsBox.checked = false; alertsBox.disabled = false; }
+    var confirmBtn = document.getElementById('save-series-confirm-btn');
+    if (confirmBtn) confirmBtn.disabled = false;
     document.getElementById('save-series-hint').textContent = '';
     document.getElementById('save-series-already-saved').style.display = 'none';
     document.getElementById('save-series-disk-found').style.display = 'none';
@@ -835,13 +838,31 @@ function openSaveSeriesModal(title, btn) {
 // editing down to something that matches an existing favorite (even if
 // the modal's initial extraction didn't) updates the banner immediately
 // instead of only reflecting whatever was true when the modal first opened.
+// When it matches, the alerts checkbox and Save button are disabled too,
+// since alert state for an existing favorite is only ever managed from
+// the bell icon in Favorites — editing it here would be a second,
+// conflicting control over the same state. Re-enables the moment the
+// name is edited away from a match.
 function _updateSaveSeriesAlreadySaved() {
-    var input = document.getElementById('save-series-input');
-    var banner = document.getElementById('save-series-already-saved');
+    var input      = document.getElementById('save-series-input');
+    var banner     = document.getElementById('save-series-already-saved');
+    var alertsBox  = document.getElementById('save-series-alerts');
+    var confirmBtn = document.getElementById('save-series-confirm-btn');
     if (!input || !banner) return;
+
     var current = input.value.trim().toLowerCase();
     var match = _favsCache.some(function(f) { return f.toLowerCase() === current; });
-    banner.style.display = (current && match) ? 'flex' : 'none';
+    var showMatch = !!(current && match);
+
+    banner.style.display = showMatch ? 'flex' : 'none';
+
+    if (alertsBox) {
+        alertsBox.disabled = showMatch;
+        if (showMatch) alertsBox.checked = false;
+    }
+    if (confirmBtn) {
+        confirmBtn.disabled = showMatch;
+    }
 }
 
 function closeSaveSeriesModal() {
@@ -852,7 +873,8 @@ function closeSaveSeriesModal() {
     result.innerHTML = '';
     document.getElementById('save-series-input').value = '';
     document.getElementById('save-series-hint').textContent = '';
-    document.getElementById('save-series-alerts').checked = false;
+    var alertsBox = document.getElementById('save-series-alerts');
+    if (alertsBox) { alertsBox.checked = false; alertsBox.disabled = false; }
     var confirmBtn = document.getElementById('save-series-confirm-btn');
     var cancelBtn  = document.querySelector('#save-series-modal-form .modal-btn-cancel');
     if (confirmBtn) { confirmBtn.textContent = '\u2B50 Save Series'; confirmBtn.disabled = false; }
