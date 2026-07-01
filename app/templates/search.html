@@ -87,6 +87,15 @@
             <h2>Confirm Download</h2>
             <p id="modal-title-display" class="modal-book-title"></p>
 
+            <!-- Keyword mapping info — read only, shown if a registered keyword matched -->
+            <div id="modal-keyword-info" style="display:none;" class="modal-exists-warning save-series-notice-purple">
+                <span class="modal-exists-icon">&#128193;</span>
+                <div class="modal-exists-text">
+                    <span class="modal-exists-title">Matched keyword</span>
+                    <span class="modal-exists-path" id="modal-keyword-text"></span>
+                </div>
+            </div>
+
             <div id="modal-exists-warning" style="display:none;" class="modal-exists-warning">
                 <span class="modal-exists-icon">&#9888;</span>
                 <div class="modal-exists-text">
@@ -218,6 +227,7 @@
         <span class="dev-panel-section-label">Download Modal</span>
         <div class="dev-panel-btns">
             <button onclick="devShowDownloadExists()">Show Exists Warning</button>
+            <button onclick="devShowDownloadKeywordMatch()">Show Keyword Match</button>
             <button onclick="devShowDownloadResult(true)">Show Success Result</button>
             <button onclick="devShowDownloadResult(false)">Show Failure Result</button>
         </div>
