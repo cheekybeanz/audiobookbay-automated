@@ -1218,7 +1218,14 @@ function saveManualFavorite(name) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name })
-    }).then(function(r) { return r.json(); }).then(function() { loadFavorites(); });
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        loadFavorites();
+        if (data.already_existed) {
+            showAppAlert('"' + data.series + '" is already in your favorites.');
+        }
+    });
 }
 
 function startEdit(entry, oldName) {
