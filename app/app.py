@@ -1207,6 +1207,7 @@ def add_favorite_with_options():
     # _find_case_insensitive for why this matters).
     favs     = load_favorites()
     existing = _find_case_insensitive(series_name, favs)
+    already_existed = bool(existing)
     if existing:
         series_name = existing
     else:
@@ -1225,7 +1226,7 @@ def add_favorite_with_options():
         save_alerts(alerts)
         log.info(f"[Favorites] Alerts enabled for '{alert_key}'")
 
-    return jsonify({"success": True, "series": series_name})
+    return jsonify({"success": True, "series": series_name, "already_existed": already_existed})
 
 
 @app.route("/favorites/add", methods=["POST"])
