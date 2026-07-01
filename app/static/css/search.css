@@ -1190,3 +1190,14 @@ td.action-cell {
     cursor: pointer;
 }
 .save-series-alert-label:hover { color: var(--text-primary); }
+
+/* Disabled state — series already exists, alert control belongs to the
+   bell icon in Favorites instead, so this checkbox is a no-op here. */
+.save-series-alert-label:has(input:disabled) {
+    cursor: default;
+    opacity: 0.5;
+}
+.save-series-alert-label:has(input:disabled):hover { color: var(--text-muted); }
+.save-series-alert-label input[type=checkbox]:disabled {
+    cursor: default;
+}
