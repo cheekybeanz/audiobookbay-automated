@@ -502,8 +502,13 @@ def get_series_name(title):
                 if content:
                     mapping = json.loads(content)
                     sanitized = sanitize_title(series)
-                    if sanitized in mapping:
-                        return mapping[sanitized]
+                    # Case-insensitive lookup — a mapping saved under one
+                    # casing must still apply when a later listing extracts
+                    # the same series with different casing, or the mapping
+                    # would silently fail to apply with no indication why.
+                    key = _find_case_insensitive(sanitized, mapping.keys())
+                    if key:
+                        return mapping[key]
         except json.JSONDecodeError:
             pass
 
@@ -1001,6 +1006,148 @@ def save_series_map(mapping):
         json.dump(mapping, f, indent=2)
 
 
+# ── Case-insensitive favorite matching ─────────────────────────────────────
+# ABB titles aren't consistently capitalized ("He Who Fights With Monsters"
+# vs "He Who Fights with Monsters"), so the same real-world series can
+# extract to slightly different casing depending on which listing it came
+# from. Every "already saved" / "already exists" check needs to compare
+# case-insensitively, or near-duplicate entries silently pile up — each
+# with its own separate alert toggle and notification history.
+# ── Case-insensitive name matching (shared) ─────────────────────────────────
+# ABB titles aren't consistently capitalized ("He Who Fights With Monsters"
+# vs "He Who Fights with Monsters"), so the same real-world series can
+# extract to slightly different casing depending on which listing it came
+# from. Used anywhere a human/extracted series name is compared as a
+# dictionary key or list membership — favorites, alerts, and series
+# mappings — since exact-match comparison there silently creates
+# duplicates or, for mappings, can silently skip an existing mapping.
+def _find_case_insensitive(name, collection):
+    """Return the existing entry in `collection` that matches `name`
+    case-insensitively, or None if there's no match."""
+    target = name.lower()
+    for entry in collection:
+        if entry.lower() == target:
+            return entry
+    return None
+
+
+def _migrate_case_duplicate_favorites():
+    """
+    One-time startup cleanup for the case-sensitivity bug: earlier code
+    matched series names case-sensitively everywhere, which allowed two
+    distinct problems to accumulate:
+
+      1. Duplicate favorites entries for the same real series under
+         different casing (e.g. "He Who Fights with Monsters" and
+         "He Who Fights With Monsters" both saved separately).
+
+      2. Orphaned alerts.json entries that don't match any current
+         favorite's casing — or don't match any favorite at all. The
+         favorites panel only ever renders rows from favorites.json, and
+         the bell only ever reads/writes whichever alerts.json key
+         exactly matches a favorite's current casing. So an alerts entry
+         under a different casing (or with no matching favorite at all)
+         becomes fully invisible in the UI, yet the alert scheduler reads
+         alerts.json directly and keeps checking every "enabled" key
+         regardless of whether it's actually visible or controllable —
+         i.e. it silently keeps running with no way to turn it off.
+
+    This reconciles both files down to one canonical entry per real
+    series. Any alerts.json key with no matching favorite at all is kept
+    (not silently discarded, since it may hold real notification
+    history) by restoring it as a visible favorite rather than deleting
+    it — logged clearly so it can be manually removed if unwanted.
+    """
+    favs   = load_favorites()
+    alerts = load_alerts()
+
+    # Group existing favorites by lowercase name to find same-series
+    # duplicates, and build a lowercase -> canonical-casing map.
+    fav_groups = {}
+    for f in favs:
+        fav_groups.setdefault(f.lower(), []).append(f)
+
+    rename_map = {}       # lowercase key -> canonical display name
+    canonical_favs = []
+    for variants in fav_groups.values():
+        canonical = next((v for v in variants if alerts.get(v, {}).get("enabled")), sorted(variants)[0])
+        canonical_favs.append(canonical)
+        for v in variants:
+            rename_map[v.lower()] = canonical
+
+    # Any alerts.json key with no matching favorite at all (under any
+    # casing) is an orphan — most likely from this exact bug. Restore it
+    # as a real, visible favorite instead of silently dropping its data.
+    restored = []
+    for name in alerts.keys():
+        if name.lower() not in rename_map:
+            rename_map[name.lower()] = name
+            canonical_favs.append(name)
+            restored.append(name)
+
+    canonical_favs = sorted(set(canonical_favs))
+
+    # Merge alerts.json down to one entry per canonical name.
+    merged_alerts = {}
+    for name, data in alerts.items():
+        canonical = rename_map.get(name.lower(), name)
+        if canonical not in merged_alerts:
+            merged_alerts[canonical] = data
+            continue
+        existing = merged_alerts[canonical]
+        existing["enabled"] = existing.get("enabled") or data.get("enabled")
+        existing_urls = {n.get("url") for n in existing.get("notifications", [])}
+        for n in data.get("notifications", []):
+            if n.get("url") not in existing_urls:
+                existing.setdefault("notifications", []).append(n)
+                existing_urls.add(n.get("url"))
+        if data.get("last_checked", "") > existing.get("last_checked", ""):
+            existing["last_checked"] = data.get("last_checked")
+
+    if canonical_favs == sorted(favs) and merged_alerts == alerts:
+        return  # everything already reconciled, nothing to write
+
+    save_favorites(canonical_favs)
+    save_alerts(merged_alerts)
+
+    log.info(f"[Migration] Reconciled favorite/alert entries: {canonical_favs}")
+    if restored:
+        log.warning(
+            "[Migration] Restored favorite(s) from alert entries that had no "
+            f"matching favorite (remove manually via the UI if unwanted): {restored}"
+        )
+
+
+_migrate_case_duplicate_favorites()
+
+
+def _warn_case_duplicate_mappings():
+    """
+    Startup check for series_map.json — logs a warning only, doesn't
+    auto-merge. Unlike favorites/alerts, a mapping's value is a folder
+    name the user deliberately chose, and two case-variant keys could
+    genuinely have different intended values. Silently picking one over
+    the other risks quietly changing where future downloads land, so
+    this just surfaces the conflict for manual review on the Series
+    Mappings page instead.
+    """
+    mapping = load_series_map()
+    groups = {}
+    for k in mapping.keys():
+        groups.setdefault(k.lower(), []).append(k)
+
+    for variants in groups.values():
+        if len(variants) > 1:
+            log.warning(
+                "[Migration] Series mapping has multiple case-variant entries "
+                f"for the same extracted name — review on the Series Mappings "
+                f"page and remove the ones you don't want: {variants}"
+            )
+
+
+_warn_case_duplicate_mappings()
+
+
 # ── Favorites routes ───────────────────────────────────────────────────────
 @app.route("/favorites")
 def get_favorites():
@@ -1028,9 +1175,12 @@ def favorites_preview():
         if found:
             disk_path = found
 
-    # Check if already in favorites (check both extracted and mapped name)
+    # Check if already in favorites (check both extracted and mapped name,
+    # case-insensitively — see _find_case_insensitive)
     favs = load_favorites()
-    already_saved = extracted in favs or (mapped_to and mapped_to in favs)
+    already_saved = bool(_find_case_insensitive(extracted, favs)) or (
+        bool(mapped_to) and bool(_find_case_insensitive(mapped_to, favs))
+    )
 
     return jsonify({
         "success":       True,
@@ -1052,21 +1202,28 @@ def add_favorite_with_options():
     if not series_name:
         return jsonify({"success": False, "message": "No series name provided"}), 400
 
-    # Add to favorites if not already there
-    favs = load_favorites()
-    if series_name not in favs:
+    # Reuse an existing favorite if one already exists under a different
+    # case, rather than creating a duplicate entry (see
+    # _find_case_insensitive for why this matters).
+    favs     = load_favorites()
+    existing = _find_case_insensitive(series_name, favs)
+    if existing:
+        series_name = existing
+    else:
         favs.append(series_name)
         favs.sort()
         save_favorites(favs)
 
-    # Enable alerts if requested
+    # Enable alerts if requested — reuse an existing alerts entry under a
+    # different case if one exists, instead of creating a second one.
     if enable_alerts:
         alerts = load_alerts()
-        if series_name not in alerts:
-            alerts[series_name] = {}
-        alerts[series_name]["enabled"] = True
+        alert_key = _find_case_insensitive(series_name, list(alerts.keys())) or series_name
+        if alert_key not in alerts:
+            alerts[alert_key] = {}
+        alerts[alert_key]["enabled"] = True
         save_alerts(alerts)
-        log.info(f"[Favorites] Alerts enabled for '{series_name}'")
+        log.info(f"[Favorites] Alerts enabled for '{alert_key}'")
 
     return jsonify({"success": True, "series": series_name})
 
@@ -1083,7 +1240,7 @@ def add_favorite():
         return jsonify({"success": False, "message": "Could not extract series name"}), 400
 
     favs = load_favorites()
-    if series in favs:
+    if _find_case_insensitive(series, favs):
         return jsonify({"success": False, "message": "Already saved"})
 
     favs.append(series)
@@ -1099,11 +1256,13 @@ def add_favorite_manual():
     if not name:
         return jsonify({"success": False, "message": "No name provided"}), 400
     favs = load_favorites()
-    if name not in favs:
-        favs.append(name)
-        favs.sort()
-        save_favorites(favs)
-    return jsonify({"success": True})
+    existing = _find_case_insensitive(name, favs)
+    if existing:
+        return jsonify({"success": True, "already_existed": True, "series": existing})
+    favs.append(name)
+    favs.sort()
+    save_favorites(favs)
+    return jsonify({"success": True, "already_existed": False, "series": name})
 
 
 @app.route("/favorites/remove", methods=["POST"])
@@ -1111,11 +1270,15 @@ def remove_favorite():
     data = request.json
     name = data.get("name", "").strip()
     favs = load_favorites()
-    favs = [f for f in favs if f != name]
+    favs = [f for f in favs if f.lower() != name.lower()]
     save_favorites(favs)
-    # Also clean up alerts entry for this series
+    # Also clean up alerts entry for this series — case-insensitively, so a
+    # stray differently-cased alerts key can't survive as an invisible
+    # orphan that keeps running in the background forever.
     alerts = load_alerts()
-    alerts.pop(name, None)
+    for key in list(alerts.keys()):
+        if key.lower() == name.lower():
+            alerts.pop(key, None)
     save_alerts(alerts)
     return jsonify({"success": True})
 
@@ -1127,18 +1290,39 @@ def rename_favorite():
     new_name = sanitize_title(data.get("new_name", "").strip())
     if not old_name or not new_name:
         return jsonify({"success": False}), 400
+
     favs = load_favorites()
+
+    # If the new name collides case-insensitively with a *different*
+    # existing favorite, merge into that one instead of creating a
+    # second duplicate entry.
+    other_favs = [f for f in favs if f != old_name]
+    target     = _find_case_insensitive(new_name, other_favs) or new_name
+
     if old_name in favs:
-        idx       = favs.index(old_name)
-        favs[idx] = new_name
+        favs = [f for f in favs if f != old_name]
+        if target not in favs:
+            favs.append(target)
         favs.sort()
         save_favorites(favs)
-    # Migrate alerts entry to new name
+
+    # Migrate alerts entry to the target name, merging rather than
+    # overwriting if an alerts entry already exists there.
     alerts = load_alerts()
     if old_name in alerts:
-        alerts[new_name] = alerts.pop(old_name)
+        old_data = alerts.pop(old_name)
+        if target in alerts:
+            alerts[target]["enabled"] = alerts[target].get("enabled") or old_data.get("enabled")
+            existing_urls = {n.get("url") for n in alerts[target].get("notifications", [])}
+            for n in old_data.get("notifications", []):
+                if n.get("url") not in existing_urls:
+                    alerts[target].setdefault("notifications", []).append(n)
+                    existing_urls.add(n.get("url"))
+        else:
+            alerts[target] = old_data
         save_alerts(alerts)
-    return jsonify({"success": True})
+
+    return jsonify({"success": True, "series": target})
 
 
 # ── Series map routes ──────────────────────────────────────────────────────
@@ -1160,7 +1344,7 @@ def preview_mapping():
         return jsonify({"success": False, "message": "No title provided"}), 400
     raw       = sanitize_title(_extract_series_raw(title))
     extracted = sanitize_title(get_series_name(title))
-    is_mapped = (raw in load_series_map())
+    is_mapped = bool(_find_case_insensitive(raw, load_series_map().keys()))
     return jsonify({"success": True, "extracted": extracted, "is_mapped": is_mapped})
 
 
@@ -1171,8 +1355,14 @@ def add_mapping():
     mapped    = data.get("mapped", "").strip()
     if not extracted or not mapped:
         return jsonify({"success": False, "message": "Both fields required"}), 400
-    mapping             = load_series_map()
-    mapping[extracted]  = mapped
+    mapping = load_series_map()
+    # If a mapping already exists for this extracted name under different
+    # casing, update it rather than creating a second, conflicting entry
+    # for what's really the same series.
+    existing_key = _find_case_insensitive(extracted, mapping.keys())
+    if existing_key and existing_key != extracted:
+        mapping.pop(existing_key)
+    mapping[extracted] = mapped
     save_series_map(mapping)
     return jsonify({"success": True})
 
@@ -1182,7 +1372,9 @@ def remove_mapping():
     data    = request.json
     key     = data.get("key", "").strip()
     mapping = load_series_map()
-    mapping.pop(key, None)
+    existing_key = _find_case_insensitive(key, mapping.keys())
+    if existing_key:
+        mapping.pop(existing_key, None)
     save_series_map(mapping)
     return jsonify({"success": True})
 
@@ -1196,8 +1388,18 @@ def rename_mapping():
     if not key or not new_extracted or not new_mapped:
         return jsonify({"success": False}), 400
     mapping = load_series_map()
-    if key in mapping:
-        mapping.pop(key)
+
+    old_key = _find_case_insensitive(key, mapping.keys())
+    if old_key:
+        mapping.pop(old_key)
+
+    # If the new "from" name collides case-insensitively with a different
+    # existing mapping, replace that entry rather than ending up with two
+    # keys for the same extracted series name.
+    collision_key = _find_case_insensitive(new_extracted, mapping.keys())
+    if collision_key:
+        mapping.pop(collision_key)
+
     mapping[new_extracted] = new_mapped
     save_series_map(mapping)
     return jsonify({"success": True})
@@ -1268,11 +1470,12 @@ def alerts_toggle():
         return jsonify({"success": False}), 400
 
     alerts = load_alerts()
-    if series not in alerts:
-        alerts[series] = {}
-    alerts[series]["enabled"] = enabled
+    key = _find_case_insensitive(series, list(alerts.keys())) or series
+    if key not in alerts:
+        alerts[key] = {}
+    alerts[key]["enabled"] = enabled
     save_alerts(alerts)
-    log.info(f"[Alerts] {'Enabled' if enabled else 'Disabled'} alerts for '{series}'.")
+    log.info(f"[Alerts] {'Enabled' if enabled else 'Disabled'} alerts for '{key}'.")
     return jsonify({"success": True})
 
 
