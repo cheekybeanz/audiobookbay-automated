@@ -76,13 +76,29 @@
     font-size: 0.82rem;
 }
 
-/* Size column */
+/* Ratio column */
 .status-table th:nth-child(4),
 .status-table td:nth-child(4) {
+    white-space: nowrap;
+    width: 70px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+/* Size column */
+.status-table th:nth-child(5),
+.status-table td:nth-child(5) {
     white-space: nowrap;
     width: 110px;
     color: var(--text-muted);
     font-size: 0.82rem;
+}
+
+.seeding-limit-caption {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin: -8px 0 16px;
 }
 
 /* Empty state */
