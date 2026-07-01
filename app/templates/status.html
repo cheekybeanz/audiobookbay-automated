@@ -30,11 +30,11 @@
     <table class="status-table">
         <thead>
             <tr>
-                <th>Title</th>
-                <th>Progress</th>
-                <th>State</th>
-                <th>Ratio</th>
-                <th>Size</th>
+                <th class="sortable" onclick="cycleStatusSort('title')">Title<span class="sort-arrow" id="sort-arrow-title"></span></th>
+                <th class="sortable" onclick="cycleStatusSort('progress')">Progress<span class="sort-arrow" id="sort-arrow-progress"></span></th>
+                <th class="sortable" onclick="cycleStatusSort('state')">State<span class="sort-arrow" id="sort-arrow-state"></span></th>
+                <th class="sortable" onclick="cycleStatusSort('ratio')">Ratio<span class="sort-arrow" id="sort-arrow-ratio"></span></th>
+                <th class="sortable" onclick="cycleStatusSort('size')">Size<span class="sort-arrow" id="sort-arrow-size"></span></th>
             </tr>
         </thead>
         <tbody id="status-table-body">
@@ -52,6 +52,109 @@
         </tbody>
     </table>
 </div>
+
+<script>
+// ── Status table sorting ──────────────────────────────────────────────
+// Client-side only, sorts whatever rows are currently in the table.
+// Always present (not gated behind DEV_PANEL) since this is a real,
+// always-available feature. Default is alphabetical by Title; changed
+// only by clicking a column header, persisted to localStorage — there's
+// no .env override for this, it's purely a UI preference.
+var STATUS_SORT_KEY = 'abb_status_sort';
+var _statusSortCol  = 'title';
+var _statusSortDir  = 'asc';
+
+(function() {
+    try {
+        var saved = JSON.parse(localStorage.getItem(STATUS_SORT_KEY) || '{}');
+        if (saved.col) _statusSortCol = saved.col;
+        if (saved.dir) _statusSortDir = saved.dir;
+    } catch (e) {}
+})();
+
+function _statusSaveSortPref() {
+    try { localStorage.setItem(STATUS_SORT_KEY, JSON.stringify({ col: _statusSortCol, dir: _statusSortDir })); } catch (e) {}
+}
+
+// Parses a "X.XX MB" / "X.XX GB" / "X.XX KB" string into a common unit
+// (MB) for correct numeric ordering. The app's own status page always
+// emits MB, but this stays robust to other units (e.g. dev panel test
+// data, or a future change) rather than assuming one fixed unit forever.
+function _statusParseSize(text) {
+    var m = /([\d.]+)\s*(KB|MB|GB|TB)/i.exec(text || '');
+    if (!m) return 0;
+    var num = parseFloat(m[1]) || 0;
+    var unit = m[2].toUpperCase();
+    var multiplier = { KB: 1 / 1024, MB: 1, GB: 1024, TB: 1024 * 1024 }[unit] || 1;
+    return num * multiplier;
+}
+
+function _statusRowValue(tr, col) {
+    var cells = tr.children;
+    switch (col) {
+        case 'title':    return (cells[0].textContent || '').trim();
+        case 'progress': return parseFloat(cells[1].textContent) || 0;
+        case 'state':    return (cells[2].textContent || '').trim();
+        case 'ratio':    return parseFloat(cells[3].textContent) || 0;
+        case 'size':     return _statusParseSize(cells[4].textContent);
+        default:         return '';
+    }
+}
+
+function sortStatusTable() {
+    var tbody = document.getElementById('status-table-body');
+    if (!tbody) return;
+
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    // Don't try to sort the empty-state placeholder row (single <td colspan>,
+    // no data cells matching the real column layout).
+    if (rows.length === 0 || (rows.length === 1 && rows[0].children.length === 1)) {
+        _statusUpdateSortArrows();
+        return;
+    }
+
+    var col = _statusSortCol;
+    var numeric = (col === 'progress' || col === 'ratio' || col === 'size');
+
+    rows.sort(function(a, b) {
+        var av = _statusRowValue(a, col);
+        var bv = _statusRowValue(b, col);
+        var cmp = numeric ? (av - bv) : String(av).localeCompare(String(bv));
+        return _statusSortDir === 'asc' ? cmp : -cmp;
+    });
+
+    rows.forEach(function(tr) { tbody.appendChild(tr); });
+    _statusUpdateSortArrows();
+}
+
+function cycleStatusSort(col) {
+    if (_statusSortCol === col) {
+        _statusSortDir = _statusSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        _statusSortCol = col;
+        _statusSortDir = 'asc';
+    }
+    _statusSaveSortPref();
+    sortStatusTable();
+}
+
+function _statusUpdateSortArrows() {
+    ['title', 'progress', 'state', 'ratio', 'size'].forEach(function(col) {
+        var el = document.getElementById('sort-arrow-' + col);
+        if (!el) return;
+        var th = el.closest('th');
+        if (_statusSortCol === col) {
+            el.textContent = _statusSortDir === 'asc' ? ' \u2191' : ' \u2193';
+            if (th) th.classList.add('status-sort-active');
+        } else {
+            el.textContent = ' \u2195';
+            if (th) th.classList.remove('status-sort-active');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', sortStatusTable);
+</script>
 
 <!-- Developer panel — preview empty/error states and fake torrent rows
      without needing a real client connection or active downloads.
@@ -137,6 +240,7 @@ function devInjectFakeTorrents() {
         tbody.appendChild(tr);
     });
 
+    sortStatusTable();
     devStatus('Injected ' + sample.length + ' sample torrent(s).');
 }
 
