@@ -11,6 +11,19 @@
     <h1>Torrent Status</h1>
 </div>
 
+{% if download_client == 'qbittorrent' %}
+<p class="seeding-limit-caption">
+    Seeding limit:
+    {% if qb_ratio_limit is not none or qb_seed_time_limit_min is not none %}
+        {% if qb_ratio_limit is not none %}{{ qb_ratio_limit }} ratio{% else %}ratio not set{% endif %}
+        &middot;
+        {% if qb_seed_time_limit_min is not none %}{{ qb_seed_time_limit_min }} min{% else %}time not set{% endif %}
+    {% else %}
+        not set (using qBittorrent's default)
+    {% endif %}
+</p>
+{% endif %}
+
 <p class="error-message" id="status-error" {% if not error %}style="display:none;"{% endif %}>{{ error or '' }}</p>
 
 <div class="status-table-wrapper">
@@ -20,6 +33,7 @@
                 <th>Title</th>
                 <th>Progress</th>
                 <th>State</th>
+                <th>Ratio</th>
                 <th>Size</th>
             </tr>
         </thead>
@@ -29,10 +43,11 @@
                 <td>{{ torrent.name }}</td>
                 <td>{{ torrent.progress }}%</td>
                 <td>{{ torrent.state }}</td>
+                <td>{{ torrent.ratio }}</td>
                 <td>{{ torrent.size }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="4" class="status-empty">No active downloads.</td></tr>
+            <tr><td colspan="5" class="status-empty">No active downloads.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -90,12 +105,12 @@ function devInjectFakeTorrents() {
     document.getElementById('status-error').style.display = 'none';
 
     var sample = [
-        { name: 'The Wonderful Wizard of Oz - L. Frank Baum',           progress: 42,  state: 'Downloading', size: '210.45 MB' },
-        { name: 'Dracula - Bram Stoker',                                progress: 100, state: 'Seeding',     size: '98.10 MB'  },
-        { name: 'Frankenstein - Mary Shelley',                          progress: 0,   state: 'Paused',      size: '180.75 MB' },
-        { name: 'A Christmas Carol - Charles Dickens',                  progress: 0,   state: 'Queued',      size: '64.30 MB'  },
-        { name: 'The Adventures of Sherlock Holmes - Arthur Conan Doyle', progress: 17, state: 'Error',      size: '301.90 MB' },
-        { name: 'A Very Long Audiobook Title Used Just To Check How The Title Column Wraps Across Multiple Lines - Some Author', progress: 67, state: 'Downloading', size: '1.20 GB' }
+        { name: 'The Wonderful Wizard of Oz - L. Frank Baum',           progress: 42,  state: 'Downloading', ratio: 0.00, size: '210.45 MB' },
+        { name: 'Dracula - Bram Stoker',                                progress: 100, state: 'Seeding',     ratio: 1.85, size: '98.10 MB'  },
+        { name: 'Frankenstein - Mary Shelley',                          progress: 0,   state: 'Paused',      ratio: 0.00, size: '180.75 MB' },
+        { name: 'A Christmas Carol - Charles Dickens',                  progress: 0,   state: 'Queued',      ratio: 0.00, size: '64.30 MB'  },
+        { name: 'The Adventures of Sherlock Holmes - Arthur Conan Doyle', progress: 17, state: 'Error',      ratio: 0.00, size: '301.90 MB' },
+        { name: 'A Very Long Audiobook Title Used Just To Check How The Title Column Wraps Across Multiple Lines - Some Author', progress: 67, state: 'Downloading', ratio: 0.31, size: '1.20 GB' }
     ];
 
     tbody.innerHTML = '';
@@ -109,12 +124,15 @@ function devInjectFakeTorrents() {
         progressTd.textContent = t.progress + '%';
         var stateTd = document.createElement('td');
         stateTd.textContent = t.state;
+        var ratioTd = document.createElement('td');
+        ratioTd.textContent = t.ratio.toFixed(2);
         var sizeTd = document.createElement('td');
         sizeTd.textContent = t.size;
 
         tr.appendChild(nameTd);
         tr.appendChild(progressTd);
         tr.appendChild(stateTd);
+        tr.appendChild(ratioTd);
         tr.appendChild(sizeTd);
         tbody.appendChild(tr);
     });
@@ -126,7 +144,7 @@ function devShowEmptyState() {
     var tbody = document.getElementById('status-table-body');
     if (!tbody) return;
     document.getElementById('status-error').style.display = 'none';
-    tbody.innerHTML = '<tr><td colspan="4" class="status-empty">No active downloads.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="status-empty">No active downloads.</td></tr>';
     devStatus('Showing empty state.');
 }
 
