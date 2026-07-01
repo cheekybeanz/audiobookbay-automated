@@ -161,6 +161,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('add-folder-name').addEventListener('input', updatePathPreview);
 });
 
+// Some browsers restore this page from the back-forward cache when
+// navigating back to it, rather than doing a real reload — in that case
+// DOMContentLoaded never fires again, so mappings/blocklist changes made
+// elsewhere (or in another tab) wouldn't show up until a manual refresh.
+// pageshow with event.persisted fires reliably in exactly that case.
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        loadMappings();
+        loadBlocklist();
+    }
+});
+
 function updatePathPreview() {
     var keyword = document.getElementById('add-keyword').value.trim();
     var folderName = document.getElementById('add-folder-name').value.trim();
