@@ -563,7 +563,14 @@ def _match_roman_token(text, at_start):
 def _parse_series_and_volume(title):
     authorless = title.rsplit(" - ", 1)[0].strip() if " - " in title else title.strip()
 
+    # Strip supplementary noise before any tier is tried: parenthetical
+    # asides ("(Unabridged)", "(A Progression Fantasy Epic)") and
+    # non-numeric bracket tags ABB uploaders commonly append to flag a
+    # re-upload or fix ("[Updated]", "[Retail]", "[FIXED]", "[REPOST]").
+    # A purely numeric bracket like "[16]" is deliberately left alone here
+    # — that's tier 1's real volume marker, not noise.
     stripped = re.sub(r"\([^)]*\)", " ", authorless)
+    stripped = re.sub(r"\[(?![0-9]+(?:[.][0-9]+)?\])[^\]]*\]", " ", stripped)
     stripped = re.sub(r"\s+", " ", stripped).strip()
     working = stripped if stripped else authorless
 
