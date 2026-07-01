@@ -28,7 +28,6 @@ This project began as a fork of the original audiobookbay-automated and has sinc
 
 **Search and download**
 - Search AudioBookBay with cover art, language, format, bitrate, and file size shown per result
-- AJAX-based search with a cancel option and a Load More button for additional pages
 - One-click download to your configured torrent client
 - Basic download status page showing progress for items tagged with your configured category
 
