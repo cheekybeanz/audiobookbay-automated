@@ -1612,13 +1612,15 @@ def list_mappings():
 def preview_mapping():
     """Used by the Download modal to pre-fill the series field — returns
     whatever get_series_name() currently resolves to for this title,
-    whether that comes from a matching keyword or normal extraction."""
+    whether that comes from a matching keyword or normal extraction, plus
+    which keyword matched (if any) so the modal can show why."""
     data  = request.json
     title = data.get("title", "").strip()
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
+    matched_keyword, _ = _match_keyword_mapping(title)
     series_name = sanitize_title(get_series_name(title))
-    return jsonify({"success": True, "series_name": series_name})
+    return jsonify({"success": True, "series_name": series_name, "matched_keyword": matched_keyword})
 
 
 @app.route("/mappings/add", methods=["POST"])
