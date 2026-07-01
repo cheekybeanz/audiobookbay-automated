@@ -10,31 +10,27 @@
 <div class="title-container">
     <h1>Series Mappings</h1>
     <p class="mappings-subtitle">
-        Override the folder name the app would normally create for a series.
+        Group titles into a shared folder by watching for a keyword anywhere in the title.
     </p>
 </div>
 
 <!-- Add mapping form -->
 <div class="mappings-add-box">
-    <h2>Add Mapping</h2>
+    <h2>Add Keyword Mapping</h2>
     <div class="mappings-form-row">
         <div class="mappings-form-col">
-            <label>Before (what the app extracts)</label>
-            <input type="text" id="add-extracted" placeholder="e.g. Series Title - Author One, Author Two">
+            <label>Keyword (matches anywhere in the title)</label>
+            <input type="text" id="add-keyword" placeholder="e.g. Star Wars">
         </div>
         <div class="mappings-arrow">→</div>
         <div class="mappings-form-col">
-            <label>After (folder name you want)</label>
-            <input type="text" id="add-mapped" placeholder="e.g. Series Title">
+            <label>Folder Name</label>
+            <input type="text" id="add-folder-name" placeholder="e.g. Star Wars">
         </div>
     </div>
     <div id="path-preview" style="display:none;">
         <div class="path-preview-row">
-            <span class="path-label">Before:</span>
-            <span id="path-before" class="path-value path-before"></span>
-        </div>
-        <div class="path-preview-row">
-            <span class="path-label">After:</span>
+            <span class="path-label">Example:</span>
             <span id="path-after" class="path-value path-after"></span>
         </div>
     </div>
@@ -161,60 +157,36 @@ function showAppAlert(message, onClose) {
 document.addEventListener('DOMContentLoaded', function() {
     loadMappings();
     loadBlocklist();
-    var params = new URLSearchParams(window.location.search);
-    var title = params.get('title');
-    if (title) {
-        fetch('/mappings/preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.success) {
-                document.getElementById('add-extracted').value = data.extracted;
-                document.getElementById('add-mapped').value = data.extracted;
-                updatePathPreview();
-                document.getElementById('add-mapped').focus();
-                document.getElementById('add-mapped').select();
-            }
-        });
-    }
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('add-extracted').addEventListener('input', updatePathPreview);
-    document.getElementById('add-mapped').addEventListener('input', updatePathPreview);
+    document.getElementById('add-keyword').addEventListener('input', updatePathPreview);
+    document.getElementById('add-folder-name').addEventListener('input', updatePathPreview);
 });
 
 function updatePathPreview() {
-    var extracted = document.getElementById('add-extracted').value.trim();
-    var mapped = document.getElementById('add-mapped').value.trim();
+    var keyword = document.getElementById('add-keyword').value.trim();
+    var folderName = document.getElementById('add-folder-name').value.trim();
     var preview = document.getElementById('path-preview');
-    if (!extracted) { preview.style.display = 'none'; return; }
-    var safeExtracted = extracted.replace(/[<>:"/\\|?*]/g, '').trim();
-    var safeMapped = (mapped || extracted).replace(/[<>:"/\\|?*]/g, '').trim();
-    document.getElementById('path-before').textContent = '/audiobooks/' + safeExtracted + '/[title]';
-    document.getElementById('path-after').textContent = '/audiobooks/' + safeMapped + '/[title]';
+    if (!keyword) { preview.style.display = 'none'; return; }
+    var safeFolder = (folderName || keyword).replace(/[<>:"/\\|?*]/g, '').trim();
+    document.getElementById('path-after').textContent = '/audiobooks/' + safeFolder + '/[title]';
     preview.style.display = 'block';
 }
 
 function submitAddMapping() {
-    var extracted = document.getElementById('add-extracted').value.trim();
-    var mapped = document.getElementById('add-mapped').value.trim();
-    if (!extracted || !mapped) { showAppAlert('Please fill in both fields.'); return; }
+    var keyword = document.getElementById('add-keyword').value.trim();
+    var folderName = document.getElementById('add-folder-name').value.trim();
+    if (!keyword || !folderName) { showAppAlert('Please fill in both fields.'); return; }
     fetch('/mappings/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extracted: extracted, mapped: mapped })
+        body: JSON.stringify({ keyword: keyword, folder_name: folderName })
     })
     .then(function(r) { return r.json(); })
     .then(function() { clearAddForm(); loadMappings(); });
 }
 
 function clearAddForm() {
-    document.getElementById('add-extracted').value = '';
-    document.getElementById('add-mapped').value = '';
+    document.getElementById('add-keyword').value = '';
+    document.getElementById('add-folder-name').value = '';
     document.getElementById('path-preview').style.display = 'none';
 }
 
@@ -306,18 +278,18 @@ function commitEditMapping(oldKey, newKey, newValue) {
     fetch('/mappings/rename', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: oldKey, new_extracted: newKey, new_mapped: newValue })
+        body: JSON.stringify({ keyword: oldKey, new_keyword: newKey, new_folder_name: newValue })
     })
     .then(function(r) { return r.json(); })
     .then(function() { loadMappings(); });
 }
 
 function confirmDeleteMapping(key) {
-    showAppConfirm('Remove mapping for "' + key + '"?', function() {
+    showAppConfirm('Remove keyword mapping for "' + key + '"?', function() {
         fetch('/mappings/remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: key })
+            body: JSON.stringify({ keyword: key })
         })
         .then(function(r) { return r.json(); })
         .then(function() { loadMappings(); });
