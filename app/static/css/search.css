@@ -112,14 +112,6 @@ form {
     border-top-color: white;
 }
 
-.message-scroller {
-    display: none;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    width: 100%;
-}
-
 .error-message {
     color: #ef5350;
     font-size: 0.9rem;
