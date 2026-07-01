@@ -94,6 +94,22 @@
     font-size: 0.82rem;
 }
 
+.status-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+}
+.status-table th.sortable:hover {
+    color: var(--text-primary);
+}
+.status-table th.sortable.status-sort-active {
+    color: var(--accent);
+}
+.sort-arrow {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
 .seeding-limit-caption {
     text-align: center;
     color: var(--text-muted);
