@@ -711,27 +711,49 @@ def _extract_series_raw(title):
     return series
 
 
+def _match_keyword_mapping(title):
+    """
+    Check every registered keyword mapping against the raw title. Returns
+    (matched_keyword, folder_name) for the longest (most specific) match,
+    or (None, None) if nothing matches. Shared by get_series_name() (which
+    uses the folder_name directly) and favorites_preview() (which uses
+    this purely to show an informational banner, independent of it).
+    """
+    keyword_map = load_series_map()
+    if not keyword_map:
+        return (None, None)
+    title_lower = title.lower()
+    matches = [kw for kw in keyword_map.keys() if kw and kw.lower() in title_lower]
+    if not matches:
+        return (None, None)
+    best = max(matches, key=len)
+    return (best, keyword_map[best])
+
+
 def get_series_name(title):
+    """
+    Resolve the folder name a download's series-level directory should use.
+
+    Checks every registered keyword mapping against the RAW title first —
+    a keyword is a substring the user has told the app to watch for
+    anywhere in a title ("Star Wars"), not a specific extracted series
+    name to match exactly. This is what lets unrelated-looking titles in
+    the same franchise ("Star Wars - Specter of the Past...", "Star Wars -
+    Heir to the Empire...") land in the same folder without extraction
+    ever needing to figure out they're related on its own, which it
+    fundamentally can't for a sprawling franchise with no shared title
+    structure.
+
+    Falls through to the normal tiered extraction (_extract_series_raw)
+    untouched if no keyword matches at all.
+    """
+    _, folder_name = _match_keyword_mapping(title)
+    if folder_name:
+        return folder_name
+
     series = _extract_series_raw(title)
     if not series:
         series = title
-
-    if os.path.exists(SERIES_MAP_PATH):
-        try:
-            with open(SERIES_MAP_PATH) as f:
-                content = f.read().strip()
-                if content:
-                    mapping = json.loads(content)
-                    sanitized = sanitize_title(series)
-                    # Case-insensitive lookup — a mapping saved under one
-                    # casing must still apply when a later listing extracts
-                    # the same series with different casing, or the mapping
-                    # would silently fail to apply with no indication why.
-                    key = _find_case_insensitive(sanitized, mapping.keys())
-                    if key:
-                        return mapping[key]
-        except json.JSONDecodeError:
-            pass
 
     return series
 
@@ -1412,10 +1434,9 @@ def favorites_preview():
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
 
-    extracted   = sanitize_title(_extract_series_raw(title))
-    series_map  = load_series_map()
-    is_mapped   = extracted in series_map
-    mapped_to   = series_map.get(extracted)  # what the mapping resolves to, if any
+    extracted = sanitize_title(_extract_series_raw(title))
+    matched_keyword, mapped_to = _match_keyword_mapping(title)
+    is_mapped = matched_keyword is not None
 
     # Check if series folder already exists on disk using extracted name
     disk_path = None
@@ -1589,31 +1610,31 @@ def list_mappings():
 
 @app.route("/mappings/preview", methods=["POST"])
 def preview_mapping():
+    """Used by the Download modal to pre-fill the series field — returns
+    whatever get_series_name() currently resolves to for this title,
+    whether that comes from a matching keyword or normal extraction."""
     data  = request.json
     title = data.get("title", "").strip()
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
-    raw       = sanitize_title(_extract_series_raw(title))
-    extracted = sanitize_title(get_series_name(title))
-    is_mapped = bool(_find_case_insensitive(raw, load_series_map().keys()))
-    return jsonify({"success": True, "extracted": extracted, "is_mapped": is_mapped})
+    series_name = sanitize_title(get_series_name(title))
+    return jsonify({"success": True, "series_name": series_name})
 
 
 @app.route("/mappings/add", methods=["POST"])
 def add_mapping():
-    data      = request.json
-    extracted = data.get("extracted", "").strip()
-    mapped    = data.get("mapped", "").strip()
-    if not extracted or not mapped:
+    data     = request.json
+    keyword  = data.get("keyword", "").strip()
+    folder_name = data.get("folder_name", "").strip()
+    if not keyword or not folder_name:
         return jsonify({"success": False, "message": "Both fields required"}), 400
     mapping = load_series_map()
-    # If a mapping already exists for this extracted name under different
-    # casing, update it rather than creating a second, conflicting entry
-    # for what's really the same series.
-    existing_key = _find_case_insensitive(extracted, mapping.keys())
-    if existing_key and existing_key != extracted:
+    # If this keyword already exists under different casing, update it
+    # rather than creating a second, conflicting entry.
+    existing_key = _find_case_insensitive(keyword, mapping.keys())
+    if existing_key and existing_key != keyword:
         mapping.pop(existing_key)
-    mapping[extracted] = mapped
+    mapping[keyword] = folder_name
     save_series_map(mapping)
     return jsonify({"success": True})
 
@@ -1621,9 +1642,9 @@ def add_mapping():
 @app.route("/mappings/remove", methods=["POST"])
 def remove_mapping():
     data    = request.json
-    key     = data.get("key", "").strip()
+    keyword = data.get("keyword", "").strip()
     mapping = load_series_map()
-    existing_key = _find_case_insensitive(key, mapping.keys())
+    existing_key = _find_case_insensitive(keyword, mapping.keys())
     if existing_key:
         mapping.pop(existing_key, None)
     save_series_map(mapping)
@@ -1632,26 +1653,26 @@ def remove_mapping():
 
 @app.route("/mappings/rename", methods=["POST"])
 def rename_mapping():
-    data          = request.json
-    key           = data.get("key", "").strip()
-    new_extracted = data.get("new_extracted", "").strip()
-    new_mapped    = data.get("new_mapped", "").strip()
-    if not key or not new_extracted or not new_mapped:
+    data            = request.json
+    keyword         = data.get("keyword", "").strip()
+    new_keyword     = data.get("new_keyword", "").strip()
+    new_folder_name = data.get("new_folder_name", "").strip()
+    if not keyword or not new_keyword or not new_folder_name:
         return jsonify({"success": False}), 400
     mapping = load_series_map()
 
-    old_key = _find_case_insensitive(key, mapping.keys())
+    old_key = _find_case_insensitive(keyword, mapping.keys())
     if old_key:
         mapping.pop(old_key)
 
-    # If the new "from" name collides case-insensitively with a different
-    # existing mapping, replace that entry rather than ending up with two
-    # keys for the same extracted series name.
-    collision_key = _find_case_insensitive(new_extracted, mapping.keys())
+    # If the new keyword collides case-insensitively with a different
+    # existing keyword, replace that entry rather than ending up with two
+    # keys effectively watching for the same text.
+    collision_key = _find_case_insensitive(new_keyword, mapping.keys())
     if collision_key:
         mapping.pop(collision_key)
 
-    mapping[new_extracted] = new_mapped
+    mapping[new_keyword] = new_folder_name
     save_series_map(mapping)
     return jsonify({"success": True})
 
