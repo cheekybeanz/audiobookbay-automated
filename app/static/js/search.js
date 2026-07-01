@@ -1343,7 +1343,7 @@ function openDownloadModal(link, title) {
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-        _originalSeries = data.extracted || title;
+        _originalSeries = data.series_name || title;
         document.getElementById('modal-title-display').textContent = title;
         document.getElementById('modal-series-input').value = _originalSeries;
         document.getElementById('modal-series-input').disabled = skipSeries;
@@ -1443,14 +1443,11 @@ function confirmDownload() {
     btn.disabled       = true;
     cancelBtn.disabled = true;
 
+    // Editing the series field here only affects this one download — it
+    // no longer creates a lasting mapping. Standing folder-name rules for
+    // a whole series/franchise are now set up deliberately on the Series
+    // Mappings page as a keyword, not as a side effect of one edit here.
     var saveMapping = Promise.resolve();
-    if (!skip && seriesInput && seriesInput !== _originalSeries) {
-        saveMapping = fetch('/mappings/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ extracted: _originalSeries, mapped: seriesInput })
-        }).then(function(r) { return r.json(); });
-    }
 
     saveMapping.then(function() {
         return fetch('/send', {
