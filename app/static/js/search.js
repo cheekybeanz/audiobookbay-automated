@@ -221,6 +221,19 @@ function devShowDownloadExists() {
     devStatus('Opened Download modal with a fake exists warning.');
 }
 
+function devShowDownloadKeywordMatch() {
+    openDownloadModal('#', 'Series Title 5 - Fake Author');
+    setTimeout(function() {
+        var banner = document.getElementById('modal-keyword-info');
+        var textEl = document.getElementById('modal-keyword-text');
+        if (banner && textEl) {
+            textEl.textContent = 'Series Title';
+            banner.style.display = 'flex';
+        }
+    }, 400);
+    devStatus('Opened Download modal with a fake keyword match banner.');
+}
+
 function devShowDownloadResult(success) {
     openDownloadModal('#', 'Series Title 5 - Fake Author');
     setTimeout(function() {
@@ -1335,6 +1348,7 @@ function openDownloadModal(link, title) {
 
     var skipSeries = localStorage.getItem(SKIP_SERIES_KEY) === 'true';
     document.getElementById('modal-skip-series').checked = skipSeries;
+    document.getElementById('modal-keyword-info').style.display = 'none';
 
     fetch('/mappings/preview', {
         method: 'POST',
@@ -1347,6 +1361,12 @@ function openDownloadModal(link, title) {
         document.getElementById('modal-title-display').textContent = title;
         document.getElementById('modal-series-input').value = _originalSeries;
         document.getElementById('modal-series-input').disabled = skipSeries;
+
+        if (data.matched_keyword) {
+            document.getElementById('modal-keyword-text').textContent = data.matched_keyword;
+            document.getElementById('modal-keyword-info').style.display = 'flex';
+        }
+
         updateModalPath();
         checkVolumeExists(title, _originalSeries);
         document.getElementById('download-modal').style.display = 'flex';
@@ -1425,6 +1445,7 @@ function closeDownloadModal() {
     document.getElementById('modal-series-hint').textContent = '';
     document.getElementById('modal-path-preview').textContent = '';
     document.getElementById('modal-exists-warning').style.display = 'none';
+    document.getElementById('modal-keyword-info').style.display = 'none';
     var confirmBtn = document.querySelector('.modal-btn-confirm');
     var cancelBtn  = document.querySelector('.modal-btn-cancel');
     if (confirmBtn) { confirmBtn.textContent = 'Download to Server'; confirmBtn.disabled = false; }
