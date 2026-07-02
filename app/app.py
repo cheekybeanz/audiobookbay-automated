@@ -58,6 +58,11 @@ else:
     load_dotenv()
 
 ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu").strip().strip("'\"")
+# Every URL built later already prepends "https://" itself, so a value that
+# already includes a scheme (someone pasting a full URL instead of just the
+# domain, e.g. "https://audiobookbay.lu") would otherwise double up into a
+# broken "https://https://..." URL. Strip it if present.
+ABB_HOSTNAME = re.sub(r"^https?://", "", ABB_HOSTNAME, flags=re.IGNORECASE).strip().strip("'\"").rstrip("/")
 
 
 def _get_int_env(name, default):
@@ -90,6 +95,14 @@ def _get_float_env(name, default):
 PAGE_LIMIT   = _get_int_env("PAGE_LIMIT", 2)
 
 DOWNLOAD_CLIENT = os.getenv("DOWNLOAD_CLIENT")
+if DOWNLOAD_CLIENT:
+    # Case shouldn't matter here, but exact-match comparisons against this
+    # value assume lowercase throughout the rest of the file. Worth doing
+    # since even upstream's own Unraid template default capitalizes it
+    # ("Deluge|qBittorrent|Transmission"), which previously broke downloads
+    # entirely with an "Unsupported download client" error for anyone who
+    # left that capitalization as-is.
+    DOWNLOAD_CLIENT = DOWNLOAD_CLIENT.strip().lower()
 DL_URL = os.getenv("DL_URL")
 if DL_URL:
     parsed_url = urlparse(DL_URL)
