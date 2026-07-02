@@ -78,7 +78,7 @@ h2 {
     position: absolute;
     left: 10px;
     top: 50%;
-    transform: translateY(calc(-50% + 3px));
+    transform: translateY(calc(-50% + 0px));
     display: flex;
     align-items: center;
     padding: 0;
