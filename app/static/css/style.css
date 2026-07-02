@@ -76,20 +76,20 @@ h2 {
 
 .navbar-logo {
     position: absolute;
-    left: 16px;
+    left: 10px;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(calc(-50% + 3px));
     display: flex;
     align-items: center;
     padding: 0;
     margin: 0;
-    height: 32px;
+    height: 42px;
     border-bottom: none;
 }
 
 .navbar-logo img {
-    height: 32px;
-    width: 32px;
+    height: 42px;
+    width: 42px;
     display: block;
 }
 
@@ -172,11 +172,11 @@ button {
     }
     .navbar-logo {
         left: 8px;
-        height: 24px;
+        height: 34px;
     }
     .navbar-logo img {
-        height: 24px;
-        width: 24px;
+        height: 34px;
+        width: 34px;
     }
     .content {
         padding: 0 12px 30px;
