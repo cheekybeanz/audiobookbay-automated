@@ -440,6 +440,7 @@ td.action-cell {
 }
 .fav-search-btn:hover { background: none; color: var(--accent); }
 
+.fav-refresh-btn,
 .fav-edit-btn,
 .fav-delete-btn {
     opacity: 0;
@@ -452,11 +453,18 @@ td.action-cell {
     flex-shrink: 0;
     transition: opacity 0.15s, color 0.2s;
 }
+.fav-entry:hover .fav-refresh-btn,
 .fav-entry:hover .fav-edit-btn,
 .fav-entry:hover .fav-delete-btn {
     opacity: 1;
     pointer-events: auto;
 }
+.fav-refresh-btn {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    padding: 0 4px;
+}
+.fav-refresh-btn:hover { background: none; color: var(--accent); }
 .fav-edit-btn {
     color: var(--text-dim);
     font-size: 0.8rem;
