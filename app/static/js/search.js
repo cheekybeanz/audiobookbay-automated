@@ -643,7 +643,31 @@ function refreshAlertBells() {
         var enabled       = data.enabled || false;
         var notifications = data.notifications || [];
         updateBellState(bell, enabled, notifications, series);
+
+        // Manual check only makes sense for series already being monitored —
+        // no separate enable/disable dance, just show/hide with the bell state.
+        var refreshBtn = entry.querySelector('.fav-refresh-btn');
+        if (refreshBtn) refreshBtn.style.display = enabled ? '' : 'none';
     });
+}
+
+function forceCheckSeries(series) {
+    // Manual check for a single series, reusing the same /alerts/force_check
+    // route the dev panel already uses. Only ever called for series with
+    // alerts already enabled, so there's no enable/disable side effect to
+    // worry about here — just run the check and let the normal alerts/bell
+    // refresh pick up whatever it finds.
+    var spinner = document.getElementById('favorites-header-spinner');
+    if (spinner) {
+        spinner.style.display = 'inline-block';
+        spinner.title = 'Checking "' + series + '"\u2026';
+    }
+
+    fetch('/alerts/force_check/' + encodeURIComponent(series))
+        .then(function(r) { return r.json(); })
+        .then(function() { loadAlertsStatus(); })
+        .catch(function(e) { console.warn('[Alerts] Force check failed for "' + series + '":', e); })
+        .finally(function() { refreshCycleStatus(); });
 }
 
 function updateBellState(bell, enabled, notifications, series) {
@@ -1201,6 +1225,17 @@ function renderFavorites(favs) {
             link.textContent = name;
             link.onclick = function(e) { e.stopPropagation(); searchFavorite(name); };
             entry.appendChild(link);
+
+            // Manual per-series check. Only ever shown for series that already
+            // have alerts enabled (see refreshAlertBells) — hidden by default
+            // here since alert state hasn't loaded yet at initial render.
+            var refreshBtn = document.createElement('button');
+            refreshBtn.className = 'fav-refresh-btn';
+            refreshBtn.textContent = '\uD83D\uDD04';
+            refreshBtn.title = 'Check this series now';
+            refreshBtn.style.display = 'none';
+            refreshBtn.onclick = function(e) { e.stopPropagation(); forceCheckSeries(name); };
+            entry.appendChild(refreshBtn);
 
             var editBtn = document.createElement('button');
             editBtn.className = 'fav-edit-btn';
