@@ -1965,15 +1965,9 @@ def check_exists():
         return jsonify({"exists": False})
 
     try:
-        num_int  = int(float(vol_num))
-        variants = list(set([
-            str(num_int),
-            vol_num,
-            str(num_int).zfill(2),
-            str(num_int).zfill(3),
-        ]))
+        target_int = int(float(vol_num))
     except ValueError:
-        variants = [vol_num]
+        return jsonify({"exists": False})
 
     safe_series = sanitize_title(series) if series else ""
     if safe_series:
@@ -1989,10 +1983,23 @@ def check_exists():
         for entry in os.scandir(scan_path):
             if not entry.is_dir():
                 continue
-            for v in variants:
-                pattern = "(?<![0-9])" + re.escape(v) + "(?![0-9])"
-                if re.search(pattern, entry.name):
-                    return jsonify({"exists": True, "match": entry.path})
+            # Extract each folder's own volume number using the same
+            # known-series-aware logic used for disk comparison elsewhere,
+            # rather than searching for the target digit as raw text
+            # inside the folder name — that approach only ever worked by
+            # coincidence for a folder whose subtitle happened to contain
+            # a literal matching number, and silently missed anything
+            # using Roman numerals (e.g. "VI") since there's no digit "6"
+            # anywhere in that text to find.
+            entry_vol = extract_vol_num_known_series(entry.name, series) if series else extract_vol_num(entry.name)
+            if entry_vol is None:
+                continue
+            try:
+                entry_int = int(float(entry_vol))
+            except ValueError:
+                continue
+            if entry_int == target_int:
+                return jsonify({"exists": True, "match": entry.path})
     except PermissionError:
         pass
 
