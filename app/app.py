@@ -58,7 +58,36 @@ else:
     load_dotenv()
 
 ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu").strip().strip("'\"")
-PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 2))
+
+
+def _get_int_env(name, default):
+    """Read an integer env var, falling back to `default` (with a warning,
+    not a crash) if it's missing, empty, or not actually a valid number.
+    A typo in an optional setting should degrade gracefully, not take the
+    whole app down at startup — same principle already applied below to
+    ALERT_CHECK_TIME, just generalized to the numeric settings too."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        log.warning(f"Invalid {name} value '{raw}' — expected a whole number. Falling back to: {default}")
+        return default
+
+
+def _get_float_env(name, default):
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw.strip())
+    except ValueError:
+        log.warning(f"Invalid {name} value '{raw}' — expected a number. Falling back to: {default}")
+        return default
+
+
+PAGE_LIMIT   = _get_int_env("PAGE_LIMIT", 2)
 
 DOWNLOAD_CLIENT = os.getenv("DOWNLOAD_CLIENT")
 DL_URL = os.getenv("DL_URL")
@@ -79,21 +108,19 @@ DL_PASSWORD    = os.getenv("DL_PASSWORD")
 DL_CATEGORY    = os.getenv("DL_CATEGORY", "Audiobookbay-Audiobooks")
 SAVE_PATH_BASE  = os.getenv("SAVE_PATH_BASE")
 SCAN_PATH_BASE  = os.getenv("SCAN_PATH_BASE", SAVE_PATH_BASE)
-REQUEST_DELAY   = float(os.getenv("REQUEST_DELAY", "0.5"))
+REQUEST_DELAY   = _get_float_env("REQUEST_DELAY", 0.5)
 
 # qBittorrent-only per-torrent seeding limits, applied at add-time (mirrors
 # how Sonarr/Radarr work around qBittorrent having no per-category ratio
 # setting the way Deluge does). Left unset by default so qBittorrent's own
 # global seeding limit setting applies, exactly as if this app weren't
 # specifying anything at all.
-_qb_ratio_raw = os.getenv("QB_RATIO_LIMIT", "").strip()
-QB_RATIO_LIMIT = float(_qb_ratio_raw) if _qb_ratio_raw else None
-_qb_seed_time_raw = os.getenv("QB_SEED_TIME_LIMIT_MIN", "").strip()
-QB_SEED_TIME_LIMIT_MIN = int(_qb_seed_time_raw) if _qb_seed_time_raw else None
+QB_RATIO_LIMIT = _get_float_env("QB_RATIO_LIMIT", None)
+QB_SEED_TIME_LIMIT_MIN = _get_int_env("QB_SEED_TIME_LIMIT_MIN", None)
 
 NAV_LINK_NAME = os.getenv("NAV_LINK_NAME")
 NAV_LINK_URL  = os.getenv("NAV_LINK_URL")
-FLASK_PORT    = int(os.getenv("PORT", 5078))
+FLASK_PORT    = _get_int_env("PORT", 5078)
 
 # Dev panel — testing tools tucked into Search/Status/Mappings (fake search
 # results, fake alerts, fake torrent rows, etc). Off by default since it's
@@ -101,7 +128,7 @@ FLASK_PORT    = int(os.getenv("PORT", 5078))
 DEV_PANEL = os.getenv("DEV_PANEL", "false").strip().lower() == "true"
 
 # Alert scheduler config
-ALERT_CHECK_INTERVAL = int(os.getenv("ALERT_CHECK_INTERVAL", 5))   # minutes between each series check within a cycle
+ALERT_CHECK_INTERVAL = _get_int_env("ALERT_CHECK_INTERVAL", 5)   # minutes between each series check within a cycle
 ALERT_CHECK_TIME     = os.getenv("ALERT_CHECK_TIME", "02:00")       # time of day to run daily cycle (HH:MM, 24hr)
 
 log.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
