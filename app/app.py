@@ -57,7 +57,7 @@ if os.path.exists(_config_env):
 else:
     load_dotenv()
 
-ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu")
+ABB_HOSTNAME = os.getenv("ABB_HOSTNAME", "audiobookbay.lu").strip().strip("'\"")
 PAGE_LIMIT   = int(os.getenv("PAGE_LIMIT", 2))
 
 DOWNLOAD_CLIENT = os.getenv("DOWNLOAD_CLIENT")
@@ -363,6 +363,13 @@ def search_audiobookbay(query, max_pages=PAGE_LIMIT, start_page=1):
             response = requests.get(url, headers=headers, timeout=15)
         except requests.exceptions.RequestException as e:
             log.error(f"Failed to fetch page {page}. Reason: {e}")
+            # Only treat this as fatal if it's the very first page and nothing
+            # has been gathered yet — a hiccup on a later page still returns
+            # whatever was already found, same as before. A first-page failure
+            # previously fell through silently to an empty result list with no
+            # indication anything went wrong; surface it instead.
+            if page == start_page and not results:
+                raise RuntimeError("connection_failed")
             break
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -1201,6 +1208,9 @@ def search():
         if str(e) == "rate_limited":
             error_msg = ("AudioBookBay has rate limited this IP. "
                          "Try again later or route traffic through a VPN.")
+        elif str(e) == "connection_failed":
+            error_msg = (f"Couldn't reach AudioBookBay at '{ABB_HOSTNAME}'. "
+                         "Double-check ABB_HOSTNAME in your configuration, or the site may be temporarily down.")
         else:
             error_msg = str(e)
         return render_template(
@@ -1226,6 +1236,9 @@ def search_more():
     except RuntimeError as e:
         if str(e) == "rate_limited":
             return jsonify({"error": "Rate limited by AudioBookBay. Try again later or use a VPN."}), 429
+        if str(e) == "connection_failed":
+            return jsonify({"error": f"Couldn't reach AudioBookBay at '{ABB_HOSTNAME}'. "
+                                      "Double-check ABB_HOSTNAME in your configuration, or the site may be temporarily down."}), 502
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
