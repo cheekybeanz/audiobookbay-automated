@@ -1108,6 +1108,18 @@ def _check_series_for_new_volume(series, alerts):
             if link in blocked_urls or link in existing_notifications:
                 continue
 
+            # Relevance gate: extract_vol_num_known_series() only uses the
+            # series name to pick a PARSING STRATEGY (strip-prefix vs.
+            # generic fallback) — it was never actually a check that this
+            # search result belongs to the series at all. A page-1 result
+            # that doesn't even contain the series name could still fall
+            # through to the generic parser and produce a number that gets
+            # compared against your disk baseline. Require the (normalized)
+            # series name to actually appear in the title before any of
+            # that parsing is trusted.
+            if _normalize_for_fuzzy(series) not in _normalize_for_fuzzy(title):
+                continue
+
             vol = extract_vol_num_known_series(title, series)
             if vol is None:
                 continue
@@ -1117,7 +1129,12 @@ def _check_series_for_new_volume(series, alerts):
             except ValueError:
                 continue
 
-            if highest_on_disk >= 0 and vol_int > highest_on_disk:
+            # highest_on_disk == -1 means nothing is owned for this series yet
+            # (no folder found, or an empty one) — in that case, ANY volume
+            # ABB turns up is new by definition, so there's no floor to
+            # compare against. -1 < any real volume number, so this falls
+            # out of a plain > comparison without needing a separate branch.
+            if vol_int > highest_on_disk:
                 log.info(f"[Alerts] New volume found for '{series}': {title} (Vol {vol_int} > disk {highest_on_disk})")
                 new_notifications.append({
                     "url":        link,
