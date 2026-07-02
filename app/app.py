@@ -865,7 +865,8 @@ def _get_highest_vol_on_disk(series_name):
     if not scan_path or not os.path.isdir(scan_path):
         return -1
 
-    highest = -1
+    highest    = -1
+    has_unnumbered_entry = False
     try:
         for entry in os.scandir(scan_path):
             if not entry.is_dir():
@@ -875,9 +876,24 @@ def _get_highest_vol_on_disk(series_name):
                 try:
                     highest = max(highest, int(float(vol)))
                 except ValueError:
-                    pass
+                    has_unnumbered_entry = True
+            else:
+                has_unnumbered_entry = True
     except PermissionError:
         pass
+
+    # A series' first entry commonly has no explicit volume marker at all
+    # ("Series Name: Subtitle" with nothing else on disk to compare against)
+    # — extract_vol_num_known_series correctly returns no volume for it,
+    # same as it should. But leaving highest at -1 here is indistinguishable
+    # from "nothing on disk for this series," which breaks the >= 0 check in
+    # _check_series_for_new_volume: a real, higher-numbered volume 2 posted
+    # to ABB would never be flagged, because the comparison never runs.
+    # If the folder has content but none of it parsed to a number, treat
+    # that as an implicit volume 1 baseline — owning an unnumbered entry
+    # means owning at least the first one, never "nothing."
+    if highest < 0 and has_unnumbered_entry:
+        highest = 1
 
     return highest
 
