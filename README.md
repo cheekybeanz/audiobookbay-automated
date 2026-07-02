@@ -151,6 +151,8 @@ If you'd like several differently-titled books (like a large franchise) grouped 
  
 **Alerts**
 Toggle the bell next to any favorited series to start monitoring it. The app checks AudioBookBay's first results page for that series during its daily cycle and flags anything with a higher volume number than what's already on disk. Dismiss a single result to block it from resurfacing, or clear all notifications for a series without blocking anything.
+
+Alerts work by comparing volume numbers, so they're only useful for series where each entry is numbered in some way (Vol. 2, Book 3, a Roman numeral, etc). A standalone title or a series with no detectable numbering has nothing for the app to compare, so new releases for it won't be flagged.
  
 ## Notes
  
