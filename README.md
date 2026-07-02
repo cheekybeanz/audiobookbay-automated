@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshots/icon.png" width="120" alt="AudioBookBay Automated icon">
+</p>
+
 # AudioBookBay Automated
  
 A self-hosted web app that searches AudioBookBay, sends results straight to your torrent client, and keeps your audiobook library organized by series automatically. Built for use alongside Audiobookshelf.
