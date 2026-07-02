@@ -38,6 +38,7 @@ This project began as a fork of the original audiobookbay-automated and has sinc
 - Optional "skip series folder" mode for standalone titles
 - Understands the many different ways AudioBookBay titles are formatted — numbered volumes, Roman numerals, volume ranges like "Books 1-12", extra tags like "[Updated]", and more — so series are grouped correctly without any manual setup in most cases, even if a folder already on disk doesn't match AudioBookBay's title exactly
 - Keyword folder grouping for franchises where individual book titles don't share a common series name — set a keyword once (e.g. "Star Wars") and every matching AudioBookBay title is grouped into that folder automatically going forward
+
 **Favorites and new volume alerts**
 - Favorites panel for series you want to track, with sorting and quick re-search
 - Per-series alert bell showing monitoring status and lighting up when a new volume is found
