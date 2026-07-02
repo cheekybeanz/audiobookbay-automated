@@ -845,7 +845,18 @@ def _get_highest_vol_on_disk(series_name):
     if not SCAN_PATH_BASE:
         return -1
 
-    safe_series = sanitize_title(series_name) if series_name else ""
+    # If a keyword mapping applies to this favorite name, the series-level
+    # folder on disk may actually be named differently (e.g. a favorite of
+    # "He Who Fights With Monsters" whose downloads are keyword-mapped
+    # into a folder called "HWFWM") — use the mapped folder name to LOCATE
+    # the right folder, but keep using the real favorite name below for
+    # extracting volume numbers from what's inside it, since each
+    # individual book's own folder name still reflects the real title
+    # text, not the keyword-mapped parent folder's name.
+    _, mapped_folder = _match_keyword_mapping(series_name) if series_name else (None, None)
+    folder_search_name = mapped_folder or series_name
+
+    safe_series = sanitize_title(folder_search_name) if folder_search_name else ""
     if safe_series:
         scan_path = _find_series_folder(SCAN_PATH_BASE, safe_series)
     else:
