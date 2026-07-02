@@ -558,6 +558,43 @@ def _match_roman_token(text, at_start):
     return (m, val)
 
 
+# ── Spelled-out volume number support ────────────────────────────────────
+# Covers "Book Four", "Vol. Twenty-Two", etc. Only fires right after a
+# Vol/Book/Part/Year keyword (see _WORD_NUM_RE usage in tier 2) — never as
+# a standalone bare-word tier — since ordinary English words far outnumber
+# valid volume-number words and would produce constant false matches
+# without a keyword anchoring them.
+_ONES_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+    "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "nineteen": 19,
+}
+_TENS_WORDS = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+    "seventy": 70, "eighty": 80, "ninety": 90,
+}
+_ALL_NUMBER_WORDS = sorted(list(_ONES_WORDS) + list(_TENS_WORDS), key=len, reverse=True)
+# Matches "twenty", "twenty-two", "twenty two", "four", etc. Longest words
+# first in the alternation so "seventeen" is tried before "seven" can grab
+# a partial match out of it.
+_WORD_NUM_RE = (
+    r"(?:" + "|".join(_ALL_NUMBER_WORDS) + r")"
+    r"(?:[\s-]+(?:" + "|".join(_ONES_WORDS) + r"))?"
+)
+
+
+def _word_to_number(text):
+    """Convert a spelled-out number ('four', 'twenty-two', 'twenty two') to
+    an int, or None if it isn't a valid one/teens/tens(+ones) combination."""
+    tokens = re.split(r"[\s-]+", text.strip().lower())
+    if len(tokens) == 1:
+        return _ONES_WORDS.get(tokens[0]) or _TENS_WORDS.get(tokens[0])
+    if len(tokens) == 2 and tokens[0] in _TENS_WORDS and tokens[1] in _ONES_WORDS and _ONES_WORDS[tokens[1]] < 10:
+        return _TENS_WORDS[tokens[0]] + _ONES_WORDS[tokens[1]]
+    return None
+
+
 # ── Unified series name / volume number parser ──────────────────────────
 # Single source of truth for splitting an ABB (or sanitized on-disk folder)
 # title into (series_name, volume_number). Both _extract_series_raw and
@@ -638,6 +675,21 @@ def _parse_series_and_volume(title):
         vol = matches[-1].group(1)  # last match wins for the number itself
         series = working[:matches[0].start()].strip().rstrip(",").strip()
         return (series or authorless, vol)
+
+    # Same keyword group, but for a spelled-out number ("Book Four",
+    # "Vol. Twenty-Two") instead of a digit. Kept as its own pass rather
+    # than folded into the digit regex above so the digit form — the far
+    # more common case — stays a simple, fast, easy-to-read pattern on its
+    # own; this only runs at all when no digit form matched anywhere.
+    word_matches = list(re.finditer(
+        rf"[:,]?\s*(?:Vol(?:ume)?s?[.]?|Books?|Parts?|Years?)[ ]+({_WORD_NUM_RE})\b",
+        working, re.IGNORECASE
+    ))
+    if word_matches:
+        vol = _word_to_number(word_matches[-1].group(1))
+        if vol is not None:
+            series = working[:word_matches[0].start()].strip().rstrip(",").strip()
+            return (series or authorless, str(vol))
 
     # ── Tier 3: bare digit or Roman numeral at the true end only ──
     # (?<!,) guards against thousands-grouped numbers in a real series name
