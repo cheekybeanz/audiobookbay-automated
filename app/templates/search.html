@@ -56,14 +56,14 @@
 <!-- Favorites Panel — always visible, header toggles content -->
 <div id="favorites-panel">
     <div id="favorites-header" onclick="toggleFavorites()" title="Click to expand or collapse">
-        <span id="favorites-header-spinner" style="display:none;" title="Checking favorites for new volumes"></span>
-        <span id="favorites-header-label">&#11088; Favorites</span>
+        <span id="favorites-header-spinner" style="display:none;" title="Checking saved series for new volumes"></span>
+        <span id="favorites-header-label">Saved Series</span>
         <span id="favorites-header-arrow">&#9662;</span>
     </div>
     <div id="favorites-body" style="display:none;">
         <div id="favorites-list">
             <p id="favorites-empty" style="display:none;">
-                No favorites saved yet. Use the &#11088; Save Series button on a search result to add one.
+                Nothing saved yet. Use the Save button on a search result to add one.
             </p>
         </div>
     </div>
@@ -136,7 +136,7 @@
             <div id="save-series-already-saved" style="display:none;" class="modal-exists-warning save-series-notice-green">
                 <span class="modal-exists-icon">&#10003;</span>
                 <div class="modal-exists-text">
-                    <span class="modal-exists-title">Already in favorites</span>
+                    <span class="modal-exists-title">Already saved</span>
                 </div>
             </div>
 
@@ -172,7 +172,7 @@
 
             <div class="modal-actions">
                 <button class="modal-btn-cancel" onclick="closeSaveSeriesModal()">Cancel</button>
-                <button class="modal-btn-confirm" id="save-series-confirm-btn" onclick="confirmSaveSeries()">&#11088; Save Series</button>
+                <button class="modal-btn-confirm" id="save-series-confirm-btn" onclick="confirmSaveSeries()">Save</button>
             </div>
         </div>
         <div id="save-series-modal-result" style="display:none;"></div>
