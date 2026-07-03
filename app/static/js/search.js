@@ -1305,19 +1305,91 @@ function renderAddRow(list) {
     nextCheckText.textContent = '';
 
     var checkBtn = document.createElement('button');
-    checkBtn.className = 'fav-check-now-btn';
+    checkBtn.className = 'fav-menu-item';
     checkBtn.id = 'fav-check-now-btn';
     checkBtn.textContent = 'Check Now';
     checkBtn.title = 'Immediately check all enabled series for new volumes on ABB';
-    checkBtn.onclick = function() { runAlertsNow(); };
+    checkBtn.onclick = function() { closeFavCogMenu(); runAlertsNow(); };
+
+    var discordTestBtn = document.createElement('button');
+    discordTestBtn.className = 'fav-menu-item';
+    discordTestBtn.id = 'fav-discord-test-btn';
+    discordTestBtn.textContent = 'Test Discord Webhook';
+    discordTestBtn.title = 'Send a sample notification to confirm your Discord webhook is working';
+    discordTestBtn.style.display = 'none';   // shown only if a webhook is actually configured
+    discordTestBtn.onclick = function() { sendDiscordTest(discordTestBtn); };
+
+    var cogMenu = document.createElement('div');
+    cogMenu.className = 'fav-cog-menu';
+    cogMenu.id = 'fav-cog-menu';
+    cogMenu.style.display = 'none';
+    cogMenu.appendChild(checkBtn);
+    cogMenu.appendChild(discordTestBtn);
+
+    var cogBtn = document.createElement('button');
+    cogBtn.className = 'fav-cog-btn';
+    cogBtn.id = 'fav-cog-btn';
+    cogBtn.textContent = '\u2699';
+    cogBtn.title = 'Alert options';
+    cogBtn.onclick = function(e) { e.stopPropagation(); toggleFavCogMenu(); };
+
+    var cogWrap = document.createElement('div');
+    cogWrap.className = 'fav-cog-wrap';
+    cogWrap.appendChild(cogBtn);
+    cogWrap.appendChild(cogMenu);
 
     checkRow.appendChild(nextCheckText);
-    checkRow.appendChild(checkBtn);
+    checkRow.appendChild(cogWrap);
     footerLine.appendChild(checkRow);
 
     list.appendChild(footerLine);
 
+    fetch('/alerts/discord_status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.configured) discordTestBtn.style.display = '';
+        })
+        .catch(function() {});
+
     refreshCycleStatus();
+}
+
+function toggleFavCogMenu() {
+    var menu = document.getElementById('fav-cog-menu');
+    if (!menu) return;
+    menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+}
+
+function closeFavCogMenu() {
+    var menu = document.getElementById('fav-cog-menu');
+    if (menu) menu.style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.querySelector('.fav-cog-wrap');
+    if (wrap && !wrap.contains(e.target)) closeFavCogMenu();
+});
+
+function sendDiscordTest(btn) {
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending\u2026';
+
+    fetch('/alerts/discord_test', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.textContent = data.success ? 'Sent!' : 'Failed';
+        })
+        .catch(function() {
+            btn.textContent = 'Failed';
+        })
+        .finally(function() {
+            setTimeout(function() {
+                btn.textContent = original;
+                btn.disabled = false;
+                closeFavCogMenu();
+            }, 1500);
+        });
 }
 
 function saveManualFavorite(name) {
