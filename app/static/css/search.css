@@ -322,6 +322,19 @@ td.action-cell {
     cursor: default;
 }
 
+/* Already-saved hint on a search result row — same colors as the modal's
+   disabled/already-saved state, but stays clickable (opens the modal, which
+   still offers renaming or toggling alerts for an already-saved series). */
+.fav-btn-saved {
+    background-color: rgba(46,125,50,0.2);
+    color: #81c784;
+    border-color: rgba(46,125,50,0.4) !important;
+}
+.fav-btn-saved:hover {
+    background-color: rgba(46,125,50,0.3);
+    color: #a5d6a7;
+}
+
 /* Details — tertiary, least prominent */
 .btn-details {
     background-color: transparent;
@@ -1053,15 +1066,28 @@ td.action-cell {
     margin: 0;
     width: auto;
     white-space: nowrap;
-    transition: color 0.15s;
+    transition: color 0.15s, opacity 0.15s, filter 0.15s;
     line-height: 1;
 }
 
-/* Bell sort — same width as .fav-bell-btn (emoji + 6px padding-right) */
+/* Bell sort — same width as .fav-bell-btn (emoji + 6px padding-right).
+   color has no visible effect on emoji glyphs (browsers render them in
+   their own fixed palette), so unlike the Title sort button next to it,
+   this one's at-rest/active states use opacity + filter instead — the same
+   technique the per-row bells already use below, so it actually dims and
+   lights up now instead of always sitting at full native brightness. */
 #fav-sort-bell {
     flex-shrink: 0;
     width: 28px;
     text-align: left;
+    opacity: 0.55;
+}
+#fav-sort-bell:hover {
+    opacity: 0.85;
+}
+#fav-sort-bell.fav-sort-active {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px var(--accent));
 }
 
 /* Title sort — absolutely centered in the sort row */
