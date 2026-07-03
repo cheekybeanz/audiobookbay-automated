@@ -144,6 +144,13 @@ DEV_PANEL = os.getenv("DEV_PANEL", "false").strip().lower() == "true"
 ALERT_CHECK_INTERVAL = _get_int_env("ALERT_CHECK_INTERVAL", 5)   # minutes between each series check within a cycle
 ALERT_CHECK_TIME     = os.getenv("ALERT_CHECK_TIME", "02:00")       # time of day to run daily cycle (HH:MM, 24hr)
 
+# Discord notifications — off entirely unless a webhook URL is set. The
+# automated daily cycle always notifies when a URL is present; manual checks
+# (Check Now, per-series refresh) only notify if explicitly opted into below,
+# so testing/spot-checking a series doesn't spam Discord by default.
+DISCORD_WEBHOOK_URL         = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
+DISCORD_NOTIFY_MANUAL_CHECKS = os.getenv("DISCORD_NOTIFY_MANUAL_CHECKS", "false").strip().lower() == "true"
+
 log.info(f"ABB_HOSTNAME: {ABB_HOSTNAME}")
 log.info(f"DOWNLOAD_CLIENT: {DOWNLOAD_CLIENT}")
 log.info(f"DL_HOST: {DL_HOST}")
@@ -163,6 +170,8 @@ log.info(f"PORT: {FLASK_PORT}")
 log.info(f"DEV_PANEL: {DEV_PANEL}")
 log.info(f"ALERT_CHECK_INTERVAL: {ALERT_CHECK_INTERVAL}m")
 log.info(f"ALERT_CHECK_TIME: {ALERT_CHECK_TIME}")
+log.info(f"DISCORD_WEBHOOK_URL: {'set' if DISCORD_WEBHOOK_URL else 'not set (Discord notifications disabled)'}")
+log.info(f"DISCORD_NOTIFY_MANUAL_CHECKS: {DISCORD_NOTIFY_MANUAL_CHECKS}")
 
 # ── Startup config validation ──────────────────────────────────────────────
 _valid_clients = ("qbittorrent", "transmission", "delugeweb")
@@ -1037,18 +1046,23 @@ def _is_blocked(url):
 # ── Alert scheduler ────────────────────────────────────────────────────────
 _alert_series_queue = []
 _alert_cycle_total  = 0   # total series in the current/last cycle, for progress display
+_alert_cycle_notify = True  # whether THIS cycle should send Discord pings — set once at
+                             # cycle start and read by every later tick, since the tick job
+                             # itself runs with no arguments and has no other way to know
+                             # whether the cycle it's draining was automated or manual.
 
-def _alert_cycle_start():
+def _alert_cycle_start(manual=False):
     """
-    Called once per day at ALERT_CHECK_TIME (or manually via /alerts/run_now).
-    Builds the queue of enabled series and immediately processes the first one
-    so a manual trigger doesn't sit idle waiting for the next interval tick.
-    The rest of the queue is drained by _alert_tick on its normal stagger.
+    Called once per day at ALERT_CHECK_TIME (automated, manual=False), or manually
+    via /alerts/run_now (manual=True). Builds the queue of enabled series and
+    immediately processes the first one so a manual trigger doesn't sit idle
+    waiting for the next interval tick. The rest of the queue is drained by
+    _alert_tick on its normal stagger.
     The interval job itself is only registered while a cycle is actually running,
     so the scheduler logs stay quiet between cycles instead of ticking every
     ALERT_CHECK_INTERVAL minutes forever with nothing to do.
     """
-    global _alert_series_queue, _alert_cycle_total
+    global _alert_series_queue, _alert_cycle_total, _alert_cycle_notify
 
     alerts  = load_alerts()
     enabled = [s for s, v in alerts.items() if v.get("enabled")]
@@ -1056,13 +1070,17 @@ def _alert_cycle_start():
         log.info("[Alerts] Cycle triggered but no series have alerts enabled.")
         return False
 
+    # Automated cycles always notify (if a webhook is configured). Manual
+    # "Check Now" runs only notify if the user has explicitly opted into that.
+    _alert_cycle_notify = DISCORD_NOTIFY_MANUAL_CHECKS if manual else True
+
     _alert_series_queue = list(enabled)
     _alert_cycle_total  = len(_alert_series_queue)
-    log.info(f"[Alerts] Cycle started — {_alert_cycle_total} series queued.")
+    log.info(f"[Alerts] Cycle started ({'manual' if manual else 'automated'}) — {_alert_cycle_total} series queued.")
 
     # Process the first series right away rather than waiting for the next tick
     first_series = _alert_series_queue.pop(0)
-    _check_series_for_new_volume(first_series, alerts)
+    _check_series_for_new_volume(first_series, alerts, notify=_alert_cycle_notify)
 
     # If more remain, start the stagger tick job; otherwise the cycle is already done
     if _alert_series_queue:
@@ -1099,15 +1117,54 @@ def _alert_tick():
 
     alerts = load_alerts()
     series = _alert_series_queue.pop(0)
-    _check_series_for_new_volume(series, alerts)
+    _check_series_for_new_volume(series, alerts, notify=_alert_cycle_notify)
 
     if not _alert_series_queue:
         log.info("[Alerts] Cycle complete — all series checked.")
         _scheduler.remove_job("alert_series_tick")
 
 
-def _check_series_for_new_volume(series, alerts):
-    """Search ABB page 1 for a series and flag any volumes higher than what's on disk."""
+def _send_discord_notification(series, title, link, vol_int):
+    """
+    Best-effort Discord ping for a newly found volume. Uses the app's own
+    (trusted, user-set) series name rather than anything re-parsed out of the
+    ABB title, since ABB's titles are inconsistently formatted and the
+    favorited series name is already known-clean. Never allowed to break the
+    actual alert-finding logic — any failure here is just logged and skipped.
+    Returns True/False so callers that DO care about success (e.g. the
+    "test webhook" button) can report it accurately.
+    """
+    if not DISCORD_WEBHOOK_URL:
+        return False
+
+    payload = {
+        "embeds": [
+            {
+                "title": title,
+                "url": link,
+                "color": 5793266,  # Discord blurple
+                "fields": [
+                    {"name": "Series", "value": series, "inline": True},
+                    {"name": "Volume", "value": f"Vol. {vol_int}", "inline": True},
+                ],
+            }
+        ]
+    }
+
+    try:
+        requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        return True
+    except requests.exceptions.RequestException as e:
+        log.warning(f"[Alerts] Failed to send Discord notification for '{series}': {e}")
+        return False
+
+
+def _check_series_for_new_volume(series, alerts, notify=True):
+    """
+    Search ABB page 1 for a series and flag any volumes higher than what's on disk.
+    notify controls whether a newly-found volume also triggers a Discord webhook
+    call (if one is configured) — callers pass False to keep a check silent.
+    """
     log.info(f"[Alerts] Checking '{series}' for new volumes...")
 
     headers = {
@@ -1189,6 +1246,8 @@ def _check_series_for_new_volume(series, alerts):
                     "matched_as": f"Vol. {vol_int}",
                     "found_at":   datetime.utcnow().strftime("%Y-%m-%d"),
                 })
+                if notify:
+                    _send_discord_notification(series, title, link, vol_int)
         except Exception as e:
             log.error(f"[Alerts] Error processing post for '{series}': {e}")
             continue
@@ -1845,6 +1904,30 @@ def alerts_status():
     return jsonify(result)
 
 
+@app.route("/alerts/discord_status")
+def alerts_discord_status():
+    """Whether a Discord webhook is currently configured (never the URL itself)."""
+    return jsonify({"configured": bool(DISCORD_WEBHOOK_URL)})
+
+
+@app.route("/alerts/discord_test", methods=["POST"])
+def alerts_discord_test():
+    """
+    Send a sample notification through the exact same function real alerts
+    use, so a successful test genuinely confirms the real path works —
+    not a separate mock that could drift from it.
+    """
+    if not DISCORD_WEBHOOK_URL:
+        return jsonify({"success": False, "message": "No Discord webhook is configured."}), 400
+
+    ok = _send_discord_notification("Test Series", "This is a test notification from AudioBookBay Automated", f"https://{ABB_HOSTNAME}", 1)
+    if ok:
+        log.info("[Alerts] Discord test notification sent.")
+        return jsonify({"success": True, "message": "Test notification sent — check Discord."})
+
+    return jsonify({"success": False, "message": "Failed to reach Discord. Check the webhook URL and container logs."}), 502
+
+
 @app.route("/alerts/run_now", methods=["POST"])
 def alerts_run_now():
     """Manually trigger a check cycle immediately, bypassing the daily schedule."""
@@ -1854,7 +1937,7 @@ def alerts_run_now():
             "message": "A check is already running."
         }), 409
 
-    started = _alert_cycle_start()
+    started = _alert_cycle_start(manual=True)
     if not started:
         return jsonify({
             "success": False,
@@ -1998,7 +2081,7 @@ def alerts_force_check(series):
         save_alerts(alerts)
 
     log.info(f"[Alerts] Force check triggered for '{series}'.")
-    _check_series_for_new_volume(series, load_alerts())
+    _check_series_for_new_volume(series, load_alerts(), notify=DISCORD_NOTIFY_MANUAL_CHECKS)
     updated = load_alerts().get(series, {})
     notifications = updated.get("notifications", [])
     log.info(f"[Alerts] Force check complete for '{series}' — {len(notifications)} notification(s).")
