@@ -505,7 +505,7 @@ function appendBooks(books) {
             + '<td class="action-cell">'
                 + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
                 + '<button class="fav-btn' + (alreadySaved ? ' fav-btn-saved' : '') + '" onclick="handleSaveSeries(this)">' + (alreadySaved ? 'Saved' : 'Save') + '</button>'
-                + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
+                + '<button class="btn-details"  onclick="handleDetails(this)">View on ABB</button>'
             + '</td>';
         tbody.appendChild(tr);
     });
