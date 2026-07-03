@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
     restoreSearchState();
     initFavoritesVisibility();
     refreshCycleStatus();
+    loadFavorites();
 
     var filterBtn = document.getElementById('filter-button');
     var clearBtn  = document.getElementById('clear-button');
@@ -486,6 +487,7 @@ function appendBooks(books) {
         tr.dataset.link     = book.link;
         tr.dataset.title    = book.title;
 
+        var alreadySaved = _isAlreadySaved(book.title);
         var coverSrc = book.cover || '/static/images/default_cover.jpg';
         tr.innerHTML =
             '<td><img src="' + escHtml(coverSrc) + '" alt="Cover Art" class="cover" width="100" '
@@ -502,11 +504,20 @@ function appendBooks(books) {
             + '</td>'
             + '<td class="action-cell">'
                 + '<button class="btn-download" onclick="handleDownload(this)">Download to Server</button>'
-                + '<button class="fav-btn"      onclick="handleSaveSeries(this)">\u2B50 Save Series</button>'
+                + '<button class="fav-btn' + (alreadySaved ? ' fav-btn-saved' : '') + '" onclick="handleSaveSeries(this)">' + (alreadySaved ? 'Saved' : 'Save') + '</button>'
                 + '<button class="btn-details"  onclick="handleDetails(this)">Details</button>'
             + '</td>';
         tbody.appendChild(tr);
     });
+}
+
+// Client-side hint only — a simple substring check against the already-loaded
+// favorites cache, not the full server-side fuzzy match. Good enough to show
+// "Saved" instead of "Save" on a matching row; the modal still re-checks with
+// the authoritative server value regardless of what this says.
+function _isAlreadySaved(title) {
+    var t = title.toLowerCase();
+    return _favsCache.some(function(fav) { return t.indexOf(fav.toLowerCase()) !== -1; });
 }
 
 function clearResults() {
@@ -905,6 +916,7 @@ function _setSaveSeriesAlreadySavedState(showMatch) {
     }
     if (confirmBtn) {
         confirmBtn.disabled = showMatch;
+        confirmBtn.textContent = showMatch ? 'Saved' : 'Save';
     }
 }
 
@@ -934,7 +946,7 @@ function closeSaveSeriesModal() {
     if (alertsBox) { alertsBox.checked = false; alertsBox.disabled = false; }
     var confirmBtn = document.getElementById('save-series-confirm-btn');
     var cancelBtn  = document.querySelector('#save-series-modal-form .modal-btn-cancel');
-    if (confirmBtn) { confirmBtn.textContent = '\u2B50 Save Series'; confirmBtn.disabled = false; }
+    if (confirmBtn) { confirmBtn.textContent = 'Save'; confirmBtn.disabled = false; }
     if (cancelBtn)  { cancelBtn.disabled = false; }
     _saveSeriesTotalTitle = '';
 }
@@ -967,7 +979,7 @@ function confirmSaveSeries() {
             var alreadyExisted = !!data.already_existed;
             result.innerHTML = '<div class="modal-result modal-result-success">'
                 + '<div class="modal-result-icon">✓</div>'
-                + '<p class="modal-result-title">' + (alreadyExisted ? 'Already in favorites' : 'Series saved') + '</p>'
+                + '<p class="modal-result-title">' + (alreadyExisted ? 'Already saved' : 'Saved') + '</p>'
                 + '<p class="modal-result-sub">' + escHtml(data.series || seriesName) + '</p>'
                 + '</div>';
             result.style.display = 'block';
@@ -1049,7 +1061,7 @@ function updateCycleStatusUI(data) {
     if (spinner) {
         spinner.style.display = data.running ? 'inline-block' : 'none';
         if (data.running) {
-            spinner.title = 'Checking favorites for new volumes (' + data.checked + ' of ' + data.total + ')';
+            spinner.title = 'Checking saved series for new volumes (' + data.checked + ' of ' + data.total + ')';
         }
     }
 
@@ -1429,7 +1441,7 @@ function saveManualFavorite(name) {
     .then(function(data) {
         loadFavorites();
         if (data.already_existed) {
-            showAppAlert('"' + data.series + '" is already in your favorites.');
+            showAppAlert('"' + data.series + '" is already saved.');
         }
     });
 }
@@ -1472,7 +1484,7 @@ function commitEdit(oldName, newName) {
 }
 
 function confirmDelete(name) {
-    showAppConfirm('Remove "' + name + '" from favorites?', function() {
+    showAppConfirm('Remove "' + name + '" from your saved series?', function() {
         fetch('/favorites/remove', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
