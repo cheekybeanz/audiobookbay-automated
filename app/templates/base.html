@@ -18,12 +18,14 @@
         <a href="{{ url_for('search') }}" class="navbar-logo" aria-label="ABB Automated home">
             <img src="{{ static_versioned('images/icon.svg') }}" alt="">
         </a>
-        <a href="{{ url_for('search') }}" class="{% if request.endpoint == 'search' %}active{% endif %}">Search</a>
-        <a href="{{ url_for('status') }}" class="{% if request.endpoint == 'status' %}active{% endif %}">Status</a>
-        <a href="{{ url_for('mappings_page') }}" class="{% if request.endpoint == 'mappings_page' %}active{% endif %}">Series Mappings</a>
-        {% if nav_link_name and nav_link_url %}
-        <a href="{{ nav_link_url }}" target="_blank">{{ nav_link_name }}</a>
-        {% endif %}
+        <div class="navbar-links">
+            <a href="{{ url_for('search') }}" class="{% if request.endpoint == 'search' %}active{% endif %}">Search</a>
+            <a href="{{ url_for('status') }}" class="{% if request.endpoint == 'status' %}active{% endif %}">Status</a>
+            <a href="{{ url_for('mappings_page') }}" class="{% if request.endpoint == 'mappings_page' %}active{% endif %}">Series Mappings</a>
+            {% if nav_link_name and nav_link_url %}
+            <a href="{{ nav_link_url }}" target="_blank">{{ nav_link_name }}</a>
+            {% endif %}
+        </div>
     </div>
 
     <div class="content">
