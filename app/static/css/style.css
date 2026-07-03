@@ -178,7 +178,22 @@ button {
     h1 {
         font-size: 1.4rem;
     }
+    /* Two columns instead of the desktop's symmetric three — a scrollable
+       strip has a natural starting edge (right after the logo), so there's
+       no third spacer column to balance against like there is when the
+       links are short enough to just center in the full bar. */
+    .navbar {
+        grid-template-columns: minmax(44px, auto) 1fr;
+    }
+    .navbar-links {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
     .navbar a {
+        flex-shrink: 0;
+        white-space: nowrap;
         font-size: 0.82rem;
         padding: 0 10px;
     }
