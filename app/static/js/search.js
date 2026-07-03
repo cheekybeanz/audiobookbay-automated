@@ -1231,25 +1231,39 @@ function renderFavorites(favs) {
             // here since alert state hasn't loaded yet at initial render.
             var refreshBtn = document.createElement('button');
             refreshBtn.className = 'fav-refresh-btn';
-            refreshBtn.textContent = '\uD83D\uDD04';
+            refreshBtn.textContent = '\u21BB';
             refreshBtn.title = 'Check this series now';
             refreshBtn.style.display = 'none';
             refreshBtn.onclick = function(e) { e.stopPropagation(); forceCheckSeries(name); };
             entry.appendChild(refreshBtn);
 
             var editBtn = document.createElement('button');
-            editBtn.className = 'fav-edit-btn';
-            editBtn.textContent = '\u270F\uFE0F';
-            editBtn.title = 'Edit';
-            editBtn.onclick = function(e) { e.stopPropagation(); startEdit(entry, name); };
-            entry.appendChild(editBtn);
+            editBtn.className = 'fav-menu-item';
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = function(e) { e.stopPropagation(); closeAllFavMenus(); startEdit(entry, name); };
 
-            var del = document.createElement('button');
-            del.className = 'fav-delete-btn';
-            del.textContent = '\u2715';
-            del.title = 'Remove';
-            del.onclick = function(e) { e.stopPropagation(); confirmDelete(name); };
-            entry.appendChild(del);
+            var delBtn = document.createElement('button');
+            delBtn.className = 'fav-menu-item fav-menu-item-danger';
+            delBtn.textContent = 'Remove';
+            delBtn.onclick = function(e) { e.stopPropagation(); closeAllFavMenus(); confirmDelete(name); };
+
+            var kebabMenu = document.createElement('div');
+            kebabMenu.className = 'fav-kebab-menu';
+            kebabMenu.style.display = 'none';
+            kebabMenu.appendChild(editBtn);
+            kebabMenu.appendChild(delBtn);
+
+            var kebabBtn = document.createElement('button');
+            kebabBtn.className = 'fav-kebab-btn';
+            kebabBtn.textContent = '\u22EE';
+            kebabBtn.title = 'More options';
+            kebabBtn.onclick = function(e) { e.stopPropagation(); toggleFavMenu(kebabMenu); };
+
+            var kebabWrap = document.createElement('div');
+            kebabWrap.className = 'fav-kebab-wrap';
+            kebabWrap.appendChild(kebabBtn);
+            kebabWrap.appendChild(kebabMenu);
+            entry.appendChild(kebabWrap);
 
             list.appendChild(entry);
         });
@@ -1309,7 +1323,7 @@ function renderAddRow(list) {
     checkBtn.id = 'fav-check-now-btn';
     checkBtn.textContent = 'Check Now';
     checkBtn.title = 'Immediately check all enabled series for new volumes on ABB';
-    checkBtn.onclick = function() { closeFavCogMenu(); runAlertsNow(); };
+    checkBtn.onclick = function() { closeAllFavMenus(); runAlertsNow(); };
 
     var discordTestBtn = document.createElement('button');
     discordTestBtn.className = 'fav-menu-item';
@@ -1331,7 +1345,7 @@ function renderAddRow(list) {
     cogBtn.id = 'fav-cog-btn';
     cogBtn.textContent = '\u2699';
     cogBtn.title = 'Alert options';
-    cogBtn.onclick = function(e) { e.stopPropagation(); toggleFavCogMenu(); };
+    cogBtn.onclick = function(e) { e.stopPropagation(); toggleFavMenu(cogMenu); };
 
     var cogWrap = document.createElement('div');
     cogWrap.className = 'fav-cog-wrap';
@@ -1354,20 +1368,33 @@ function renderAddRow(list) {
     refreshCycleStatus();
 }
 
-function toggleFavCogMenu() {
-    var menu = document.getElementById('fav-cog-menu');
-    if (!menu) return;
-    menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+// #favorites-panel normally clips overflow (for its rounded corners), which
+// would cut off a per-row kebab menu opening near the bottom edge — same
+// reason the cog menu has to open upward. Rather than leaving overflow
+// clipped all the time, it's only relaxed while a menu is actually open.
+function closeAllFavMenus() {
+    var cogMenu = document.getElementById('fav-cog-menu');
+    if (cogMenu) cogMenu.style.display = 'none';
+    document.querySelectorAll('.fav-kebab-menu').forEach(function(m) { m.style.display = 'none'; });
+
+    var panel = document.getElementById('favorites-panel');
+    if (panel) panel.classList.remove('fav-menu-open');
 }
 
-function closeFavCogMenu() {
-    var menu = document.getElementById('fav-cog-menu');
-    if (menu) menu.style.display = 'none';
+function toggleFavMenu(menuEl) {
+    if (!menuEl) return;
+    var willOpen = menuEl.style.display === 'none';
+    closeAllFavMenus();
+    if (willOpen) {
+        menuEl.style.display = 'block';
+        var panel = document.getElementById('favorites-panel');
+        if (panel) panel.classList.add('fav-menu-open');
+    }
 }
 
 document.addEventListener('click', function(e) {
-    var wrap = document.querySelector('.fav-cog-wrap');
-    if (wrap && !wrap.contains(e.target)) closeFavCogMenu();
+    if (e.target.closest('.fav-cog-wrap') || e.target.closest('.fav-kebab-wrap')) return;
+    closeAllFavMenus();
 });
 
 function sendDiscordTest(btn) {
@@ -1387,7 +1414,7 @@ function sendDiscordTest(btn) {
             setTimeout(function() {
                 btn.textContent = original;
                 btn.disabled = false;
-                closeFavCogMenu();
+                closeAllFavMenus();
             }, 1500);
         });
 }
