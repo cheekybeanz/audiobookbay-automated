@@ -1081,13 +1081,18 @@ td.action-cell {
     width: 28px;
     text-align: left;
     opacity: 0.55;
+    border-radius: 5px;
 }
 #fav-sort-bell:hover {
     opacity: 0.85;
 }
+/* A background chip, not a glow — glow is reserved for "new volume found"
+   on the row bells below, and reusing it here for "this is the active sort
+   column" sent the wrong signal (and, being brighter than any row bell's
+   resting "active" state, was also just the brightness mismatch reported). */
 #fav-sort-bell.fav-sort-active {
     opacity: 1;
-    filter: drop-shadow(0 0 3px var(--accent));
+    background-color: var(--accent-subtle) !important;
 }
 
 /* Title sort — absolutely centered in the sort row */
