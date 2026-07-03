@@ -1165,7 +1165,7 @@ td.action-cell {
 
 .fav-notif-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     padding: 5px 0;
     border-bottom: 1px solid var(--border);
@@ -1174,8 +1174,15 @@ td.action-cell {
     border-bottom: none;
 }
 
-.fav-notif-link {
+.fav-notif-text {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fav-notif-link {
     color: var(--text-primary);
     font-size: 0.82rem;
     text-decoration: none;
@@ -1185,6 +1192,29 @@ td.action-cell {
 .fav-notif-link:hover {
     color: var(--accent);
     text-decoration: underline;
+}
+
+.fav-notif-caption {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+.fav-notif-download {
+    background: none !important;
+    border: none !important;
+    color: var(--text-dim);
+    font-size: 0.78rem !important;
+    cursor: pointer;
+    padding: 0 2px;
+    width: auto;
+    margin: 0;
+    flex-shrink: 0;
+    transition: color 0.15s;
+    line-height: 1;
+}
+.fav-notif-download:hover {
+    background: none !important;
+    color: var(--accent);
 }
 
 .fav-notif-dismiss {
