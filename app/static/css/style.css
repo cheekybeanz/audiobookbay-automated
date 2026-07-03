@@ -63,11 +63,17 @@ h2 {
     width: 100%;
     background-color: var(--bg-panel);
     border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: center;
+    display: grid;
+    /* Logo column has a guaranteed minimum (52px comfortably fits the 42px
+       icon + padding) so it can never be squeezed to overlap its neighbor;
+       the empty third column is a pure spacer with no minimum, since it has
+       nothing in it to protect — its only job is balancing the logo
+       column's width so the middle (nav links) column sits centered in the
+       full bar, not just centered in the leftover space next to the logo. */
+    grid-template-columns: minmax(52px, 1fr) auto minmax(0, 1fr);
     align-items: center;
     padding: 0;
-    height: var(--nav-height);
+    min-height: var(--nav-height);
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -75,13 +81,11 @@ h2 {
 }
 
 .navbar-logo {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(calc(-50% + 1px));
+    grid-column: 1;
+    justify-self: start;
     display: flex;
     align-items: center;
-    padding: 0;
+    padding: 0 0 0 10px;
     margin: 0;
     height: 42px;
     border-bottom: none;
@@ -98,12 +102,20 @@ h2 {
     opacity: 0.85;
 }
 
+.navbar-links {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
 .navbar a {
     text-decoration: none;
     color: var(--text-muted);
     margin: 0 4px;
     padding: 0 16px;
-    height: var(--nav-height);
+    min-height: var(--nav-height);
     display: inline-flex;
     align-items: center;
     font-size: 0.9rem;
@@ -171,7 +183,7 @@ button {
         padding: 0 10px;
     }
     .navbar-logo {
-        left: 8px;
+        padding-left: 6px;
         height: 34px;
     }
     .navbar-logo img {
