@@ -750,13 +750,51 @@ function buildNotifPanel(bell, series, notifications) {
         var row = document.createElement('div');
         row.className = 'fav-notif-row';
 
+        // Groups the title with a small verification line underneath —
+        // what the app parsed vs. what's already on disk — so a mismatch
+        // (wrong series caught in the fuzzy match, or a bad volume parse)
+        // is visible at a glance without needing to open the ABB listing.
+        var text = document.createElement('div');
+        text.className = 'fav-notif-text';
+
         var link = document.createElement('a');
         link.href = n.url;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         link.className = 'fav-notif-link';
         link.textContent = n.title;
-        row.appendChild(link);
+        text.appendChild(link);
+
+        var captionParts = [];
+        if (n.matched_as) captionParts.push('Detected as ' + n.matched_as);
+        // on_disk is only present on notifications found after this field was
+        // added — older ones just show the detected volume with no comparison
+        // rather than falsely implying "nothing on disk" for lack of data.
+        if (n.on_disk !== undefined && n.on_disk !== null) {
+            captionParts.push('you have ' + (n.on_disk === -1 ? 'nothing yet' : ('up to Vol. ' + n.on_disk)));
+        }
+        if (captionParts.length) {
+            var caption = document.createElement('div');
+            caption.className = 'fav-notif-caption';
+            caption.textContent = captionParts.join(' \u2014 ');
+            text.appendChild(caption);
+        }
+        row.appendChild(text);
+
+        // openDownloadModal only ever needs a link + title — same shape a
+        // notification already has — so this skips straight to the same
+        // modal a manual search result's Download button opens, no detour
+        // through re-searching for something already sitting right here.
+        var download = document.createElement('button');
+        download.className = 'fav-notif-download';
+        download.textContent = '\u2B07';
+        download.title = 'Download this';
+        download.onclick = function(e) {
+            e.stopPropagation();
+            closeNotifPanel();
+            openDownloadModal(n.url, n.title);
+        };
+        row.appendChild(download);
 
         var dismiss = document.createElement('button');
         dismiss.className = 'fav-notif-dismiss';
