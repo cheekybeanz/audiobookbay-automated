@@ -143,6 +143,7 @@ DEV_PANEL = os.getenv("DEV_PANEL", "false").strip().lower() == "true"
 # Alert scheduler config
 ALERT_CHECK_INTERVAL = _get_int_env("ALERT_CHECK_INTERVAL", 5)   # minutes between each series check within a cycle
 ALERT_CHECK_TIME     = os.getenv("ALERT_CHECK_TIME", "02:00")       # time of day to run daily cycle (HH:MM, 24hr)
+ALERT_CHECK_PAGES    = _get_int_env("ALERT_CHECK_PAGES", 1)         # pages of ABB search results to check per series
 
 # Discord notifications — off entirely unless a webhook URL is set. The
 # automated daily cycle always notifies when a URL is present; manual checks
@@ -170,6 +171,7 @@ log.info(f"PORT: {FLASK_PORT}")
 log.info(f"DEV_PANEL: {DEV_PANEL}")
 log.info(f"ALERT_CHECK_INTERVAL: {ALERT_CHECK_INTERVAL}m")
 log.info(f"ALERT_CHECK_TIME: {ALERT_CHECK_TIME}")
+log.info(f"ALERT_CHECK_PAGES: {ALERT_CHECK_PAGES}")
 log.info(f"DISCORD_WEBHOOK_URL: {'set' if DISCORD_WEBHOOK_URL else 'not set (Discord notifications disabled)'}")
 log.info(f"DISCORD_NOTIFY_MANUAL_CHECKS: {DISCORD_NOTIFY_MANUAL_CHECKS}")
 
@@ -288,6 +290,13 @@ if not os.path.exists(_env_template):
 # Minutes between checking each series within a cycle [default: 5]
 # With 6 favorites this spreads checks over 30 minutes to avoid rate limits.
 # ALERT_CHECK_INTERVAL=5
+
+# Pages of ABB search results to check per series      [default: 1]
+# ABB's search results aren't always sorted strictly newest-first, so a series
+# with a lot of existing entries could occasionally have a new volume land
+# past page 1. Raising this checks further back at the cost of an extra
+# request (spaced by REQUEST_DELAY) per additional page, per series checked.
+# ALERT_CHECK_PAGES=1
 
 # ── Discord notifications ───────────────────────────────────────────────────
 # Send a Discord message when a new volume is found for a favorited series.
@@ -1170,34 +1179,24 @@ def _send_discord_notification(series, title, link, vol_int):
 
 def _check_series_for_new_volume(series, alerts, notify=True):
     """
-    Search ABB page 1 for a series and flag any volumes higher than what's on disk.
-    notify controls whether a newly-found volume also triggers a Discord webhook
-    call (if one is configured) — callers pass False to keep a check silent.
+    Search ABB (ALERT_CHECK_PAGES pages, default 1) for a series and flag any
+    volumes higher than what's on disk. notify controls whether a newly-found
+    volume also triggers a Discord webhook call (if one is configured) —
+    callers pass False to keep a check silent.
     """
     log.info(f"[Alerts] Checking '{series}' for new volumes...")
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/115.0.0.0 Safari/537.36"
-    }
-
-    url = (f"https://{ABB_HOSTNAME}/page/1/"
-           f"?s={requests.utils.quote(series.lower().replace(' ', '+'), safe='+')}")
-
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        posts = search_audiobookbay(series, max_pages=ALERT_CHECK_PAGES, start_page=1)
+    except RuntimeError as e:
+        reason = str(e)
+        if reason == "rate_limited":
+            log.warning(f"[Alerts] Rate limited while checking '{series}'. Will retry next cycle.")
+        else:
+            log.error(f"[Alerts] Failed to fetch ABB for '{series}': {reason}")
+        return
     except requests.exceptions.RequestException as e:
         log.error(f"[Alerts] Failed to fetch ABB for '{series}': {e}")
-        return
-
-    if _page_is_rate_limited(BeautifulSoup(response.text, "html.parser"), response):
-        log.warning(f"[Alerts] Rate limited while checking '{series}'. Will retry next cycle.")
-        return
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    if not _page_looks_valid(soup):
-        log.warning(f"[Alerts] ABB page for '{series}' didn't look valid.")
         return
 
     highest_on_disk = _get_highest_vol_on_disk(series)
@@ -1209,14 +1208,10 @@ def _check_series_for_new_volume(series, alerts, notify=True):
     existing_notifications = {n["url"] for n in series_data.get("notifications", [])}
     new_notifications = list(series_data.get("notifications", []))
 
-    posts = soup.select(".post")
     for post in posts:
         try:
-            title_el = post.select_one(".postTitle > h2 > a")
-            if not title_el:
-                continue
-            title = title_el.text.strip()
-            link  = f"https://{ABB_HOSTNAME}{title_el['href']}"
+            title = post["title"]
+            link  = post["link"]
 
             if link in blocked_urls or link in existing_notifications:
                 continue
@@ -1224,12 +1219,12 @@ def _check_series_for_new_volume(series, alerts, notify=True):
             # Relevance gate: extract_vol_num_known_series() only uses the
             # series name to pick a PARSING STRATEGY (strip-prefix vs.
             # generic fallback) — it was never actually a check that this
-            # search result belongs to the series at all. A page-1 result
-            # that doesn't even contain the series name could still fall
-            # through to the generic parser and produce a number that gets
-            # compared against your disk baseline. Require the (normalized)
-            # series name to actually appear in the title before any of
-            # that parsing is trusted.
+            # search result belongs to the series at all. A result that
+            # doesn't even contain the series name could still fall through
+            # to the generic parser and produce a number that gets compared
+            # against your disk baseline. Require the (normalized) series
+            # name to actually appear in the title before any of that
+            # parsing is trusted.
             if _normalize_for_fuzzy(series) not in _normalize_for_fuzzy(title):
                 continue
 
