@@ -1066,33 +1066,15 @@ td.action-cell {
     margin: 0;
     width: auto;
     white-space: nowrap;
-    transition: color 0.15s, opacity 0.15s, filter 0.15s;
+    transition: color 0.15s;
     line-height: 1;
 }
 
-/* Bell sort — same width as .fav-bell-btn (emoji + 6px padding-right).
-   color has no visible effect on emoji glyphs (browsers render them in
-   their own fixed palette), so unlike the Title sort button next to it,
-   this one's at-rest/active states use opacity + filter instead — the same
-   technique the per-row bells already use below, so it actually dims and
-   lights up now instead of always sitting at full native brightness. */
+/* Bell sort — same width as .fav-bell-btn (emoji + 6px padding-right) */
 #fav-sort-bell {
     flex-shrink: 0;
     width: 28px;
     text-align: left;
-    opacity: 0.55;
-    border-radius: 5px;
-}
-#fav-sort-bell:hover {
-    opacity: 0.85;
-}
-/* A background chip, not a glow — glow is reserved for "new volume found"
-   on the row bells below, and reusing it here for "this is the active sort
-   column" sent the wrong signal (and, being brighter than any row bell's
-   resting "active" state, was also just the brightness mismatch reported). */
-#fav-sort-bell.fav-sort-active {
-    opacity: 1;
-    background-color: var(--accent-subtle) !important;
 }
 
 /* Title sort — absolutely centered in the sort row */
