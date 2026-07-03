@@ -289,6 +289,15 @@ if not os.path.exists(_env_template):
 # With 6 favorites this spreads checks over 30 minutes to avoid rate limits.
 # ALERT_CHECK_INTERVAL=5
 
+# ── Discord notifications ───────────────────────────────────────────────────
+# Send a Discord message when a new volume is found for a favorited series.
+# Leave unset to disable — no other Discord setting does anything without this.  [optional]
+# DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxx/xxxx
+
+# Also notify for manually-triggered checks (Check Now, per-series refresh) —
+# not just the automated daily cycle.                        [default: false]
+# DISCORD_NOTIFY_MANUAL_CHECKS=true
+
 # ── Developer / Testing ───────────────────────────────────────────────────
 # Shows a hidden developer panel on Search/Status/Mappings with tools for
 # faking search results, alerts, torrent rows, and error states — useful
