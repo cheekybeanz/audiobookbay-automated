@@ -791,12 +791,6 @@ td.action-cell {
     align-items: center;
 }
 
-/* ── No-results favorites bar ────────────────────────────────────── */
-#no-results-bar {
-    width: 100%;
-    margin-bottom: 10px;
-}
-
 /* ── Download confirmation modal ─────────────────────────────────── */
 #download-modal {
     position: fixed;
