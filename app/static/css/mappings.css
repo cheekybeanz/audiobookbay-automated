@@ -108,19 +108,10 @@
     transition: background-color 0.2s;
 }
 
-.mappings-form-btns button:hover {
-    background-color: var(--accent-hover);
-}
-
 .mappings-cancel-btn {
     background-color: transparent !important;
     border: 1px solid var(--border-strong) !important;
     color: var(--text-muted) !important;
-}
-
-.mappings-cancel-btn:hover {
-    background-color: rgba(255,255,255,0.06) !important;
-    color: var(--text-primary) !important;
 }
 
 /* ── Path preview ────────────────────────────────────────────── */
@@ -195,10 +186,6 @@
     border-bottom: none;
 }
 
-.mapping-entry:hover {
-    background-color: var(--bg-panel-alt);
-}
-
 .mapping-from {
     color: var(--text-muted);
     font-size: 0.88rem;
@@ -257,11 +244,6 @@
     opacity: 1;
 }
 
-.map-edit-btn:hover {
-    background: none;
-    color: var(--accent);
-}
-
 .map-delete-btn {
     background: none;
     border: none;
@@ -280,11 +262,6 @@
     opacity: 1;
 }
 
-.map-delete-btn:hover {
-    background: none;
-    color: #ef5350;
-}
-
 /* ── Alert Blocklist section ─────────────────────────────────────── */
 .blocklist-entry {
     display: flex;
@@ -298,10 +275,6 @@
 
 .blocklist-entry:last-child {
     border-bottom: none;
-}
-
-.blocklist-entry:hover {
-    background-color: var(--bg-panel-alt);
 }
 
 .blocklist-title {
@@ -331,10 +304,6 @@
     flex-shrink: 0;
     transition: color 0.2s;
 }
-.blocklist-link-btn:hover {
-    background: none;
-    color: var(--accent);
-}
 
 .blocklist-remove-btn {
     background: none;
@@ -352,7 +321,66 @@
 .blocklist-entry:hover .blocklist-remove-btn {
     opacity: 1;
 }
-.blocklist-remove-btn:hover {
-    background: none;
-    color: #ef5350;
+
+/* These three edit/delete/remove icons are opacity:0 by default and only
+   ever reachable through the :hover rules above — on a touch device, which
+   has no real hover, that would leave them permanently invisible and
+   completely untappable, not just less discoverable. So they're forced
+   visible outright wherever there's no real pointer to hover with, rather
+   than being folded into the general hover-only block below. */
+@media (hover: none), (pointer: coarse) {
+    .map-edit-btn,
+    .map-delete-btn,
+    .blocklist-remove-btn {
+        opacity: 1;
+    }
+}
+
+/* ── Hover-only styles ─────────────────────────────────────── */
+/* Every :hover rule in this file lives here, gated behind a real-
+   pointer check, instead of scattered inline next to each element's
+   own rule. Touch devices report hover:none, so this block simply
+   never applies there — :hover only fires on tap on touchscreens
+   (there's no real mouse to "leave"), and it doesn't clear until
+   something else is tapped, which is what was causing whatever row
+   or link you last touched to stay highlighted while scrolling.
+   Mouse/trackpad users on desktop see hover feedback exactly as
+   before — this only changes touch behavior. */
+@media (hover: hover) and (pointer: fine) {
+    .mappings-form-btns button:hover {
+        background-color: var(--accent-hover);
+    }
+
+    .mappings-cancel-btn:hover {
+        background-color: rgba(255,255,255,0.06) !important;
+        color: var(--text-primary) !important;
+    }
+
+    .mapping-entry:hover {
+        background-color: var(--bg-panel-alt);
+    }
+
+    .map-edit-btn:hover {
+        background: none;
+        color: var(--accent);
+    }
+
+    .map-delete-btn:hover {
+        background: none;
+        color: #ef5350;
+    }
+
+    .blocklist-entry:hover {
+        background-color: var(--bg-panel-alt);
+    }
+
+    .blocklist-link-btn:hover {
+        background: none;
+        color: var(--accent);
+    }
+
+    .blocklist-remove-btn:hover {
+        background: none;
+        color: #ef5350;
+    }
 }
