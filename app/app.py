@@ -1249,6 +1249,7 @@ def _check_series_for_new_volume(series, alerts, notify=True):
                     "title":      title,
                     "matched_as": f"Vol. {vol_int}",
                     "found_at":   datetime.utcnow().strftime("%Y-%m-%d"),
+                    "on_disk":    highest_on_disk,
                 })
                 if notify:
                     _send_discord_notification(series, title, link, vol_int)
