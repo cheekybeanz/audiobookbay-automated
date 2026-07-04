@@ -871,7 +871,21 @@ function buildNotifPanel(bell, series, notifications) {
     _openNotifPanel = panel;
 
     var rect = bell.getBoundingClientRect();
-    panel.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
+    var panelHeight = panel.offsetHeight;
+    var spaceBelow  = window.innerHeight - rect.bottom;
+    var spaceAbove  = rect.top;
+
+    // Always opening downward assumed there'd be room below — fine near the
+    // top of a long favorites list, but a row further down (especially on a
+    // short mobile viewport) can leave the panel with nowhere further to
+    // scroll to. Same fix the cog menu needed for the same reason: measure
+    // the actual rendered height and open whichever direction genuinely has
+    // more room, instead of always going down and hoping.
+    if (spaceBelow < panelHeight && spaceAbove > spaceBelow) {
+        panel.style.top = (rect.top + window.scrollY - panelHeight - 6) + 'px';
+    } else {
+        panel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+    }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 }
 
