@@ -786,10 +786,40 @@ function buildNotifPanel(bell, series, notifications) {
         _panelLeaveTimer = setTimeout(closeNotifPanel, 200);
     });
 
+    // Fixed header — stays put regardless of scroll position, since the
+    // close button living here needs to stay reachable even when the panel
+    // is tall enough that "click off it to close" is no longer a
+    // realistic option (see the close button below).
     var header = document.createElement('div');
     header.className = 'fav-notif-header';
-    header.textContent = '\uD83D\uDD14 New volumes found on ABB';
+
+    var headerText = document.createElement('span');
+    headerText.textContent = '\uD83D\uDD14 New volumes found on ABB';
+    header.appendChild(headerText);
+
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'fav-notif-close';
+    closeBtn.textContent = '\u2715';
+    closeBtn.title = 'Close';
+    closeBtn.onclick = function(e) {
+        e.stopPropagation();
+        closeNotifPanel();
+    };
+    header.appendChild(closeBtn);
     panel.appendChild(header);
+
+    // scrollWrap is a plain positioning box that itself never scrolls —
+    // scrollArea (absolutely filling it) is the only thing that does. This
+    // keeps the fade overlay (a sibling of scrollArea, not a child of it)
+    // fully outside the scrolling context, so it can't be affected by
+    // scroll position at all — a plain absolute-positioned overlay is far
+    // more reliably "always exactly there" than a sticky-positioned
+    // pseudo-element depending on scroll-container math.
+    var scrollWrap = document.createElement('div');
+    scrollWrap.className = 'fav-notif-scroll-wrap';
+
+    var scrollArea = document.createElement('div');
+    scrollArea.className = 'fav-notif-scroll-area';
 
     notifications.forEach(function(n) {
         var row = document.createElement('div');
@@ -854,9 +884,20 @@ function buildNotifPanel(bell, series, notifications) {
             );
         };
         row.appendChild(dismiss);
-        panel.appendChild(row);
+        scrollArea.appendChild(row);
     });
 
+    scrollWrap.appendChild(scrollArea);
+
+    var fade = document.createElement('div');
+    fade.className = 'fav-notif-fade';
+    scrollWrap.appendChild(fade);
+
+    panel.appendChild(scrollWrap);
+
+    // Fixed footer — same reasoning as the header/close button: an action
+    // you'd want reachable regardless of how far into a long list you've
+    // scrolled, not something that scrolls out of reach.
     var clearBtn = document.createElement('button');
     clearBtn.className = 'fav-notif-clear-btn';
     clearBtn.textContent = notifications.length > 1 ? 'Clear All' : 'Clear';
@@ -877,9 +918,10 @@ function buildNotifPanel(bell, series, notifications) {
     var cssMaxHeight = window.innerHeight * 0.7;
     var bestSingleSide = Math.max(spaceAbove, spaceBelow);
 
-    // scrollHeight reflects the panel's full natural content height
-    // regardless of whatever max-height is (or isn't yet) applied — safe to
-    // read before any constraint is set.
+    // Measuring BEFORE any height constraint is applied to the panel means
+    // scrollArea is still naturally full-height (unclipped) at this point,
+    // so panel.scrollHeight reflects the true total content height —
+    // header + every row + footer — with nothing hidden yet.
     var naturalHeight = panel.scrollHeight;
 
     if (naturalHeight <= Math.min(cssMaxHeight, bestSingleSide)) {
@@ -908,16 +950,15 @@ function buildNotifPanel(bell, series, notifications) {
     }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 
-    // A capped panel with more content than fits scrolls internally, but
-    // mobile scrollbars are often thin-to-invisible at rest — nothing would
-    // otherwise hint that there's more below. A fade at the bottom edge is
-    // a near-universal "keep scrolling" signal, shown only when there's
-    // genuinely more to see (scrollHeight > clientHeight), not permanently.
-    if (panel.scrollHeight > panel.clientHeight) {
-        panel.classList.add('fav-notif-scrollable');
-        panel.addEventListener('scroll', function() {
-            var atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 2;
-            panel.classList.toggle('fav-notif-scrollable', !atBottom);
+    // flex:1 + min-height:0 on scrollArea (see CSS) means it automatically
+    // fills whatever room panel's own max-height leaves after the fixed
+    // header/footer — no manual subtraction needed here. Only the internal
+    // list (scrollArea), not the whole panel, actually scrolls now.
+    if (scrollArea.scrollHeight > scrollArea.clientHeight) {
+        fade.classList.add('fav-notif-fade-visible');
+        scrollArea.addEventListener('scroll', function() {
+            var atBottom = scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 2;
+            fade.classList.toggle('fav-notif-fade-visible', !atBottom);
         });
     }
 }
