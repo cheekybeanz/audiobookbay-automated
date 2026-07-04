@@ -42,10 +42,6 @@
     border-bottom: none;
 }
 
-.status-table tbody tr:hover {
-    background-color: var(--bg-panel-alt);
-}
-
 .status-table td {
     padding: 10px 16px;
     color: var(--text-primary);
@@ -99,9 +95,7 @@
     user-select: none;
     transition: color 0.15s;
 }
-.status-table th.sortable:hover {
-    color: var(--text-primary);
-}
+
 .status-table th.sortable.status-sort-active {
     color: var(--accent);
 }
@@ -186,4 +180,24 @@ tr[data-state*="error" i] td:nth-child(3),
 tr[data-state*="missing" i] td:nth-child(3) {
     color: #ef5350;
     font-weight: 600;
+}
+
+/* ── Hover-only styles ─────────────────────────────────────── */
+/* Every :hover rule in this file lives here, gated behind a real-
+   pointer check, instead of scattered inline next to each element's
+   own rule. Touch devices report hover:none, so this block simply
+   never applies there — :hover only fires on tap on touchscreens
+   (there's no real mouse to "leave"), and it doesn't clear until
+   something else is tapped, which is what was causing whatever row
+   or link you last touched to stay highlighted while scrolling.
+   Mouse/trackpad users on desktop see hover feedback exactly as
+   before — this only changes touch behavior. */
+@media (hover: hover) and (pointer: fine) {
+    .status-table tbody tr:hover {
+        background-color: var(--bg-panel-alt);
+    }
+
+    .status-table th.sortable:hover {
+        color: var(--text-primary);
+    }
 }
