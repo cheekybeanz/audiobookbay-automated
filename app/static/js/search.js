@@ -1432,6 +1432,7 @@ function renderFavorites(favs) {
             var entry = document.createElement('div');
             entry.className = 'fav-entry';
             entry.dataset.series = name;
+            entry.onclick = function() { searchFavorite(name); };
 
             var bell = document.createElement('button');
             bell.className = 'fav-bell-btn bell-dim';
@@ -1442,7 +1443,6 @@ function renderFavorites(favs) {
             var link = document.createElement('button');
             link.className = 'fav-search-btn';
             link.textContent = name;
-            link.onclick = function(e) { e.stopPropagation(); searchFavorite(name); };
             entry.appendChild(link);
 
             // Manual per-series check. Only ever shown for series that already
@@ -1454,7 +1454,6 @@ function renderFavorites(favs) {
             refreshBtn.title = 'Check this series now';
             refreshBtn.style.display = 'none';
             refreshBtn.onclick = function(e) { e.stopPropagation(); forceCheckSeries(name); };
-            entry.appendChild(refreshBtn);
 
             var editBtn = document.createElement('button');
             editBtn.className = 'fav-menu-item';
@@ -1482,7 +1481,12 @@ function renderFavorites(favs) {
             kebabWrap.className = 'fav-kebab-wrap';
             kebabWrap.appendChild(kebabBtn);
             kebabWrap.appendChild(kebabMenu);
-            entry.appendChild(kebabWrap);
+
+            var actions = document.createElement('div');
+            actions.className = 'fav-entry-actions';
+            actions.appendChild(refreshBtn);
+            actions.appendChild(kebabWrap);
+            entry.appendChild(actions);
 
             list.appendChild(entry);
         });
@@ -1655,6 +1659,11 @@ function saveManualFavorite(name) {
 
 function startEdit(entry, oldName) {
     entry.innerHTML = '';
+    // Row is temporarily an edit form now, not a searchable series row —
+    // loadFavorites() rebuilds the row (and this handler) fresh once
+    // editing ends, whether via save or cancel.
+    entry.onclick = null;
+
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'fav-manual-input';
