@@ -675,9 +675,14 @@ td.action-cell {
     /* Text-labeled buttons (Download/Save/modals) already have generous
        padding sized for readability, which happens to double as a fine
        touch target — these small icon-only glyphs never had that benefit,
-       so they get real minimums here instead of scaling the whole UI up. */
+       so they get real minimums here instead of scaling the whole UI up.
+       fav-edit-btn/fav-delete-btn are the same style of icon-only glyph,
+       just for the confirm/cancel (✓/✕) shown while renaming a saved
+       series — same gap, same fix. */
     .fav-refresh-btn,
-    .fav-kebab-btn {
+    .fav-kebab-btn,
+    .fav-edit-btn,
+    .fav-delete-btn {
         min-width: 40px;
         min-height: 40px;
         display: inline-flex;
@@ -710,6 +715,19 @@ td.action-cell {
        already provides. */
     .fav-notif-download {
         margin-right: 6px;
+    }
+
+    /* "Skip series folder" checkbox + the folder name field were sharing
+       one row, which left the field squeezed into whatever room the
+       checkbox's label text didn't need — stack them instead, checkbox on
+       top since it's the thing that determines whether the field below it
+       is even used. align-items switches from the row layout's `center`
+       (vertical centering) to `stretch` so the field actually fills the
+       full width rather than sitting at its unstyled intrinsic size. */
+    .modal-series-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
     }
 }
 
@@ -1170,6 +1188,7 @@ td.action-cell {
 
 .fav-notif-scroll-area {
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 /* A plain overlay sitting on top of scroll-area, not inside it — so it's
