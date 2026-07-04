@@ -970,6 +970,30 @@ function buildNotifPanel(bell, series, notifications) {
             var atBottom = scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 2;
             fade.classList.toggle('fav-notif-fade-visible', !atBottom);
         });
+
+        // overscroll-behavior: contain (see CSS) is the standard fix for
+        // scrolling past this list's edge chaining into the page behind
+        // it, but it doesn't reliably take effect on every mobile browser
+        // (seen on Firefox for Android) — this manual touch handler is a
+        // belt-and-suspenders fallback that works everywhere regardless.
+        // It only blocks the touch when continuing to scroll would have
+        // nowhere left to go (already at the top/bottom edge), so normal
+        // scrolling within the list is completely unaffected.
+        var touchStartY = 0;
+        scrollArea.addEventListener('touchstart', function(e) {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        scrollArea.addEventListener('touchmove', function(e) {
+            var deltaY = e.touches[0].clientY - touchStartY;
+            var atTop = scrollArea.scrollTop <= 0;
+            var atBottom = scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight - 1;
+            // Finger moving down (deltaY > 0) drags earlier content into
+            // view, i.e. scrolls toward the top — only a problem once
+            // already at the top; same logic in reverse for the bottom.
+            if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     }
 }
 
