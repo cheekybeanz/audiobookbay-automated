@@ -553,6 +553,20 @@ function clearSearch() {
     loadFavorites();
 }
 
+function toggleSearchInfo() {
+    var pop = document.getElementById('search-info-popover');
+    if (!pop) return;
+    pop.style.display = (pop.style.display === 'none') ? 'block' : 'none';
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.querySelector('.search-info-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        var pop = document.getElementById('search-info-popover');
+        if (pop) pop.style.display = 'none';
+    }
+});
+
 function saveSearchState(query) {
     var tbody = document.getElementById('results-table-body');
     if (tbody && tbody.innerHTML.trim()) {
@@ -924,8 +938,6 @@ function openSaveSeriesModal(title, btn) {
             }
         }
 
-        document.getElementById('save-series-input').focus();
-        document.getElementById('save-series-input').select();
         // Use the fresh, authoritative already_saved value from THIS live
         // fetch — more reliable than re-deriving it from the client-side
         // favorites cache, which could theoretically still be mid-refresh
@@ -1574,7 +1586,6 @@ function openDownloadModal(link, title) {
         updateModalPath();
         checkVolumeExists(title, _originalSeries);
         document.getElementById('download-modal').style.display = 'flex';
-        if (!skipSeries) document.getElementById('modal-series-input').focus();
     });
 }
 
