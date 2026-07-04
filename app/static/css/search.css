@@ -42,10 +42,6 @@ form {
     line-height: 1;
     transition: color 0.2s;
 }
-.search-info-btn:hover {
-    background: none;
-    color: var(--accent);
-}
 
 .search-info-popover {
     position: absolute;
@@ -101,10 +97,6 @@ form {
     flex-shrink: 0;
     width: auto;
     margin-bottom: 0;
-}
-
-.search-button:hover {
-    background-color: var(--accent-hover);
 }
 
 .search-button:active {
@@ -182,7 +174,6 @@ form {
     flex-wrap: wrap;
 }
 
-
 #filter-container select,
 #filter-container input[type="text"] {
     padding: 7px 10px;
@@ -215,15 +206,6 @@ form {
     width: auto;
 }
 
-#filter-container button:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
-
-
-
-
 /* ── Results — card list ─────────────────────────────────────────── */
 /* Replace raw <table> with a card-per-result layout */
 table {
@@ -253,11 +235,6 @@ tr.result-row {
     padding: 14px;
     transition: border-color 0.2s, background-color 0.15s;
     width: 100%;
-}
-
-tr.result-row:hover {
-    background-color: var(--bg-panel-alt);
-    border-color: var(--border-strong);
 }
 
 /* Remove default td styling */
@@ -341,7 +318,6 @@ td.action-cell {
     background-color: var(--accent);
     color: white;
 }
-.btn-download:hover { background-color: var(--accent-hover); }
 
 /* Save Series — secondary action */
 .fav-btn {
@@ -349,10 +325,7 @@ td.action-cell {
     color: var(--text-muted);
     border: 1px solid var(--border-strong) !important;
 }
-.fav-btn:hover {
-    background-color: rgba(255,255,255,0.06);
-    color: var(--text-primary);
-}
+
 .fav-btn:disabled {
     background-color: rgba(46,125,50,0.2);
     color: #81c784;
@@ -368,10 +341,6 @@ td.action-cell {
     color: #81c784;
     border-color: rgba(46,125,50,0.4) !important;
 }
-.fav-btn-saved:hover {
-    background-color: rgba(46,125,50,0.3);
-    color: #a5d6a7;
-}
 
 /* Details — tertiary, least prominent */
 .btn-details {
@@ -380,12 +349,6 @@ td.action-cell {
     border: 1px solid var(--border) !important;
     font-size: 0.75rem;
 }
-.btn-details:hover {
-    background-color: rgba(255,255,255,0.04);
-    color: var(--text-muted);
-    border-color: var(--border-strong) !important;
-}
-
 
 /* ── Favorites panel — always visible, header toggles content ────── */
 #favorites-panel {
@@ -412,9 +375,6 @@ td.action-cell {
     transition: background-color 0.15s;
     user-select: none;
     position: relative;
-}
-#favorites-header:hover {
-    background-color: rgba(255,255,255,0.03);
 }
 
 #favorites-header-label {
@@ -479,7 +439,6 @@ td.action-cell {
     transition: background-color 0.15s;
 }
 .fav-entry:last-child { border-bottom: none; }
-.fav-entry:hover { background-color: rgba(255,255,255,0.04); }
 
 .fav-search-btn {
     background: none;
@@ -494,7 +453,6 @@ td.action-cell {
     flex-grow: 1;
     transition: color 0.2s;
 }
-.fav-search-btn:hover { background: none; color: var(--accent); }
 
 .fav-refresh-btn {
     background: none;
@@ -509,7 +467,6 @@ td.action-cell {
     line-height: 1;
     transition: color 0.2s;
 }
-.fav-refresh-btn:hover { background: none; color: var(--accent); }
 
 .fav-kebab-wrap {
     position: relative;
@@ -528,7 +485,6 @@ td.action-cell {
     line-height: 1;
     transition: color 0.2s;
 }
-.fav-kebab-btn:hover { background: none; color: var(--accent); }
 
 .fav-kebab-menu {
     position: absolute;
@@ -544,11 +500,6 @@ td.action-cell {
     min-width: 120px;
     z-index: 20;
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-}
-
-.fav-menu-item-danger:hover {
-    background-color: rgba(239, 83, 80, 0.15);
-    color: #ef5350;
 }
 
 /* Save/Cancel buttons shown during inline series-name editing — a
@@ -567,8 +518,6 @@ td.action-cell {
     padding: 0 4px;
     transition: color 0.2s;
 }
-.fav-edit-btn:hover { background: none; color: var(--accent); }
-.fav-delete-btn:hover { background: none; color: #ef5350; }
 
 .fav-add-row {
     display: flex;
@@ -632,13 +581,6 @@ td.action-cell {
     pointer-events: none;
     transition: border-color 0.2s;
 }
-.fav-cog-btn:hover {
-    background-color: var(--accent-subtle);
-    color: var(--text-primary);
-}
-.fav-cog-btn:hover::after {
-    border-color: var(--accent);
-}
 
 .fav-cog-menu {
     position: absolute;
@@ -671,10 +613,7 @@ td.action-cell {
     white-space: nowrap;
     transition: background-color 0.2s, color 0.2s;
 }
-.fav-menu-item:hover {
-    background-color: var(--accent-subtle);
-    color: var(--text-primary);
-}
+
 .fav-menu-item:disabled {
     opacity: 0.6;
     cursor: default;
@@ -705,11 +644,6 @@ td.action-cell {
     width: auto;
     margin-bottom: 0;
     transition: background-color 0.2s, border-color 0.2s;
-}
-.fav-add-btn:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
 }
 
 #favorites-empty {
@@ -798,11 +732,6 @@ td.action-cell {
     display: inline-flex;
     align-items: center;
 }
-.cancel-button:hover {
-    background-color: rgba(239, 83, 80, 0.25);
-    border-color: #ef5350;
-    color: #ff6b6b;
-}
 
 /* ── Clear search button (next to Search) ────────────────────────── */
 .clear-button {
@@ -824,20 +753,11 @@ td.action-cell {
     align-items: center;
 }
 
-.clear-button:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: var(--text-muted);
-    color: var(--text-primary);
-}
-
-
-
 /* ── No-results favorites bar ────────────────────────────────────── */
 #no-results-bar {
     width: 100%;
     margin-bottom: 10px;
 }
-
 
 /* ── Download confirmation modal ─────────────────────────────────── */
 #download-modal {
@@ -896,8 +816,6 @@ td.action-cell {
     margin-bottom: 6px;
 }
 
-
-
 .modal-series-row input[type="text"] {
     flex: 1;
     min-width: 0;
@@ -953,11 +871,6 @@ td.action-cell {
     transition: background-color 0.2s, color 0.2s;
 }
 
-.modal-btn-cancel:hover {
-    background-color: rgba(255,255,255,0.06);
-    color: var(--text-primary);
-}
-
 .modal-btn-confirm {
     padding: 9px 20px;
     border-radius: 6px;
@@ -973,7 +886,6 @@ td.action-cell {
     transition: background-color 0.2s;
 }
 
-.modal-btn-confirm:hover { background-color: var(--accent-hover); }
 .modal-btn-confirm:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Modal success / error result state ──────────────────────────── */
@@ -1051,10 +963,6 @@ td.action-cell {
     cursor: pointer;
 }
 
-.modal-skip-label:hover {
-    color: var(--text-primary);
-}
-
 /* ── Existing volume warning ─────────────────────────────────────── */
 .modal-exists-warning {
     display: flex;
@@ -1110,12 +1018,6 @@ td.action-cell {
     margin-bottom: 0;
 }
 
-.load-more-btn:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
-
 .load-more-btn:disabled {
     opacity: 0.5;
     cursor: default;
@@ -1162,11 +1064,6 @@ td.action-cell {
     transform: translateX(-50%);
 }
 
-.fav-sort-btn:hover {
-    background: none !important;
-    color: var(--text-muted);
-}
-
 .fav-sort-btn.fav-sort-active {
     color: var(--accent);
 }
@@ -1193,18 +1090,11 @@ td.action-cell {
     opacity: 0.2;
     filter: grayscale(1) brightness(0.6);
 }
-.fav-bell-btn.bell-dim:hover {
-    opacity: 0.55;
-    filter: grayscale(0);
-}
 
 /* Active — monitoring, nothing found */
 .fav-bell-btn.bell-active {
     opacity: 0.7;
     filter: grayscale(0);
-}
-.fav-bell-btn.bell-active:hover {
-    opacity: 1;
 }
 
 /* Glow — new volume found */
@@ -1262,10 +1152,6 @@ td.action-cell {
     flex-shrink: 0;
     line-height: 1;
     transition: color 0.15s;
-}
-.fav-notif-close:hover {
-    background: none;
-    color: var(--accent);
 }
 
 /* scroll-wrap is just a positioning context for the fade overlay below —
@@ -1332,10 +1218,6 @@ td.action-cell {
     word-break: break-word;
     transition: color 0.15s;
 }
-.fav-notif-link:hover {
-    color: var(--accent);
-    text-decoration: underline;
-}
 
 .fav-notif-caption {
     color: var(--text-muted);
@@ -1355,10 +1237,6 @@ td.action-cell {
     transition: color 0.15s;
     line-height: 1;
 }
-.fav-notif-download:hover {
-    background: none !important;
-    color: var(--accent);
-}
 
 .fav-notif-dismiss {
     background: none !important;
@@ -1372,10 +1250,6 @@ td.action-cell {
     flex-shrink: 0;
     transition: color 0.15s;
     line-height: 1;
-}
-.fav-notif-dismiss:hover {
-    background: none !important;
-    color: #ef5350;
 }
 
 .fav-notif-clear-btn {
@@ -1393,10 +1267,6 @@ td.action-cell {
     cursor: pointer;
     transition: background-color 0.15s, color 0.15s;
     text-align: center;
-}
-.fav-notif-clear-btn:hover {
-    background-color: rgba(255,255,255,0.06) !important;
-    color: var(--text-primary);
 }
 
 /* fav-entry needs relative positioning for bell click anchor reference */
@@ -1484,7 +1354,6 @@ td.action-cell {
     height: 14px;
     cursor: pointer;
 }
-.save-series-alert-label:hover { color: var(--text-primary); }
 
 /* Disabled state — series already exists, alert control belongs to the
    bell icon in Favorites instead, so this checkbox is a no-op here. */
@@ -1492,7 +1361,170 @@ td.action-cell {
     cursor: default;
     opacity: 0.5;
 }
-.save-series-alert-label:has(input:disabled):hover { color: var(--text-muted); }
+
 .save-series-alert-label input[type=checkbox]:disabled {
     cursor: default;
+}
+
+/* ── Hover-only styles ─────────────────────────────────────── */
+/* Every :hover rule in this file lives here, gated behind a real-
+   pointer check, instead of scattered inline next to each element's
+   own rule. Touch devices report hover:none, so this block simply
+   never applies there — :hover only fires on tap on touchscreens
+   (there's no real mouse to "leave"), and it doesn't clear until
+   something else is tapped, which is what was causing whatever row
+   or link you last touched to stay highlighted while scrolling.
+   Mouse/trackpad users on desktop see hover feedback exactly as
+   before — this only changes touch behavior. */
+@media (hover: hover) and (pointer: fine) {
+    .search-info-btn:hover {
+        background: none;
+        color: var(--accent);
+    }
+
+    .search-button:hover {
+        background-color: var(--accent-hover);
+    }
+
+    #filter-container button:hover {
+        background-color: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--text-primary);
+    }
+
+    tr.result-row:hover {
+        background-color: var(--bg-panel-alt);
+        border-color: var(--border-strong);
+    }
+
+    .btn-download:hover { background-color: var(--accent-hover); }
+
+    .fav-btn:hover {
+        background-color: rgba(255,255,255,0.06);
+        color: var(--text-primary);
+    }
+
+    .fav-btn-saved:hover {
+        background-color: rgba(46,125,50,0.3);
+        color: #a5d6a7;
+    }
+
+    .btn-details:hover {
+        background-color: rgba(255,255,255,0.04);
+        color: var(--text-muted);
+        border-color: var(--border-strong) !important;
+    }
+
+    #favorites-header:hover {
+        background-color: rgba(255,255,255,0.03);
+    }
+
+    .fav-entry:hover { background-color: rgba(255,255,255,0.04); }
+
+    .fav-search-btn:hover { background: none; color: var(--accent); }
+
+    .fav-refresh-btn:hover { background: none; color: var(--accent); }
+
+    .fav-kebab-btn:hover { background: none; color: var(--accent); }
+
+    .fav-menu-item-danger:hover {
+        background-color: rgba(239, 83, 80, 0.15);
+        color: #ef5350;
+    }
+
+    .fav-edit-btn:hover { background: none; color: var(--accent); }
+
+    .fav-delete-btn:hover { background: none; color: #ef5350; }
+
+    .fav-cog-btn:hover {
+        background-color: var(--accent-subtle);
+        color: var(--text-primary);
+    }
+
+    .fav-cog-btn:hover::after {
+        border-color: var(--accent);
+    }
+
+    .fav-menu-item:hover {
+        background-color: var(--accent-subtle);
+        color: var(--text-primary);
+    }
+
+    .fav-add-btn:hover {
+        background-color: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--text-primary);
+    }
+
+    .cancel-button:hover {
+        background-color: rgba(239, 83, 80, 0.25);
+        border-color: #ef5350;
+        color: #ff6b6b;
+    }
+
+    .clear-button:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+        border-color: var(--text-muted);
+        color: var(--text-primary);
+    }
+
+    .modal-btn-cancel:hover {
+        background-color: rgba(255,255,255,0.06);
+        color: var(--text-primary);
+    }
+
+    .modal-btn-confirm:hover { background-color: var(--accent-hover); }
+
+    .modal-skip-label:hover {
+        color: var(--text-primary);
+    }
+
+    .load-more-btn:hover {
+        background-color: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--text-primary);
+    }
+
+    .fav-sort-btn:hover {
+        background: none !important;
+        color: var(--text-muted);
+    }
+
+    .fav-bell-btn.bell-dim:hover {
+        opacity: 0.55;
+        filter: grayscale(0);
+    }
+
+    .fav-bell-btn.bell-active:hover {
+        opacity: 1;
+    }
+
+    .fav-notif-close:hover {
+        background: none;
+        color: var(--accent);
+    }
+
+    .fav-notif-link:hover {
+        color: var(--accent);
+        text-decoration: underline;
+    }
+
+    .fav-notif-download:hover {
+        background: none !important;
+        color: var(--accent);
+    }
+
+    .fav-notif-dismiss:hover {
+        background: none !important;
+        color: #ef5350;
+    }
+
+    .fav-notif-clear-btn:hover {
+        background-color: rgba(255,255,255,0.06) !important;
+        color: var(--text-primary);
+    }
+
+    .save-series-alert-label:hover { color: var(--text-primary); }
+
+    .save-series-alert-label:has(input:disabled):hover { color: var(--text-muted); }
 }
