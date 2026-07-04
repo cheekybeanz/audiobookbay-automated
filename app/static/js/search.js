@@ -821,7 +821,7 @@ function buildNotifPanel(bell, series, notifications) {
         if (captionParts.length) {
             var caption = document.createElement('div');
             caption.className = 'fav-notif-caption';
-            caption.textContent = captionParts.join(' \u2014 ');
+            caption.textContent = captionParts.join(', ');
             text.appendChild(caption);
         }
         row.appendChild(text);
