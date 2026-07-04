@@ -878,13 +878,16 @@ function buildNotifPanel(bell, series, notifications) {
     // Flipping direction alone isn't enough — 70vh can still be taller than
     // whichever side actually has more room, depending on exactly where the
     // triggering row sits. So the height itself gets capped to the real
-    // available space in the chosen direction (with a small floor so it
-    // never gets squeezed down to something unusably tiny), and positioning
-    // is based on the panel's actual measured height AFTER that constraint
-    // is applied — not a guess made before the constraint existed.
+    // available space in the chosen direction, and positioning is based on
+    // the panel's actual measured height AFTER that constraint is applied —
+    // not a guess made before the constraint existed.
     var openUpward = spaceBelow < 100 && spaceAbove > spaceBelow;
     var available  = openUpward ? spaceAbove : spaceBelow;
-    panel.style.maxHeight = Math.max(150, Math.min(cssMaxHeight, available)) + 'px';
+    // No artificial minimum here — a floor that ignores real available space
+    // just recreates the overflow bug in a different form (forcing the
+    // panel taller than the room that actually exists). A cramped panel
+    // that's still fully contained beats one that looks fine but overflows.
+    panel.style.maxHeight = Math.min(cssMaxHeight, available) + 'px';
 
     var panelHeight = panel.offsetHeight;
     if (openUpward) {
@@ -893,6 +896,19 @@ function buildNotifPanel(bell, series, notifications) {
         panel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
     }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
+
+    // A capped panel with more content than fits scrolls internally, but
+    // mobile scrollbars are often thin-to-invisible at rest — nothing would
+    // otherwise hint that there's more below. A fade at the bottom edge is
+    // a near-universal "keep scrolling" signal, shown only when there's
+    // genuinely more to see (scrollHeight > clientHeight), not permanently.
+    if (panel.scrollHeight > panel.clientHeight) {
+        panel.classList.add('fav-notif-scrollable');
+        panel.addEventListener('scroll', function() {
+            var atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 2;
+            panel.classList.toggle('fav-notif-scrollable', !atBottom);
+        });
+    }
 }
 
 function toggleAlert(series, enable) {
