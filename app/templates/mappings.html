@@ -11,6 +11,7 @@
     <h1>Series Mappings</h1>
     <p class="mappings-subtitle">
         Group titles into a shared folder by watching for a keyword anywhere in the title.
+        Matching titles share this folder name on the download screen instead of each getting their own.
     </p>
 </div>
 
@@ -30,11 +31,7 @@
     </div>
     <div id="path-preview" style="display:none;">
         <div class="path-preview-row">
-            <span class="path-label">Before:</span>
-            <span id="path-before" class="path-value path-before"></span>
-        </div>
-        <div class="path-preview-row">
-            <span class="path-label">After:</span>
+            <span class="path-label">Example:</span>
             <span id="path-after" class="path-value path-after"></span>
         </div>
     </div>
@@ -183,11 +180,6 @@ function updatePathPreview() {
     var preview = document.getElementById('path-preview');
     if (!keyword) { preview.style.display = 'none'; return; }
     var safeFolder = (folderName || keyword).replace(/[<>:"/\\|?*]/g, '').trim();
-    // "Before" is illustrative, not a real title — it just needs to show
-    // the keyword sitting inside some longer title text, since that's the
-    // actual matching rule (matches anywhere in the title, not just an
-    // exact match), rather than implying only an exact title qualifies.
-    document.getElementById('path-before').textContent = '[Any title containing "' + keyword + '"]';
     document.getElementById('path-after').textContent = '/audiobooks/' + safeFolder + '/[title]';
     preview.style.display = 'block';
 }
