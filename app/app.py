@@ -1074,10 +1074,6 @@ def save_blocklist(data):
         json.dump(data, f, indent=2)
 
 
-def _is_blocked(url):
-    return any(entry.get("url") == url for entry in load_blocklist())
-
-
 # ── Alert scheduler ────────────────────────────────────────────────────────
 _alert_series_queue = []
 _alert_cycle_total  = 0   # total series in the current/last cycle, for progress display
@@ -1737,27 +1733,6 @@ def add_favorite_with_options():
     return jsonify({"success": True, "series": series_name, "already_existed": already_existed})
 
 
-@app.route("/favorites/add", methods=["POST"])
-def add_favorite():
-    data  = request.json
-    title = data.get("title", "").strip()
-    if not title:
-        return jsonify({"success": False, "message": "No title provided"}), 400
-
-    series = sanitize_title(get_series_name(title))
-    if not series:
-        return jsonify({"success": False, "message": "Could not extract series name"}), 400
-
-    favs = load_favorites()
-    if _find_case_insensitive(series, favs):
-        return jsonify({"success": False, "message": "Already saved"})
-
-    favs.append(series)
-    favs.sort()
-    save_favorites(favs)
-    return jsonify({"success": True, "series": series})
-
-
 @app.route("/favorites/add_manual", methods=["POST"])
 def add_favorite_manual():
     data = request.json
@@ -2045,37 +2020,6 @@ def alerts_dismiss():
             "blocked_at": datetime.utcnow().strftime("%Y-%m-%d"),
         })
         save_blocklist(blocklist)
-
-    return jsonify({"success": True})
-
-
-@app.route("/alerts/dismiss_all", methods=["POST"])
-def alerts_dismiss_all():
-    """Dismiss all notifications for a series and block all their URLs."""
-    data   = request.json
-    series = data.get("series", "").strip()
-    if not series:
-        return jsonify({"success": False}), 400
-
-    alerts = load_alerts()
-    notifications = alerts.get(series, {}).get("notifications", [])
-
-    blocklist = load_blocklist()
-    blocked_urls = {e.get("url") for e in blocklist}
-    for n in notifications:
-        if n.get("url") not in blocked_urls:
-            blocklist.append({
-                "url":        n.get("url"),
-                "title":      n.get("title"),
-                "matched_as": n.get("matched_as"),
-                "series":     series,
-                "blocked_at": datetime.utcnow().strftime("%Y-%m-%d"),
-            })
-    save_blocklist(blocklist)
-
-    if series in alerts:
-        alerts[series]["notifications"] = []
-        save_alerts(alerts)
 
     return jsonify({"success": True})
 
