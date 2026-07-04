@@ -1268,20 +1268,21 @@ td.action-cell {
     color: var(--accent);
 }
 
-/* scroll-wrap is a plain box with nothing of its own to scroll — it just
-   gives scroll-area (which fills it completely via inset:0) and the fade
-   overlay a shared positioning context, sized by flex:1 to take whatever
-   room is left after the fixed header/footer above and below it. */
+/* scroll-wrap is just a positioning context for the fade overlay below —
+   it takes on whatever height scroll-area actually needs (natural size
+   when everything fits, or a JS-assigned pixel height when the list needs
+   to scroll; see buildNotifPanel in search.js). A flex:1/min-height:0 fill
+   trick was tried here previously, but that only works when the panel
+   itself has a definite height — with only max-height set (no height),
+   scroll-area's own content is the only thing that ever determined this
+   box's size, since flex-grow has no free space to distribute in an
+   auto-sized container. Giving scroll-area an explicit pixel height via
+   JS when clipping is actually needed sidesteps that entirely. */
 .fav-notif-scroll-wrap {
     position: relative;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
 }
 
 .fav-notif-scroll-area {
-    position: absolute;
-    inset: 0;
     overflow-y: auto;
 }
 
