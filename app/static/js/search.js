@@ -567,6 +567,37 @@ document.addEventListener('click', function(e) {
     }
 });
 
+// Hover (matching the notification bell's exact 300ms/200ms open/close
+// timing) sits alongside the click-toggle above rather than replacing it —
+// there's no fully reliable way to know in advance whether a given device
+// will actually hover, so both stay active. On a normal mouse-driven
+// desktop this behaves identically to opening on hover; on a touch device,
+// hover simply never fires and the click-toggle above just works on its
+// own. The only overlap is a hybrid touchscreen laptop, where clicking
+// something already open via hover just toggles it closed — harmless.
+(function() {
+    var btn = document.getElementById('search-info-btn');
+    var pop = document.getElementById('search-info-popover');
+    if (!btn || !pop) return;
+
+    var hoverTimer = null;
+    var leaveTimer = null;
+
+    function openPop()  { clearTimeout(leaveTimer); pop.style.display = 'block'; }
+    function scheduleClose() { leaveTimer = setTimeout(function() { pop.style.display = 'none'; }, 200); }
+
+    btn.addEventListener('mouseenter', function() {
+        clearTimeout(leaveTimer);
+        hoverTimer = setTimeout(openPop, 300);
+    });
+    btn.addEventListener('mouseleave', function() {
+        clearTimeout(hoverTimer);
+        scheduleClose();
+    });
+    pop.addEventListener('mouseenter', function() { clearTimeout(leaveTimer); });
+    pop.addEventListener('mouseleave', scheduleClose);
+})();
+
 function saveSearchState(query) {
     var tbody = document.getElementById('results-table-body');
     if (tbody && tbody.innerHTML.trim()) {
