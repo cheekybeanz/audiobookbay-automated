@@ -737,6 +737,46 @@ td.action-cell {
         width: 56px;
         height: 56px;
     }
+
+    /* Text-labeled buttons (Download/Save/modals) already have generous
+       padding sized for readability, which happens to double as a fine
+       touch target — these small icon-only glyphs never had that benefit,
+       so they get real minimums here instead of scaling the whole UI up. */
+    .fav-refresh-btn,
+    .fav-kebab-btn {
+        min-width: 40px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+    }
+    .fav-cog-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+    .fav-menu-item {
+        padding: 12px 14px;
+        font-size: 0.85rem;
+    }
+    .fav-notif-download,
+    .fav-notif-dismiss {
+        min-width: 40px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem !important;
+    }
+    /* Extra room specifically between these two — not just the row's
+       normal gap — since one is reversible (download) and the other
+       permanently blocklists a listing, so a mis-tap between the two
+       specifically is worth more insurance than the general row spacing
+       already provides. */
+    .fav-notif-download {
+        margin-right: 6px;
+    }
 }
 
 /* ── Cancel search button ────────────────────────────────────────── */
