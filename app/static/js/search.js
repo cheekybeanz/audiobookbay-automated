@@ -918,16 +918,22 @@ function buildNotifPanel(bell, series, notifications) {
     var cssMaxHeight = window.innerHeight * 0.7;
     var bestSingleSide = Math.max(spaceAbove, spaceBelow);
 
-    // Measuring BEFORE any height constraint is applied to the panel means
-    // scrollArea is still naturally full-height (unclipped) at this point,
-    // so panel.scrollHeight reflects the true total content height —
-    // header + every row + footer — with nothing hidden yet.
+    // scrollArea is a normal in-flow block at this point (no height set
+    // yet), so panel.scrollHeight reflects the true total content height —
+    // header + every row + footer — with nothing hidden or clipped yet.
     var naturalHeight = panel.scrollHeight;
+
+    // header/footer's own real rendered size, measured directly rather than
+    // relying on flex-grow/grid-fr to work it out — those only distribute
+    // "leftover space" correctly when the panel has a definite height, and
+    // here the panel only ever has a max-height cap, never a real height.
+    var chromeHeight = header.offsetHeight + clearBtn.offsetHeight;
 
     if (naturalHeight <= Math.min(cssMaxHeight, bestSingleSide)) {
         // Fits comfortably anchored to one edge of the bell — no reason to
         // claim more room than that, keeps it feeling anchored to what was
         // actually clicked rather than taking over the screen unnecessarily.
+        // scrollArea is left at its natural height here (no clipping needed).
         var openUpward = spaceBelow < 100 && spaceAbove > spaceBelow;
         var available  = openUpward ? spaceAbove : spaceBelow;
         panel.style.maxHeight = Math.min(cssMaxHeight, available) + 'px';
@@ -945,15 +951,19 @@ function buildNotifPanel(bell, series, notifications) {
         // never going to fit without scrolling regardless. Claim close to
         // the full viewport height instead, so scrolling covers as little
         // of the list as possible.
-        panel.style.maxHeight = (window.innerHeight - margin * 2) + 'px';
+        var maxPanelHeight = window.innerHeight - margin * 2;
+        panel.style.maxHeight = maxPanelHeight + 'px';
         panel.style.top = (window.scrollY + margin) + 'px';
+
+        // Give scrollArea an explicit pixel height for the room left after
+        // header/footer, so it (and only it) scrolls while they stay put.
+        // A small floor keeps this sane on very short mobile viewports
+        // where chromeHeight could otherwise exceed maxPanelHeight.
+        scrollArea.style.height = Math.max(60, maxPanelHeight - chromeHeight) + 'px';
     }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 
-    // flex:1 + min-height:0 on scrollArea (see CSS) means it automatically
-    // fills whatever room panel's own max-height leaves after the fixed
-    // header/footer — no manual subtraction needed here. Only the internal
-    // list (scrollArea), not the whole panel, actually scrolls now.
+    // Only the internal list (scrollArea), not the whole panel, scrolls.
     if (scrollArea.scrollHeight > scrollArea.clientHeight) {
         fade.classList.add('fav-notif-fade-visible');
         scrollArea.addEventListener('scroll', function() {
