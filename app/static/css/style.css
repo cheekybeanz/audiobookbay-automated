@@ -97,11 +97,6 @@ h2 {
     display: block;
 }
 
-.navbar-logo:hover {
-    background-color: transparent;
-    opacity: 0.85;
-}
-
 .navbar-links {
     grid-column: 2;
     display: flex;
@@ -123,11 +118,6 @@ h2 {
     letter-spacing: 0.01em;
     transition: color 0.2s, background-color 0.2s;
     border-bottom: 2px solid transparent;
-}
-
-.navbar a:hover {
-    color: var(--text-primary);
-    background-color: rgba(255, 255, 255, 0.04);
 }
 
 .navbar a.active {
@@ -271,10 +261,6 @@ button {
     margin: 0;
     transition: background-color 0.2s, color 0.2s;
 }
-.app-modal-btn-cancel:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: var(--text-primary);
-}
 
 .app-modal-btn-confirm {
     padding: 9px 20px;
@@ -290,14 +276,10 @@ button {
     margin: 0;
     transition: background-color 0.2s;
 }
-.app-modal-btn-confirm:hover { background-color: var(--accent-hover); }
 
 /* Destructive actions (remove/delete) use red instead of the accent color */
 .app-modal-btn-confirm.app-modal-btn-danger {
     background-color: var(--red);
-}
-.app-modal-btn-confirm.app-modal-btn-danger:hover {
-    background-color: #b71c1c;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -324,11 +306,6 @@ button {
     opacity: 0.4;
     margin: 0;
     transition: opacity 0.2s, color 0.2s, transform 0.2s;
-}
-#dev-panel-toggle:hover {
-    opacity: 1;
-    color: var(--accent);
-    transform: rotate(45deg);
 }
 
 #dev-panel {
@@ -367,7 +344,6 @@ button {
     margin-bottom: 0;
     padding: 0;
 }
-.dev-panel-close:hover { background: none; color: #ef5350; }
 
 .dev-panel-label {
     display: block;
@@ -425,12 +401,6 @@ button {
     transition: background-color 0.2s, border-color 0.2s, color 0.2s;
     margin-bottom: 0;
 }
-.dev-panel-btns button:hover,
-.dev-panel-full-btn:hover {
-    background-color: var(--accent-subtle);
-    border-color: var(--accent);
-    color: var(--text-primary);
-}
 
 .dev-panel-full-btn + .dev-panel-full-btn {
     margin-top: 6px;
@@ -448,4 +418,52 @@ button {
     color: var(--text-dim);
     min-height: 16px;
     word-break: break-word;
+}
+
+/* ── Hover-only styles ─────────────────────────────────────── */
+/* Every :hover rule in this file lives here, gated behind a real-
+   pointer check, instead of scattered inline next to each element's
+   own rule. Touch devices report hover:none, so this block simply
+   never applies there — :hover only fires on tap on touchscreens
+   (there's no real mouse to "leave"), and it doesn't clear until
+   something else is tapped, which is what was causing whatever row
+   or link you last touched to stay highlighted while scrolling.
+   Mouse/trackpad users on desktop see hover feedback exactly as
+   before — this only changes touch behavior. */
+@media (hover: hover) and (pointer: fine) {
+    .navbar-logo:hover {
+        background-color: transparent;
+        opacity: 0.85;
+    }
+
+    .navbar a:hover {
+        color: var(--text-primary);
+        background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .app-modal-btn-cancel:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+        color: var(--text-primary);
+    }
+
+    .app-modal-btn-confirm:hover { background-color: var(--accent-hover); }
+
+    .app-modal-btn-confirm.app-modal-btn-danger:hover {
+        background-color: #b71c1c;
+    }
+
+    #dev-panel-toggle:hover {
+        opacity: 1;
+        color: var(--accent);
+        transform: rotate(45deg);
+    }
+
+    .dev-panel-close:hover { background: none; color: #ef5350; }
+
+    .dev-panel-btns button:hover,
+    .dev-panel-full-btn:hover {
+        background-color: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--text-primary);
+    }
 }
