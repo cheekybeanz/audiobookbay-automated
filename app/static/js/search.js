@@ -847,7 +847,11 @@ function buildNotifPanel(bell, series, notifications) {
         dismiss.title = "Add to blocklist";
         dismiss.onclick = function(e) {
             e.stopPropagation();
-            dismissNotification(series, n.url, n.title, n.matched_as, notifications.length);
+            showAppConfirm(
+                'Add "' + n.title + '" to the blocklist? You won\u2019t be alerted about this listing again.',
+                function() { dismissNotification(series, n.url, n.title, n.matched_as, notifications.length); },
+                { okLabel: 'Blocklist', danger: true }
+            );
         };
         row.appendChild(dismiss);
         panel.appendChild(row);
