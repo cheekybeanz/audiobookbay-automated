@@ -871,17 +871,23 @@ function buildNotifPanel(bell, series, notifications) {
     _openNotifPanel = panel;
 
     var rect = bell.getBoundingClientRect();
-    var panelHeight = panel.offsetHeight;
-    var spaceBelow  = window.innerHeight - rect.bottom;
-    var spaceAbove  = rect.top;
+    var spaceBelow = window.innerHeight - rect.bottom - 12;
+    var spaceAbove = rect.top - 12;
+    var cssMaxHeight = window.innerHeight * 0.7;
 
-    // Always opening downward assumed there'd be room below — fine near the
-    // top of a long favorites list, but a row further down (especially on a
-    // short mobile viewport) can leave the panel with nowhere further to
-    // scroll to. Same fix the cog menu needed for the same reason: measure
-    // the actual rendered height and open whichever direction genuinely has
-    // more room, instead of always going down and hoping.
-    if (spaceBelow < panelHeight && spaceAbove > spaceBelow) {
+    // Flipping direction alone isn't enough — 70vh can still be taller than
+    // whichever side actually has more room, depending on exactly where the
+    // triggering row sits. So the height itself gets capped to the real
+    // available space in the chosen direction (with a small floor so it
+    // never gets squeezed down to something unusably tiny), and positioning
+    // is based on the panel's actual measured height AFTER that constraint
+    // is applied — not a guess made before the constraint existed.
+    var openUpward = spaceBelow < 100 && spaceAbove > spaceBelow;
+    var available  = openUpward ? spaceAbove : spaceBelow;
+    panel.style.maxHeight = Math.max(150, Math.min(cssMaxHeight, available)) + 'px';
+
+    var panelHeight = panel.offsetHeight;
+    if (openUpward) {
         panel.style.top = (rect.top + window.scrollY - panelHeight - 6) + 'px';
     } else {
         panel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
