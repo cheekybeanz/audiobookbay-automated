@@ -568,14 +568,31 @@ def extract_magnet_link(details_url):
 
 # ── Title / series helpers ─────────────────────────────────────────────────
 def sanitize_title(title):
-    # Colons are replaced (not deleted) since they're a meaningful subtitle
-    # boundary ("Series V: Subtitle") that volume extraction relies on —
-    # deleting them outright would silently break re-parsing a folder name
-    # later, once it's the only thing left representing that title on disk.
+    # For anything that will become a filesystem path — folder names,
+    # save_path construction, disk lookups. Colons are replaced (not
+    # deleted) since they're a meaningful subtitle boundary ("Series V:
+    # Subtitle") that volume extraction relies on — deleting them outright
+    # would silently break re-parsing a folder name later, once it's the
+    # only thing left representing that title on disk.
+    # For anything NOT going to touch the filesystem — the Save Series
+    # modal's editable name, ABB search queries, alert matching — use
+    # clean_display_title() below instead. Running this on those values
+    # was replacing every colon with " -", which both looks wrong and
+    # actively hurts ABB search relevance, since ABB's search is sensitive
+    # to exact punctuation (see the in-app search-tips tooltip).
     title = title.replace(":", " -")
     title = re.sub(r'[<>"/\\|?*]', "", title)
     title = re.sub(r"\s+", " ", title).strip()
     return title
+
+
+def clean_display_title(title):
+    # Companion to sanitize_title() above, for values that stay as text —
+    # never become a folder name — so nothing here needs to change to
+    # satisfy filesystem rules. Only whitespace left over from extraction
+    # gets tidied; punctuation (colons included) stays exactly as ABB
+    # itself wrote it.
+    return re.sub(r"\s+", " ", title).strip()
 
 
 # ── Roman numeral support ────────────────────────────────────────────────
@@ -1647,14 +1664,21 @@ def favorites_preview():
     if not title:
         return jsonify({"success": False, "message": "No title provided"}), 400
 
-    extracted = sanitize_title(_extract_series_raw(title))
+    raw_extracted = _extract_series_raw(title)
+    # This is what's shown/edited in the modal and what actually ends up
+    # saved as the series name for ABB search & alert matching — kept as
+    # close to ABB's own title text as possible (colon intact), since that
+    # text is what gets searched later. A separate, filesystem-safe version
+    # is used below only for checking whether a folder already exists on
+    # disk, since that's the one place here that's actually a path.
+    extracted = clean_display_title(raw_extracted)
     matched_keyword, mapped_to = _match_keyword_mapping(title)
     is_mapped = matched_keyword is not None
 
     # Check if series folder already exists on disk using extracted name
     disk_path = None
     if SCAN_PATH_BASE:
-        search_name = mapped_to if mapped_to else extracted
+        search_name = mapped_to if mapped_to else sanitize_title(raw_extracted)
         found = _find_series_folder(SCAN_PATH_BASE, search_name)
         if found:
             disk_path = found
@@ -1680,7 +1704,7 @@ def favorites_preview():
 def add_favorite_with_options():
     """Add to favorites with optional name edit and alert toggle. Never creates mappings."""
     data          = request.json
-    series_name   = sanitize_title(data.get("series_name", "").strip())
+    series_name   = clean_display_title(data.get("series_name", "").strip())
     enable_alerts = data.get("enable_alerts", False)
 
     if not series_name:
@@ -1737,7 +1761,7 @@ def add_favorite():
 @app.route("/favorites/add_manual", methods=["POST"])
 def add_favorite_manual():
     data = request.json
-    name = sanitize_title(data.get("name", "").strip())
+    name = clean_display_title(data.get("name", "").strip())
     if not name:
         return jsonify({"success": False, "message": "No name provided"}), 400
     favs = load_favorites()
@@ -1772,7 +1796,7 @@ def remove_favorite():
 def rename_favorite():
     data     = request.json
     old_name = data.get("old_name", "").strip()
-    new_name = sanitize_title(data.get("new_name", "").strip())
+    new_name = clean_display_title(data.get("new_name", "").strip())
     if not old_name or not new_name:
         return jsonify({"success": False}), 400
 
