@@ -450,7 +450,6 @@ td.action-cell {
     text-align: left;
     width: auto;
     margin-bottom: 0;
-    flex-grow: 1;
     transition: color 0.2s;
 }
 
@@ -466,6 +465,20 @@ td.action-cell {
     flex-shrink: 0;
     line-height: 1;
     transition: color 0.2s;
+}
+
+/* Groups refresh + kebab together and pushes that whole group to the row's
+   right edge, now that fav-search-btn no longer stretches to do that job
+   itself — margin-left: auto on a flex item consumes all remaining space
+   on its left, which is what used to happen incidentally via the search
+   button's own flex-grow. Wrapping them together (rather than putting
+   margin-left: auto directly on fav-refresh-btn) means the group stays
+   put as one unit whether or not the refresh button is currently shown,
+   instead of shifting position when it's hidden. */
+.fav-entry-actions {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
 }
 
 .fav-kebab-wrap {
@@ -721,13 +734,20 @@ td.action-cell {
        one row, which left the field squeezed into whatever room the
        checkbox's label text didn't need — stack them instead, checkbox on
        top since it's the thing that determines whether the field below it
-       is even used. align-items switches from the row layout's `center`
-       (vertical centering) to `stretch` so the field actually fills the
-       full width rather than sitting at its unstyled intrinsic size. */
+       is even used. */
     .modal-series-row {
         flex-direction: column;
         align-items: stretch;
         gap: 8px;
+    }
+    /* align-items: stretch above should be enough on its own, but browsers
+       don't reliably stretch text inputs to fill a flex container the way
+       they do plain divs — inputs behave more like a replaced element with
+       their own intrinsic width, so the field stayed narrow even in a
+       column layout that should have given it the full width. Setting the
+       width explicitly sidesteps relying on stretch for this element. */
+    .modal-series-row input[type="text"] {
+        width: 100%;
     }
 }
 
