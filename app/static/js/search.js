@@ -871,29 +871,40 @@ function buildNotifPanel(bell, series, notifications) {
     _openNotifPanel = panel;
 
     var rect = bell.getBoundingClientRect();
-    var spaceBelow = window.innerHeight - rect.bottom - 12;
-    var spaceAbove = rect.top - 12;
+    var margin = 12;
+    var spaceBelow = window.innerHeight - rect.bottom - margin;
+    var spaceAbove = rect.top - margin;
     var cssMaxHeight = window.innerHeight * 0.7;
+    var bestSingleSide = Math.max(spaceAbove, spaceBelow);
 
-    // Flipping direction alone isn't enough — 70vh can still be taller than
-    // whichever side actually has more room, depending on exactly where the
-    // triggering row sits. So the height itself gets capped to the real
-    // available space in the chosen direction, and positioning is based on
-    // the panel's actual measured height AFTER that constraint is applied —
-    // not a guess made before the constraint existed.
-    var openUpward = spaceBelow < 100 && spaceAbove > spaceBelow;
-    var available  = openUpward ? spaceAbove : spaceBelow;
-    // No artificial minimum here — a floor that ignores real available space
-    // just recreates the overflow bug in a different form (forcing the
-    // panel taller than the room that actually exists). A cramped panel
-    // that's still fully contained beats one that looks fine but overflows.
-    panel.style.maxHeight = Math.min(cssMaxHeight, available) + 'px';
+    // scrollHeight reflects the panel's full natural content height
+    // regardless of whatever max-height is (or isn't yet) applied — safe to
+    // read before any constraint is set.
+    var naturalHeight = panel.scrollHeight;
 
-    var panelHeight = panel.offsetHeight;
-    if (openUpward) {
-        panel.style.top = (rect.top + window.scrollY - panelHeight - 6) + 'px';
+    if (naturalHeight <= Math.min(cssMaxHeight, bestSingleSide)) {
+        // Fits comfortably anchored to one edge of the bell — no reason to
+        // claim more room than that, keeps it feeling anchored to what was
+        // actually clicked rather than taking over the screen unnecessarily.
+        var openUpward = spaceBelow < 100 && spaceAbove > spaceBelow;
+        var available  = openUpward ? spaceAbove : spaceBelow;
+        panel.style.maxHeight = Math.min(cssMaxHeight, available) + 'px';
+
+        var panelHeight = panel.offsetHeight;
+        if (openUpward) {
+            panel.style.top = (rect.top + window.scrollY - panelHeight - 6) + 'px';
+        } else {
+            panel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+        }
     } else {
-        panel.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+        // Scrolling is unavoidable either way here — pinning to one edge of
+        // the bell and only counting that side's space would waste whatever
+        // room exists on the other side for no benefit, since the list was
+        // never going to fit without scrolling regardless. Claim close to
+        // the full viewport height instead, so scrolling covers as little
+        // of the list as possible.
+        panel.style.maxHeight = (window.innerHeight - margin * 2) + 'px';
+        panel.style.top = (window.scrollY + margin) + 'px';
     }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 
