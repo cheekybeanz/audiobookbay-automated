@@ -30,14 +30,15 @@
             </div>
         </div>
         <input type="text" id="search-input" placeholder="Search, or leave empty for new releases&hellip;" class="search-bar">
-        <button type="button" class="search-button" id="search-btn" onclick="startSearch()">
-            <span class="button-text">Search</span>
-            <div class="button-spinner" id="button-spinner" style="display: none;">
-                <div class="spinner"></div>
-            </div>
-        </button>
-        <button type="button" class="cancel-button" id="cancel-search-btn" onclick="cancelSearch()" style="display:none;">Cancel</button>
-        <button type="button" class="clear-button" id="clear-search-btn" onclick="clearSearch()" style="display:none;">Clear</button>
+        <div class="search-actions">
+            <button type="button" class="search-button" id="search-btn" onclick="startSearch()">
+                <span class="button-text">Search</span>
+                <div class="button-spinner" id="button-spinner" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+            <button type="button" class="clear-button" id="clear-search-btn" onclick="clearSearch()" style="display:none;">Clear</button>
+        </div>
     </div>
 </div>
 
