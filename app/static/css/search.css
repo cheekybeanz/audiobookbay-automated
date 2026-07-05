@@ -17,32 +17,37 @@ form {
     justify-content: center;
 }
 
+/* Grid rather than flex specifically so the mobile rule below can place
+   search-actions in the same column as search-bar when it wraps to its
+   own row — with flex-wrap alone, a wrapped item starts at the row's own
+   left edge, which is wherever search-info-wrap (the info icon) starts,
+   not wherever search-bar starts after it. That mismatch is exactly what
+   made the wrapped button row look misaligned with the field above it. */
 .search-form {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    flex-wrap: wrap;
     gap: 8px;
     width: 100%;
     max-width: 620px;
 }
 
 /* Search and Clear (when present) are grouped so they always move as a
-   pair. flex-basis:100% under the mobile breakpoint below forces this
-   group onto its own row deterministically on every phone-sized screen —
-   relying on flex-wrap alone (without that) produces an ambiguous "just
-   barely fits" width band (around 412px, a common Android width) where
-   the row doesn't wrap but search-bar still gets squeezed to its bare
-   min-width, which is worse than either clearly wrapping or clearly not. */
+   pair. The mobile rule below explicitly places this whole group onto
+   its own grid row/column deterministically on every phone-sized screen —
+   relying on flex-wrap alone (an earlier version of this) produces an
+   ambiguous "just barely fits" width band (around 412px, a common
+   Android width) where the row doesn't wrap but search-bar still gets
+   squeezed to its bare min-width, which is worse than either clearly
+   wrapping or clearly not. */
 .search-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
 }
 
 .search-info-wrap {
     position: relative;
-    flex-shrink: 0;
 }
 
 .search-info-btn {
@@ -75,7 +80,7 @@ form {
 }
 
 .search-bar {
-    flex: 1;
+    width: 100%;
     padding: 11px 16px;
     border: 1px solid var(--border-strong);
     border-radius: 8px;
@@ -683,12 +688,18 @@ td.action-cell {
 
 /* ── Mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-    /* Forces Search+Clear onto their own row on every phone-sized screen,
-       rather than leaving it to flex-wrap's organic "does it fit" check —
-       see the comment on .search-actions above for why that alone isn't
-       reliable enough here. */
+    /* Two columns instead of three — icon, then input taking all
+       remaining width. search-actions is explicitly placed in the same
+       column as search-bar (column 2) rather than left to auto-flow into
+       column 1, which is what would put it under the icon instead of
+       under the field. */
+    .search-form {
+        grid-template-columns: auto 1fr;
+    }
     .search-actions {
-        flex-basis: 100%;
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: start;
     }
 
     tr.result-row {
