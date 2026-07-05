@@ -742,7 +742,21 @@ function updateBellState(bell, enabled, notifications, series) {
     } else if (notifications.length > 0) {
         bell.className = 'fav-bell-btn bell-glow';
         bell.title = '';
-        bell.onclick = null;
+        // Hover-to-open (below) covers desktop mouse users, but touch
+        // devices have no hover at all — without a click handler here,
+        // tapping this bell had nowhere to go except bubbling up to the
+        // row's own click handler (search), which is the bug this fixes.
+        // Click toggles open/closed rather than just opening, mirroring
+        // the same hover-alongside-click-toggle pattern already used for
+        // the search-info tooltip elsewhere in this file.
+        bell.onclick = function(e) {
+            e.stopPropagation();
+            if (_openNotifPanel) {
+                closeNotifPanel();
+            } else {
+                buildNotifPanel(bell, series, notifications);
+            }
+        };
         var hoverTimer = null;
         bell.addEventListener('mouseenter', function() {
             clearTimeout(_panelLeaveTimer);
