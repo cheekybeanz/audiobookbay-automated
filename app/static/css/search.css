@@ -20,9 +20,24 @@ form {
 .search-form {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     width: 100%;
     max-width: 620px;
+}
+
+/* Search and Clear (when present) are grouped so they always move as a
+   pair. flex-basis:100% under the mobile breakpoint below forces this
+   group onto its own row deterministically on every phone-sized screen —
+   relying on flex-wrap alone (without that) produces an ambiguous "just
+   barely fits" width band (around 412px, a common Android width) where
+   the row doesn't wrap but search-bar still gets squeezed to its bare
+   min-width, which is worse than either clearly wrapping or clearly not. */
+.search-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .search-info-wrap {
@@ -70,7 +85,7 @@ form {
     font-family: inherit;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
-    min-width: 0;
+    min-width: 160px;
 }
 
 .search-bar:focus {
@@ -668,6 +683,14 @@ td.action-cell {
 
 /* ── Mobile ──────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
+    /* Forces Search+Clear onto their own row on every phone-sized screen,
+       rather than leaving it to flex-wrap's organic "does it fit" check —
+       see the comment on .search-actions above for why that alone isn't
+       reliable enough here. */
+    .search-actions {
+        flex-basis: 100%;
+    }
+
     tr.result-row {
         flex-wrap: wrap;
     }
@@ -749,26 +772,6 @@ td.action-cell {
     .modal-series-row input[type="text"] {
         width: 100%;
     }
-}
-
-/* ── Cancel search button ────────────────────────────────────────── */
-.cancel-button {
-    padding: 11px 18px;
-    background-color: rgba(239, 83, 80, 0.15);
-    border: 1px solid rgba(239, 83, 80, 0.4);
-    border-radius: 8px;
-    color: #ef5350;
-    font-size: 0.9rem;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-    white-space: nowrap;
-    flex-shrink: 0;
-    width: auto;
-    margin-bottom: 0;
-    display: inline-flex;
-    align-items: center;
 }
 
 /* ── Clear search button (next to Search) ────────────────────────── */
@@ -1487,12 +1490,6 @@ td.action-cell {
         background-color: var(--accent-subtle);
         border-color: var(--accent);
         color: var(--text-primary);
-    }
-
-    .cancel-button:hover {
-        background-color: rgba(239, 83, 80, 0.25);
-        border-color: #ef5350;
-        color: #ff6b6b;
     }
 
     .clear-button:hover {
