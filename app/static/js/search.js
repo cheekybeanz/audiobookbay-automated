@@ -440,18 +440,8 @@ function performSearch(query) {
     });
 }
 
-function cancelSearch() {
-    if (_searchController) {
-        _searchController.abort();
-        _searchController = null;
-    }
-    setSearchingState(false);
-    // Leave page as-is (results or blank)
-}
-
 function setSearchingState(searching) {
     var searchBtn  = document.getElementById('search-btn');
-    var cancelBtn  = document.getElementById('cancel-search-btn');
     var clearBtn   = document.getElementById('clear-search-btn');
     var spinner    = document.getElementById('button-spinner');
     var btnText    = searchBtn ? searchBtn.querySelector('.button-text') : null;
@@ -460,13 +450,11 @@ function setSearchingState(searching) {
         if (searchBtn)  searchBtn.disabled = true;
         if (btnText)    btnText.style.display = 'none';
         if (spinner)    spinner.style.display = 'inline-block';
-        if (cancelBtn)  cancelBtn.style.display = 'inline-flex';
         if (clearBtn)   clearBtn.style.display = 'none';
     } else {
         if (searchBtn)  searchBtn.disabled = false;
         if (btnText)    btnText.style.display = '';
         if (spinner)    spinner.style.display = 'none';
-        if (cancelBtn)  cancelBtn.style.display = 'none';
         // Show clear only if results exist
         var tbody = document.getElementById('results-table-body');
         var hasResults = tbody && tbody.innerHTML.trim().length > 0;
@@ -937,12 +925,6 @@ function buildNotifPanel(bell, series, notifications) {
     // header + every row + footer — with nothing hidden or clipped yet.
     var naturalHeight = panel.scrollHeight;
 
-    // header/footer's own real rendered size, measured directly rather than
-    // relying on flex-grow/grid-fr to work it out — those only distribute
-    // "leftover space" correctly when the panel has a definite height, and
-    // here the panel only ever has a max-height cap, never a real height.
-    var chromeHeight = header.offsetHeight + clearBtn.offsetHeight;
-
     if (naturalHeight <= Math.min(cssMaxHeight, bestSingleSide)) {
         // Fits comfortably anchored to one edge of the bell — no reason to
         // claim more room than that, keeps it feeling anchored to what was
@@ -971,9 +953,23 @@ function buildNotifPanel(bell, series, notifications) {
 
         // Give scrollArea an explicit pixel height for the room left after
         // header/footer, so it (and only it) scrolls while they stay put.
-        // A small floor keeps this sane on very short mobile viewports
-        // where chromeHeight could otherwise exceed maxPanelHeight.
-        scrollArea.style.height = Math.max(60, maxPanelHeight - chromeHeight) + 'px';
+        // Measured from actual rendered positions (getBoundingClientRect /
+        // getComputedStyle) rather than adding up offsetHeights by hand —
+        // offsetHeight excludes margins entirely, which previously left
+        // header's margin-bottom and clearBtn's margin-top unaccounted
+        // for. That ~20px gap was enough to push clearBtn's real position
+        // past the panel's own bottom edge, where overflow:hidden clipped
+        // it — the Clear All button disappearing entirely on some
+        // phone/list-length combinations, not just looking cramped.
+        var panelStyle       = getComputedStyle(panel);
+        var panelInnerBottom = panel.getBoundingClientRect().bottom
+            - parseFloat(panelStyle.paddingBottom)
+            - parseFloat(panelStyle.borderBottomWidth);
+        var clearBtnStyle       = getComputedStyle(clearBtn);
+        var clearBtnSpaceNeeded = clearBtn.offsetHeight + parseFloat(clearBtnStyle.marginTop);
+        var scrollAreaTop       = scrollWrap.getBoundingClientRect().top;
+
+        scrollArea.style.height = Math.max(60, panelInnerBottom - clearBtnSpaceNeeded - scrollAreaTop) + 'px';
     }
     panel.style.left = Math.max(8, rect.left + window.scrollX - 10) + 'px';
 
@@ -1724,11 +1720,10 @@ function confirmDelete(name) {
 }
 
 function searchFavorite(name) {
-    // Collapse favorites body (panel stays visible) and run AJAX search
-    var body  = document.getElementById('favorites-body');
-    var arrow = document.getElementById('favorites-header-arrow');
-    if (body)  body.style.display = 'none';
-    if (arrow) arrow.style.transform = '';
+    // performSearch() itself closes the favorites panel once results
+    // actually land (see hideFavoritesPanel in performSearch) — matching
+    // that same timing here instead of closing immediately, so there's
+    // never a moment where nothing useful is on screen while waiting.
     performSearch(name);
 }
 
